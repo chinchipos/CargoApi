@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
 from src import config
-
+from src.config import PRODUCTION
 
 URI = "postgresql+psycopg://{}:{}@{}:{}/{}".format(
     config.DB_USER,
@@ -15,7 +15,7 @@ engine = create_async_engine(
     connect_args = {'sslmode': "verify-full", 'target_session_attrs': 'read-write'},
     pool_size = 10,
     max_overflow = 5,
-    echo = True
+    echo = True if not PRODUCTION else False
 )
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
