@@ -11,11 +11,14 @@ from src.routing.db import router as db_sync_routing, db_tag_metadata
 from src.routing.user import router as user_routing, user_tag_metadata
 from src.schemas.user import UserReadSchema, UserCreateSchema
 from src.utils.exceptions import BadRequestException, ForbiddenException
+from src.utils.log import ColoredLogger
 
+
+logger = ColoredLogger()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print('APP START')
+    logger.info('APP START')
     yield
     print('APP SHUTDOWN')
     await engine.dispose()

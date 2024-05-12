@@ -39,10 +39,14 @@ class DBRepository(BaseRepository):
             raise DBException()
 
     async def get_cargo_superadmin_role(self) -> models.Role:
-        stmt = sa_select(models.Role).where(models.Role.name == enums.Role.CARGO_SUPER_ADMIN.name).limit(1)
-        dataset = await self.session.scalars(stmt)
-        role = dataset.first()
-        return role
+        try:
+            stmt = sa_select(models.Role).where(models.Role.name == enums.Role.CARGO_SUPER_ADMIN.name).limit(1)
+            dataset = await self.session.scalars(stmt)
+            role = dataset.first()
+            return role
+
+        except Exception as e:
+            raise DBException()
 
     async def sync(self, data: DBSyncSchema) -> bool:
         return True

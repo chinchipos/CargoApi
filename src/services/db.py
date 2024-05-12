@@ -13,6 +13,7 @@ class DBService:
 
     def __init__(self, repository: DBRepository) -> None:
         self.repository = repository
+        self.logger = repository.logger
 
     async def init(self, data: DBInitSchema) -> None:
         # Проверка инициализационного токена
@@ -51,21 +52,21 @@ class DBService:
             raise BadRequestException('Некорректный токен')
 
         # Очищаем таблицы БД
-        print('Очищаю таблицы БД:')
+        self.logger.info('Начинаю удаление данных из таблиц БД')
 
-        print('   Удаляю транзакции')
+        self.logger.info('Удаляю транзакции')
         await self.repository.delete_all(Transaction)
-        print('         -> выполнено')
+        self.logger.info('      -> выполнено')
 
-        print('   Удаляю товары/услуги')
+        self.logger.info('Удаляю товары/услуги')
         await self.repository.delete_all(OuterGoods)
         await self.repository.delete_all(InnerGoods)
-        print('         -> выполнено')
+        self.logger.info('      -> выполнено')
 
-        print('   Удаляю топливные карты')
+        self.logger.info('Удаляю топливные карты')
         await self.repository.delete_all(CardSystem)
         await self.repository.delete_all(Card)
-        print('         -> выполнено')
+        self.logger.info('      -> выполнено')
 
     async def regular_sync(self, data: DBRegularSyncSchema) -> None:
         # Проверка инициализационного токена

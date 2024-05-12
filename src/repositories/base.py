@@ -5,12 +5,15 @@ from src.database import models
 from src.database.db import SessionLocal
 import asyncio
 
+from src.main import logger
+
 
 class BaseRepository:
 
     def __init__(self, session: SessionLocal, user_id: str | None = None):
         self.session = session
         self.user = None
+        self.logger = logger
         if user_id:
             asyncio.run(self.load_user_profile(user_id))
 
