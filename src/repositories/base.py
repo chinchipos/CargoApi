@@ -5,7 +5,7 @@ from src.database import models
 from src.database.db import SessionLocal
 import asyncio
 
-from src.main import logger
+from src.utils.log import logger
 
 
 class BaseRepository:

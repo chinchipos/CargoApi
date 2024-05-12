@@ -1,6 +1,7 @@
-import os
 import logging
+import os
 from logging.handlers import RotatingFileHandler
+
 from termcolor import colored
 
 
@@ -31,3 +32,6 @@ class ColoredLogger:
 
     def error(self, message: str) -> None:
         self.logger.error(colored(message, 'light_red'))
+
+
+logger = ColoredLogger()
