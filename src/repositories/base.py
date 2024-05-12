@@ -1,4 +1,4 @@
-from sqlalchemy import select as sa_select
+import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 
 from src.database import models
@@ -16,7 +16,7 @@ class BaseRepository:
 
     async def load_user_profile(self, user_id: str) -> None:
         stmt = (
-            sa_select(models.User)
+            sa.select(models.User)
             .options(
                 joinedload(models.User.role).joinedload(models.Role.role_permition).joinedload(
                     models.RolePermition.permition)
@@ -26,3 +26,9 @@ class BaseRepository:
         )
         dataset = await self.session.scalars(stmt)
         self.user = dataset.first()
+
+    async def delete_all(self, _model_) -> None:
+        stmt = sa.delete(_model_)
+        async with self.session.begin():
+            await self.session.execute(stmt)
+            await self.session.commit()

@@ -1,5 +1,6 @@
 from src.auth.manager import create_user
 from src.config import SERVICE_TOKEN
+from src.database.models import Transaction, OuterGoods, InnerGoods, CardSystem, Card
 from src.repositories.db import DBRepository
 from src.schemas.db import DBInitSchema, DBInitialSyncSchema, DBRegularSyncSchema
 from src.schemas.user import UserCreateSchema
@@ -49,7 +50,22 @@ class DBService:
         if data.service_token != SERVICE_TOKEN:
             raise BadRequestException('Некорректный токен')
 
-        print(data.tariffs)
+        # Очищаем таблицы БД
+        print('Очищаю таблицы БД:')
+
+        print('   Удаляю транзакции')
+        await self.repository.delete_all(Transaction)
+        print('         -> выполнено')
+
+        print('   Удаляю товары/услуги')
+        await self.repository.delete_all(OuterGoods)
+        await self.repository.delete_all(InnerGoods)
+        print('         -> выполнено')
+
+        print('   Удаляю топливные карты')
+        await self.repository.delete_all(CardSystem)
+        await self.repository.delete_all(Card)
+        print('         -> выполнено')
 
     async def regular_sync(self, data: DBRegularSyncSchema) -> None:
         # Проверка инициализационного токена
