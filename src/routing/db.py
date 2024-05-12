@@ -2,7 +2,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends
 
-from src.depends import get_service_db, get_service_db_init
+from src.depends import get_service_db
 from src.schemas.common import SuccessSchema
 from src.schemas.db import DBInitSchema, DBInitialSyncSchema, DBRegularSyncSchema
 from src.services.db import DBService
@@ -38,7 +38,7 @@ db_tag_metadata = {
 )
 async def init(
     data: DBInitSchema,
-    db_service: DBService = Depends(get_service_db_init)
+    db_service: DBService = Depends(get_service_db)
 ) -> dict[str, Any]:
     await db_service.init(data)
     return {'success': True}

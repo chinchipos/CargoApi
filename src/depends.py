@@ -39,19 +39,10 @@ def get_service_book(
     return book_service
 
 
-def get_service_db_init(
+def get_service_db(
     session: SessionLocal = Depends(get_session)
 ) -> DBService:
     repository = DBRepository(session, None)
-    service = DBService(repository)
-    return service
-
-
-def get_service_db(
-    session: SessionLocal = Depends(get_session),
-    user: User = Depends(current_active_user)
-) -> DBService:
-    repository = DBRepository(session, user.id)
     service = DBService(repository)
     return service
 
