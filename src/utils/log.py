@@ -13,16 +13,18 @@ class ColoredLogger:
         if not os.path.exists(logfile_dir):
             os.makedirs(logfile_dir)
 
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(asctime)s %(levelname)s %(message)s",
-            datefmt='%Y-%m-%d %H:%M:%S',
-            handlers=[
-                RotatingFileHandler(filename=logfile_path, maxBytes=1048576, backupCount=3),
-                logging.StreamHandler()
-            ]
-        )
         self.logger = logging.getLogger('CARGONOMICA-API')
+        self.logger.setLevel(logging.INFO)
+
+        formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s", '%Y-%m-%d %H:%M:%S')
+
+        handler = logging.StreamHandler()
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
+
+        handler = RotatingFileHandler(filename=logfile_path, maxBytes=1048576, backupCount=3)
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
 
     def info(self, message: str) -> None:
         self.logger.info(message)
