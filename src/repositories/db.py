@@ -73,7 +73,7 @@ class DBRepository(BaseRepository):
             sa_select(Tariff.master_db_id, Tariff.id).where(Tariff.master_db_id != None),
             scalars=False
         )
-        rate_ids_related_to_tariff_ids = {item[0]: item[1] for item in tariff_ids['data']}
+        rate_ids_related_to_tariff_ids = {item[0]: item[1] for item in tariff_ids}
 
         dataset = [
             dict(
@@ -98,7 +98,7 @@ class DBRepository(BaseRepository):
             sa_select(Company.master_db_id, Company.id).where(Company.master_db_id != None),
             scalars=False
         )
-        company_ids = {item[0]: item[1] for item in company_ids['data']}
+        company_ids = {item[0]: item[1] for item in company_ids}
 
         dataset = [
             dict(
@@ -122,7 +122,7 @@ class DBRepository(BaseRepository):
             scalars=False
         )
         card_numbers_related_to_card_type_ids = {
-            item[0]: item[1] for item in card_numbers_related_to_card_type_ids['data']
+            item[0]: item[1] for item in card_numbers_related_to_card_type_ids
         }
 
         # Организация. Сопоставление id записи на боевом сервере с id на новом сервере.
@@ -130,7 +130,7 @@ class DBRepository(BaseRepository):
             sa_select(Company.master_db_id, Company.id).where(Company.master_db_id != None),
             scalars=False
         )
-        company_ids = {item[0]: item[1] for item in company_ids['data']}
+        company_ids = {item[0]: item[1] for item in company_ids}
         company_ids[0] = None
 
         # Автомобиль. Сопоставление id записи на боевом сервере с id на новом сервере.
@@ -138,7 +138,7 @@ class DBRepository(BaseRepository):
             sa_select(Car.master_db_id, Car.id).where(Car.master_db_id != None),
             scalars=False
         )
-        car_ids = {item[0]: item[1] for item in car_ids['data']}
+        car_ids = {item[0]: item[1] for item in car_ids}
 
         dataset = [
             dict(
@@ -158,14 +158,14 @@ class DBRepository(BaseRepository):
             sa_select(Card.card_number, Card.id),
             scalars=False
         )
-        card_numbers_related_to_card_ids = {item[0]: item[1] for item in card_numbers_related_to_card_ids['data']}
+        card_numbers_related_to_card_ids = {item[0]: item[1] for item in card_numbers_related_to_card_ids}
 
         # Система. Сопоставление id записи на боевом сервере с id на новом сервере.
         system_ids = await self.select_all(
             sa_select(System.master_db_id, System.id).where(System.master_db_id != None),
             scalars=False
         )
-        system_ids = {item[0]: item[1] for item in system_ids['data']}
+        system_ids = {item[0]: item[1] for item in system_ids}
 
         dataset = [
             dict(
@@ -199,14 +199,14 @@ class DBRepository(BaseRepository):
             sa_select(System.master_db_id, System.id).where(System.master_db_id != None),
             scalars=False
         )
-        system_ids = {item[0]: item[1] for item in system_ids['data']}
+        system_ids = {item[0]: item[1] for item in system_ids}
 
         # Наименования товаров в привязке к id
         inner_goods_ids = await self.select_all(
             sa_select(InnerGoods.name, InnerGoods.id),
             scalars=False
         )
-        inner_goods_ids = {item[0]: item[1] for item in inner_goods_ids['data']}
+        inner_goods_ids = {item[0]: item[1] for item in inner_goods_ids}
 
         dataset = [
             dict(
@@ -243,28 +243,28 @@ class DBRepository(BaseRepository):
             sa_select(System.master_db_id, System.id).where(System.master_db_id != None),
             scalars=False
         )
-        system_ids = {item[0]: item[1] for item in system_ids['data']}
+        system_ids = {item[0]: item[1] for item in system_ids}
 
         # Номера карт в привязке к id
         card_numbers_related_to_card_ids = await self.select_all(
             sa_select(Card.card_number, Card.id),
             scalars=False
         )
-        card_numbers_related_to_card_ids = {item[0]: item[1] for item in card_numbers_related_to_card_ids['data']}
+        card_numbers_related_to_card_ids = {item[0]: item[1] for item in card_numbers_related_to_card_ids}
 
         # Организация. Сопоставление id записи на боевом сервере с id на новом сервере.
         company_ids = await self.select_all(
             sa_select(Company.master_db_id, Company.id).where(Company.master_db_id != None),
             scalars=False
         )
-        company_ids = {item[0]: item[1] for item in company_ids['data']}
+        company_ids = {item[0]: item[1] for item in company_ids}
 
         # Коды товаров/услуг в привязке к id
         goods = await self.select_all(
             sa_select(InnerGoods.name, OuterGoods.id).where(OuterGoods.inner_goods_id == InnerGoods.id),
             scalars=False
         )
-        goods_ids = {item[0]: item[1] for item in goods['data']}
+        goods_ids = {item[0]: item[1] for item in goods}
 
         dataset = [
             dict(
