@@ -957,18 +957,21 @@ class System(Base):
     # Дата последнего успешного сеанса загрузки транзакций
     transactions_sync_dt: Mapped[datetime] = mapped_column(
         sa.DateTime,
+        nullable=True,
         init=False
     )
 
     # Дата последнего успешного сеанса загрузки карт
     cards_sync_dt: Mapped[datetime] = mapped_column(
         sa.DateTime,
+        nullable=True,
         init=False
     )
 
     # Дата последнего успешного сеанса загрузки баланса
     balance_sync_dt: Mapped[datetime] = mapped_column(
         sa.DateTime,
+        nullable=True,
         init=False
     )
 
