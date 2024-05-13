@@ -10,7 +10,7 @@ from src.routing.book import router as book_routing
 from src.routing.db import router as db_sync_routing, db_tag_metadata
 from src.routing.user import router as user_routing, user_tag_metadata
 from src.schemas.user import UserReadSchema, UserCreateSchema
-from src.utils.exceptions import BadRequestException, ForbiddenException
+from src.utils.exceptions import BadRequestException, ForbiddenException, DBException
 from src.utils.log import logger
 
 
@@ -59,5 +59,13 @@ async def bad_request_exception_handler(request: Request, exc: BadRequestExcepti
 async def forbidden_exception_handler(request: Request, exc: ForbiddenException):
     return JSONResponse(
         status_code = 403,
+        content = {"message": exc.message},
+    )
+
+
+@app.exception_handler(DBException)
+async def bad_request_exception_handler(request: Request, exc: BadRequestException):
+    return JSONResponse(
+        status_code = 400,
         content = {"message": exc.message},
     )

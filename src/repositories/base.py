@@ -11,6 +11,8 @@ import asyncio
 from src.utils.exceptions import DBException
 from src.utils.log import logger
 
+import traceback
+
 
 class BaseRepository:
 
@@ -36,6 +38,7 @@ class BaseRepository:
             self.user = dataset.first()
 
         except Exception:
+            self.logger.error(traceback.format_exc())
             raise DBException()
 
     async def select_helper(self, stmt, scalars=True) -> Any:
@@ -53,6 +56,7 @@ class BaseRepository:
             return result
 
         except Exception:
+            self.logger.error(traceback.format_exc())
             raise DBException()
 
     async def select_all(self, stmt, scalars=True) -> Any:
@@ -76,6 +80,7 @@ class BaseRepository:
                 await self.session.commit()
 
         except Exception:
+            self.logger.error(traceback.format_exc())
             raise DBException()
 
     async def insert_or_update(self, _model_, index_field, **set_fields) -> Any:
@@ -93,6 +98,7 @@ class BaseRepository:
                 return result.first()
 
         except Exception:
+            self.logger.error(traceback.format_exc())
             raise DBException()
 
     async def bulk_insert_or_update(self, dataset: list[Dict[str, Any]], _model_, index_field: str = None) -> None:
@@ -111,6 +117,7 @@ class BaseRepository:
                     await self.session.commit()
 
             except Exception:
+                self.logger.error(traceback.format_exc())
                 raise DBException()
 
     async def bulk_update(self, _model_, dataset: list[Dict[str, Any]]):
@@ -122,4 +129,5 @@ class BaseRepository:
                     await self.session.commit()
 
             except Exception:
+                self.logger.error(traceback.format_exc())
                 raise DBException()
