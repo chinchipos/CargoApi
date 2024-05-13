@@ -131,10 +131,13 @@ class DBService:
         self.logger.info('Пересчитываю балансы')
         await self.calculate_balances()
 
-    async def regular_sync(self, data: DBRegularSyncSchema) -> None:
+    async def regular_sync(self, data: DBRegularSyncSchema) -> str:
         # Проверка инициализационного токена
         if data.service_token != SERVICE_TOKEN:
             raise BadRequestException('Некорректный токен')
 
         self.logger.info('Импортирую организации')
-        await self.repository.sync_companies(data.companies)
+        companies_amount = await self.repository.sync_companies(data.companies)
+
+        message = f'Импортировано новых организаций: {companies_amount} шт'
+        return message

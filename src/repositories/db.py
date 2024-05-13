@@ -92,7 +92,7 @@ class DBRepository(BaseRepository):
         ]
         await self.bulk_insert_or_update(dataset, Company, 'inn')
 
-    async def sync_companies(self, companies: list[Dict[str, Any]]) -> None:
+    async def sync_companies(self, companies: list[Dict[str, Any]]) -> int:
         # Получаем список идентификаторов, указывающих на организации из БД основной площадки
         stmt = sa_select(Company.master_db_id)
         dataset = await self.select_all(stmt, scalars=False)
@@ -112,8 +112,10 @@ class DBRepository(BaseRepository):
                 min_balance_on_period=company['min_balance_period'],
             ) for company in companies if company['id'] not in excluded_master_db_ids
         ]
-        print('dataset:', dataset)
-        # await self.bulk_insert_or_update(dataset, Company, 'inn')
+        if dataset:
+            await self.bulk_insert_or_update(dataset, Company, 'inn')
+
+        return len(dataset)
 
     async def import_cars(self, cars: list[Dict[str, Any]]) -> None:
         # Организация. Сопоставление id записи на боевом сервере с id на новом сервере.

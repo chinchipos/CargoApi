@@ -5,14 +5,14 @@ from fastapi import APIRouter, Depends
 from src.depends import get_service_book
 from src.schemas.book import BookViewSchema, BookCreateSchema
 from src.services.book import BookService
-from src.utils.schemas import Message
+from src.utils.schemas import MessageSchema
 
 router = APIRouter(prefix="/book", tags=["book"])
 
 
 @router.get(
     "",
-    responses = {400: {'model': Message, "description": "Bad request"}},
+    responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = List[BookViewSchema],
     description = "Получение листинга всех книг",
 )
@@ -25,7 +25,7 @@ async def get_all_books(
 
 @router.post(
     "",
-    responses = {400: {'model': Message, "description": "Bad request"}},
+    responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = BookViewSchema,
     description = "Создание книги",
 )

@@ -4,7 +4,7 @@ from src.database import models
 from src.depends import get_service_user
 from src.schemas.user import UserReadSchema
 from src.services.user import UserService
-from src.utils.schemas import Message
+from src.utils.schemas import MessageSchema
 
 
 router = APIRouter(prefix="/user/me", tags=["user"])
@@ -15,7 +15,7 @@ user_tag_metadata = {
 
 @router.get(
     "",
-    responses = {400: {'model': Message, "description": "Bad request"}},
+    responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = UserReadSchema,
     description = (
         """
