@@ -837,6 +837,7 @@ class Card(Base):
     # Автомобиль, с которым ассоциирована карта
     belongs_to_car_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.car.id"),
+        nullable=True,
         init=False
     )
 
@@ -849,6 +850,7 @@ class Card(Base):
     # Водитель, с которым ассоциирована карта
     belongs_to_driver_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.user.id"),
+        nullable=True,
         init=False
     )
 
@@ -861,6 +863,7 @@ class Card(Base):
     # Дата последнего использования
     date_last_use: Mapped[date] = mapped_column(
         sa.Date,
+        nullable=True,
         init=False
     )
 
