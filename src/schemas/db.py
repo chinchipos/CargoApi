@@ -31,3 +31,4 @@ class DBInitialSyncSchema(BaseModel):
 
 class DBRegularSyncSchema(BaseModel):
     service_token: str
+    companies: list[Dict[str, Any]]
