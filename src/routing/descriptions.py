@@ -154,7 +154,6 @@ db_regular_sync_descr = (
             &emsp;&emsp;"id":&emsp;<идентификатор записи>,<br>
             &emsp;&emsp;"name":&emsp;<наименование>,<br>
             &emsp;&emsp;"date_add":&emsp;<дата создания записи>,<br>
-            &emsp;&emsp;"rate_id":&emsp;<идентификатор тарифа>,<br>
             &emsp;&emsp;"inn":&emsp;<ИНН>,<br>
             &emsp;&emsp;"amount":&emsp;<текущий баланс, руб>,<br>
             &emsp;&emsp;"min_balance":&emsp;<постоянный овердрафт, руб>,<br>
