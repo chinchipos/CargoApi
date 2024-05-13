@@ -1175,7 +1175,8 @@ class Transaction(Base):
 
     # Система
     system_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.system.id")
+        sa.ForeignKey("cargonomica.system.id"),
+        nullable=True,
     )
 
     # Система
@@ -1186,7 +1187,8 @@ class Transaction(Base):
 
     # Карта
     card_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.card.id")
+        sa.ForeignKey("cargonomica.card.id"),
+        nullable=True,
     )
 
     # Карта
@@ -1224,7 +1226,8 @@ class Transaction(Base):
 
     # Товар/услуга
     outer_goods_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.outer_goods.id")
+        sa.ForeignKey("cargonomica.outer_goods.id"),
+        nullable=True,
     )
 
     # Товар/услуга
@@ -1267,7 +1270,8 @@ class Transaction(Base):
 
     # Тариф
     tariff_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.tariff.id")
+        sa.ForeignKey("cargonomica.tariff.id"),
+        nullable=True,
     )
 
     # Тариф
