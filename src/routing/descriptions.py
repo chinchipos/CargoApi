@@ -50,6 +50,7 @@ db_initial_sync_descr = (
         &emsp;{<br>
             &emsp;&emsp;"id":&emsp;<идентификатор записи>,<br>
             &emsp;&emsp;"title":&emsp;<наименование>,<br>
+            &emsp;&emsp;"service_online":&emsp;<комиссия за обслуживание, %>,<br>
         &emsp;},<br>
         &emsp;...<br>
     ]<br>
