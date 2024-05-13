@@ -7,7 +7,7 @@ from src.auth.auth import auth_backend, fastapi_users
 from src.database.db import engine
 from src.routing.author import router as author_routing
 from src.routing.book import router as book_routing
-from src.routing.db import router as db_sync_routing, db_tag_metadata
+from src.routing.db import router as db_routing, db_tag_metadata
 from src.routing.user import router as user_routing, user_tag_metadata
 from src.schemas.user import UserReadSchema, UserCreateSchema
 from src.utils.exceptions import BadRequestException, ForbiddenException, DBException
@@ -33,7 +33,7 @@ tags_metadata = [
 app = FastAPI(lifespan=lifespan, openapi_tags=tags_metadata)
 app.include_router(author_routing)
 app.include_router(book_routing)
-app.include_router(db_sync_routing)
+app.include_router(db_routing)
 app.include_router(user_routing)
 app.include_router(
     fastapi_users.get_auth_router(auth_backend),

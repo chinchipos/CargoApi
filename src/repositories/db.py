@@ -96,14 +96,13 @@ class DBRepository(BaseRepository):
         # Получаем список идентификаторов, указывающих на организации из БД основной площадки
         stmt = sa_select(Company.master_db_id)
         dataset = await self.select_all(stmt, scalars=False)
-        print(dataset)
-        '''
+        excluded_master_db_ids = [row[0] for row in dataset]
         dataset = [
             dict(
                 master_db_id=company['id'],
                 name=company['name'],
                 date_add=company['date_add'],
-                tariff_id=rate_ids_related_to_tariff_ids[company['rate_id']],
+                tariff_id=None,
                 personal_account=('000000' + str(random.randint(1, 9999999)))[-7:],
                 inn=company['inn'],
                 current_balance=company['amount'],
@@ -111,10 +110,10 @@ class DBRepository(BaseRepository):
                 min_balance_period_end_date=None if company['min_balance_date_to'] == '0000-00-00 00:00:00' else
                 company['min_balance_date_to'],
                 min_balance_on_period=company['min_balance_period'],
-            ) for company in companies
+            ) for company in companies if company['id'] not in excluded_master_db_ids
         ]
-        await self.bulk_insert_or_update(dataset, Company, 'inn')
-        '''
+        print('dataset:', dataset)
+        # await self.bulk_insert_or_update(dataset, Company, 'inn')
 
     async def import_cars(self, cars: list[Dict[str, Any]]) -> None:
         # Организация. Сопоставление id записи на боевом сервере с id на новом сервере.
