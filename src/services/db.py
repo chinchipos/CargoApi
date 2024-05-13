@@ -135,3 +135,6 @@ class DBService:
         # Проверка инициализационного токена
         if data.service_token != SERVICE_TOKEN:
             raise BadRequestException('Некорректный токен')
+
+        self.logger.info('Импортирую организации')
+        await self.repository.import_companies(data.companies)

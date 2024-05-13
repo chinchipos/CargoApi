@@ -3,6 +3,7 @@ from typing import Any
 from fastapi import APIRouter, Depends
 
 from src.depends import get_service_db
+from src.routing.descriptions import db_initial_sync_descr, db_regular_sync_descr, db_init_descr
 from src.schemas.common import SuccessSchema
 from src.schemas.db import DBInitSchema, DBInitialSyncSchema, DBRegularSyncSchema
 from src.services.db import DBService
@@ -20,21 +21,7 @@ db_tag_metadata = {
     tags=["db"],
     responses = {400: {'model': Message, "description": "Bad request"}},
     response_model = SuccessSchema,
-    description = (
-        """
-        **Инициализация БД.**<br>
-        <br>
-        1. Создание справочника ролей.<br>
-        2. Создание первого суперадмина.<br>
-        3. Создание справочника типов карт.<br>
-        <br>
-        **Входные параметры (передаются в теле запроса):**<br>
-        <br>
-        **service_token** - сервисный токен, указанный в главном конфигурационном 
-        файле (**.env**).<br>
-        **superuser_password** - пароль для первого суперадмина (логин - **cargo**).
-        """
-    )
+    description = db_init_descr
 )
 async def init(
     data: DBInitSchema,
@@ -49,24 +36,7 @@ async def init(
     tags=["db"],
     responses = {400: {'model': Message, "description": "Bad request"}},
     response_model = SuccessSchema,
-    description = (
-        """
-        Коннектор для первичной синхронизации локальной БД с БД основной площадки. Прогружаются следующие данные.<br>
-        <br>
-        1. Системы.<br>
-        2. Тарифы.<br>
-        3. Организации.<br>
-        4. Автомобили.<br>
-        5. Топливные карты.<br>
-        6. Товары / услуги.<br>
-        7. Транзакции.<br>
-        <br>
-        **Входные параметры (передаются в теле запроса):**<br>
-        <br>
-        **service_token** - сервисный токен, указанный в главном конфигурационном 
-        файле (**.env**).
-        """
-    )
+    description = db_initial_sync_descr
 )
 async def initial_sync(
     data: DBInitialSyncSchema,
@@ -81,18 +51,7 @@ async def initial_sync(
     tags=["db"],
     responses = {400: {'model': Message, "description": "Bad request"}},
     response_model = SuccessSchema,
-    description = (
-        """
-        Коннектор для регулярной синхронизации локальной БД с БД основной площадки. Прогружаются следующие данные:<br>
-        <br>
-        1. Организации.<br>
-        <br>
-        **Входные параметры (передаются в теле запроса):**<br>
-        <br>
-        **service_token** - сервисный токен, указанный в главном конфигурационном 
-        файле (**.env**).
-        """
-    )
+    description = db_regular_sync_descr
 )
 async def regular_sync(
     data: DBRegularSyncSchema,
