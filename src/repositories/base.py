@@ -124,9 +124,9 @@ class BaseRepository:
         if dataset:
             try:
                 stmt = sa.update(_model_)
-                async with self.session.begin():
-                    await self.session.execute(stmt, dataset)
-                    await self.session.commit()
+                # async with self.session.begin():
+                await self.session.execute(stmt, dataset)
+                await self.session.commit()
 
             except Exception:
                 self.logger.error(traceback.format_exc())
