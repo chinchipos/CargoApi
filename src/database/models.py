@@ -245,12 +245,14 @@ class Company(Base):
     # Дата прекращения действия мин. баланса на период
     min_balance_period_end_date: Mapped[date] = mapped_column(
         sa.Date,
+        nullable=True,
         init=False
     )
 
     # Тариф
     tariff_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.tariff.id"),
+        nullable=True,
         init=False
     )
 

@@ -10,4 +10,4 @@ class ForbiddenException(Exception):
 
 class DBException(Exception):
     def __init__(self):
-        self.message = 'Ошибка при выполнении запроса к БД'
+        self.message = 'Ошибка при выполнении запроса к БД API'
