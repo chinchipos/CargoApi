@@ -137,4 +137,4 @@ class DBService:
             raise BadRequestException('Некорректный токен')
 
         self.logger.info('Импортирую организации')
-        await self.repository.import_companies(data.companies)
+        await self.repository.sync_companies(data.companies)
