@@ -111,10 +111,7 @@ class DBRepository(BaseRepository):
 
     async def import_cards(self, cards: list[Dict[str, Any]]) -> None:
         # Тип карты по умолчанию для вновь импортируемых карт
-        res = await self.insert_or_update(CardType, 'name', name="Пластиковая карта")
-        if not res['success']:
-            return res
-        default_card_type_id = res['instance'].id
+        plastic_card_type = await self.insert_or_update(CardType, 'name', name="Пластиковая карта")
 
         # Номера карт в привязке к типам (для существующих карт)
         card_numbers_related_to_card_type_ids = await self.select_all(
@@ -142,7 +139,7 @@ class DBRepository(BaseRepository):
 
         dataset = [
             dict(
-                card_type_id=card_numbers_related_to_card_type_ids.get(card['card_num'], default_card_type_id),
+                card_type_id=card_numbers_related_to_card_type_ids.get(card['card_num'], plastic_card_type.id),
                 card_number=card['card_num'],
                 company_id=company_ids[card['company_id']],
                 belongs_to_car_id=car_ids[card['car_id']] if card['car_id'] else None,
