@@ -1,15 +1,9 @@
 import sqlalchemy as sa
-from sqlalchemy import MetaData
-from sqlalchemy.orm import (
-    MappedAsDataclass,
-    DeclarativeBase,
-    Mapped,
-    mapped_column,
-    relationship
-)
+from sqlalchemy import MetaData, inspect
+from sqlalchemy.orm import MappedAsDataclass, DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.ext.asyncio import AsyncAttrs
 from datetime import date, datetime
-from typing import List
+from typing import List, Dict, Any
 
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID
 
@@ -18,6 +12,19 @@ from src.utils import enums
 
 class Base(AsyncAttrs, MappedAsDataclass, DeclarativeBase):
     metadata = MetaData(schema="cargonomica")
+
+    def update_without_saving(self, data: Dict[str, Any]) -> None:
+        for field, value in data.items():
+            setattr(self, field, value)
+
+    def dumps(self) -> Dict[str, Any]:
+        dump = {column.key: getattr(self, column.key) for column in inspect(self).mapper.column_attrs}
+        return dump
+
+    def annotate(self, data: Dict[str, Any]) -> Any:
+        for field, value in data.items():
+            setattr(self, field, value)
+        return self
 
 
 class Author(Base):
@@ -906,6 +913,7 @@ class System(Base):
     # Идентификатор в боевой БД (для синхронизации)
     master_db_id: Mapped[int] = mapped_column(
         sa.Integer(),
+        nullable=True,
         init=False
     )
 
@@ -926,22 +934,19 @@ class System(Base):
     # Логин
     login: Mapped[str] = mapped_column(
         sa.String(50),
-        server_default='',
-        init=False
+        server_default=''
     )
 
     # Пароль
     password: Mapped[str] = mapped_column(
         sa.String(255),
-        server_default='',
-        init=False
+        server_default=''
     )
 
     # Номер договора
     contract_num: Mapped[str] = mapped_column(
         sa.String(50),
-        server_default='',
-        init=False
+        server_default=''
     )
 
     # Текущий баланс
@@ -956,8 +961,7 @@ class System(Base):
     transaction_days: Mapped[int] = mapped_column(
         sa.SmallInteger(),
         nullable=False,
-        server_default=sa.text("50"),
-        init=False
+        server_default=sa.text("50")
     )
 
     # Дата последнего успешного сеанса загрузки транзакций

@@ -9,6 +9,7 @@ from src.routing.author import router as author_routing
 from src.routing.book import router as book_routing
 from src.routing.db import router as db_routing, db_tag_metadata
 from src.routing.user import router as user_routing, user_tag_metadata
+from src.routing.system import router as system_routing, system_tag_metadata
 from src.schemas.user import UserReadSchema, UserCreateSchema
 from src.utils.exceptions import BadRequestException, ForbiddenException, DBException
 from src.utils.log import logger
@@ -28,6 +29,7 @@ tags_metadata = [
     },
     db_tag_metadata,
     user_tag_metadata,
+    system_tag_metadata,
 ]
 
 app = FastAPI(lifespan=lifespan, openapi_tags=tags_metadata)
@@ -35,6 +37,7 @@ app.include_router(author_routing)
 app.include_router(book_routing)
 app.include_router(db_routing)
 app.include_router(user_routing)
+app.include_router(system_routing)
 app.include_router(
     fastapi_users.get_auth_router(auth_backend),
     prefix="/auth/jwt",

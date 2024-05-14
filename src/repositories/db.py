@@ -6,7 +6,6 @@ from src.database import models
 from src.database.models import System, Tariff, Company, Car, CardType, Card, CardSystem, InnerGoods, OuterGoods, \
     Transaction
 from src.repositories.base import BaseRepository
-from src.schemas.db import DBSyncSchema
 from src.utils.exceptions import DBException
 from src.utils import enums
 
@@ -337,5 +336,3 @@ class DBRepository(BaseRepository):
         dataset = await self.select_all(stmt)
         return dataset
 
-    async def sync(self, data: DBSyncSchema) -> bool:
-        return True

@@ -72,6 +72,16 @@ class BaseRepository:
         row = dataset.first()
         return row[0] if row else None
 
+    async def delete_one(self, _model_, _id_: str):
+        try:
+            stmt = sa.delete(_model_).where(_model_.id == _id_)
+            await self.session.execute(stmt)
+            await self.session.commit()
+
+        except Exception:
+            self.logger.error(traceback.format_exc())
+            raise DBException()
+
     async def delete_all(self, _model_) -> None:
         try:
             stmt = sa.delete(_model_)
@@ -120,14 +130,23 @@ class BaseRepository:
                 self.logger.error(traceback.format_exc())
                 raise DBException()
 
-    async def bulk_update(self, _model_, dataset: list[Dict[str, Any]]):
+    async def bulk_update(self, _model_, dataset: list[Dict[str, Any]]) -> None:
         if dataset:
             try:
                 stmt = sa.update(_model_)
-                # async with self.session.begin():
                 await self.session.execute(stmt, dataset)
                 await self.session.commit()
 
             except Exception:
                 self.logger.error(traceback.format_exc())
                 raise DBException()
+
+    async def save_object(self, obj: Any) -> None:
+        try:
+            self.session.add(obj)
+            await self.session.flush()
+            await self.session.commit()
+
+        except Exception:
+            self.logger.error(traceback.format_exc())
+            raise DBException()

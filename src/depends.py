@@ -6,10 +6,12 @@ from src.database.models import User
 from src.repositories.author import AuthorRepository
 from src.repositories.book import BookRepository
 from src.repositories.db import DBRepository
+from src.repositories.system import SystemRepository
 from src.repositories.user import UserRepository
 from src.services.author import AuthorService
 from src.services.book import BookService
 from src.services.db import DBService
+from src.services.system import SystemService
 from src.services.user import UserService
 
 """
@@ -53,4 +55,13 @@ def get_service_user(
 ) -> UserService:
     repository = UserRepository(session, user.id)
     service = UserService(repository)
+    return service
+
+
+def get_service_system(
+    session: SessionLocal = Depends(get_session),
+    user: User = Depends(current_active_user)
+) -> SystemService:
+    repository = SystemRepository(session, user.id)
+    service = SystemService(repository)
     return service

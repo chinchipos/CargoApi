@@ -1,6 +1,6 @@
 from src.auth.manager import create_user
 from src.config import SERVICE_TOKEN
-from src.database.models import Transaction, OuterGoods, InnerGoods, CardSystem, Card, Company
+from src.database import models
 from src.repositories.db import DBRepository
 from src.schemas.db import DBInitSchema, DBInitialSyncSchema, DBRegularSyncSchema
 from src.schemas.user import UserCreateSchema
@@ -23,6 +23,31 @@ class DBService:
         # Проверка сложности пароля
         test_password_strength(enums.Role.CARGO_SUPER_ADMIN.name, data.superuser_password)
 
+        # Очищаем таблицы БД
+        self.logger.info('Начинаю удаление данных из таблиц БД')
+        await self.repository.delete_all(models.Log)
+        await self.repository.delete_all(models.LogType)
+        await self.repository.delete_all(models.Transaction)
+        await self.repository.delete_all(models.OuterGoods)
+        await self.repository.delete_all(models.InnerGoods)
+        await self.repository.delete_all(models.CardSystem)
+        await self.repository.delete_all(models.System)
+        await self.repository.delete_all(models.Card)
+        await self.repository.delete_all(models.CarDriver)
+        await self.repository.delete_all(models.Car)
+        await self.repository.delete_all(models.CardType)
+        await self.repository.delete_all(models.AdminCompany)
+        await self.repository.delete_all(models.User)
+        await self.repository.delete_all(models.RolePermition)
+        await self.repository.delete_all(models.Role)
+        await self.repository.delete_all(models.Permition)
+        await self.repository.delete_all(models.TariffHistory)
+        await self.repository.delete_all(models.Company)
+        await self.repository.delete_all(models.Tariff)
+
+        # Создание типов карт
+        await self.repository.init_card_types()
+
         # Создание ролей
         await self.repository.init_roles()
 
@@ -30,7 +55,6 @@ class DBService:
         role = await self.repository.get_cargo_superadmin_role()
 
         # Создание суперадмина
-        # user_repository = UserRepository(self.repository.session, None)
         user_schema = UserCreateSchema(
             username = 'cargo',
             password = data.superuser_password,
@@ -40,13 +64,11 @@ class DBService:
             phone = '',
             role_id = role.id
         )
-        # await user_repository.create_user(user_schema)
-        await create_user(user_schema)
+        superadmin = await create_user(user_schema)
+        superadmin.is_active = True
+        await self.repository.save_object(superadmin)
 
-        # Создание типов карт
-        await self.repository.init_card_types()
-
-    async def calculate_company_balance(self, company: Company, transactions) -> None:
+    async def calculate_company_balance(self, company: models.Company, transactions) -> None:
         if transactions:
             # Формируем историю баланса
             previous_transaction = transactions[0]
@@ -68,7 +90,7 @@ class DBService:
                 i += 1
 
             # Обновляем записи в БД
-            await self.repository.bulk_update(Transaction, dataset)
+            await self.repository.bulk_update(models.Transaction, dataset)
 
     async def calculate_balances(self) -> None:
         # Получаем список организаций
@@ -92,17 +114,17 @@ class DBService:
         self.logger.info('Начинаю удаление данных из таблиц БД')
 
         self.logger.info('Удаляю транзакции')
-        await self.repository.delete_all(Transaction)
+        await self.repository.delete_all(models.Transaction)
         self.logger.info('  -> выполнено')
 
         self.logger.info('Удаляю товары/услуги')
-        await self.repository.delete_all(OuterGoods)
-        await self.repository.delete_all(InnerGoods)
+        await self.repository.delete_all(models.OuterGoods)
+        await self.repository.delete_all(models.InnerGoods)
         self.logger.info('  -> выполнено')
 
         self.logger.info('Удаляю топливные карты')
-        await self.repository.delete_all(CardSystem)
-        await self.repository.delete_all(Card)
+        await self.repository.delete_all(models.CardSystem)
+        await self.repository.delete_all(models.Card)
         self.logger.info('  -> выполнено')
 
         self.logger.info('Импортирую системы')
