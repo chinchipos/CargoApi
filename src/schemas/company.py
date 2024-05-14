@@ -54,10 +54,10 @@ class CompanyEditSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
-    name: Optional[str]
-    inn: Optional[str]
-    tariff_id: Optional[str]
-    contacts: Optional[str]
-    min_balance: Optional[float]
-    min_balance_on_period: Optional[float]
-    min_balance_period_end_date: Optional[date]
+    name: Optional[str] = None
+    inn: Optional[str] = None
+    tariff_id: Optional[str] = None
+    contacts: Optional[str] = None
+    min_balance: Optional[float] = None
+    min_balance_on_period: Optional[float] = None
+    min_balance_period_end_date: Optional[date] = None

@@ -10,8 +10,9 @@ from src.routing.db import router as db_routing, db_tag_metadata
 from src.routing.user import router as user_routing, user_tag_metadata
 from src.routing.system import router as system_routing, system_tag_metadata
 from src.routing.company import router as company_routing, company_tag_metadata
+from src.routing.tariff import router as tariff_routing, tariff_tag_metadata
 from src.schemas.user import UserReadSchema, UserCreateSchema
-from src.utils.exceptions import BadRequestException, ForbiddenException, DBException
+from src.utils.exceptions import BadRequestException, ForbiddenException, DBException, DBDuplicateException
 from src.utils.log import logger
 
 
@@ -31,6 +32,7 @@ tags_metadata = [
     user_tag_metadata,
     system_tag_metadata,
     company_tag_metadata,
+    tariff_tag_metadata,
 ]
 
 app = FastAPI(
@@ -41,6 +43,7 @@ app.include_router(db_routing)
 app.include_router(user_routing)
 app.include_router(system_routing)
 app.include_router(company_routing)
+app.include_router(tariff_routing)
 app.include_router(
     fastapi_users.get_auth_router(auth_backend),
     prefix="/auth/jwt",
@@ -77,6 +80,14 @@ async def forbidden_exception_handler(request: Request, exc: ForbiddenException)
 
 
 @app.exception_handler(DBException)
+async def bad_request_exception_handler(request: Request, exc: BadRequestException):
+    return JSONResponse(
+        status_code = 400,
+        content = {"message": exc.message},
+    )
+
+
+@app.exception_handler(DBDuplicateException)
 async def bad_request_exception_handler(request: Request, exc: BadRequestException):
     return JSONResponse(
         status_code = 400,

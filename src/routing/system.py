@@ -6,8 +6,10 @@ from src.depends import get_service_system
 from src.schemas.common import SuccessSchema, ModelIDSchema
 from src.schemas.system import SystemReadSchema, SystemCreateSchema, SystemEditSchema
 from src.services.system import SystemService
+from src.utils import enums
 from src.utils.descriptions.system import delete_system_description, get_systems_description, edit_system_description, \
     create_system_description, system_tag_description
+from src.utils.exceptions import ForbiddenException
 from src.utils.schemas import MessageSchema
 
 
@@ -29,6 +31,10 @@ async def create(
     data: SystemCreateSchema,
     service: SystemService = Depends(get_service_system)
 ) -> SystemReadSchema:
+    # Проверка прав доступа. Создавать системы может только суперадмин.
+    if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
+        raise ForbiddenException()
+
     system = await service.create(data)
     return system
 
@@ -44,6 +50,10 @@ async def edit(
     data: SystemEditSchema,
     service: SystemService = Depends(get_service_system)
 ) -> SystemReadSchema:
+    # Проверка прав доступа. Редактировать системы может только суперадмин.
+    if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
+        raise ForbiddenException()
+
     system = await service.edit(data)
     return system
 
@@ -58,6 +68,10 @@ async def edit(
 async def get_systems(
     service: SystemService = Depends(get_service_system)
 ):
+    # Проверка прав доступа. Получить список систем может только суперадмин.
+    if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
+        raise ForbiddenException()
+
     systems = await service.get_systems()
     return systems
 
@@ -73,5 +87,9 @@ async def delete(
     data: ModelIDSchema,
     service: SystemService = Depends(get_service_system)
 ) -> dict[str, Any]:
+    # Проверка прав доступа. Удалять может только суперадмин.
+    if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
+        raise ForbiddenException()
+
     await service.delete(data)
     return {'success': True}

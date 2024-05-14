@@ -21,9 +21,6 @@ class SystemRepository(BaseRepository):
         new_system = await self.get_system(new_system.id)
         return new_system
 
-    async def edit(self, system: SystemEditSchema) -> models.System:
-        pass
-
     async def get_systems(self) -> List[models.System]:
         stmt = (
             sa_select(models.System, sa_func.count(models.CardSystem.id).label('cards_amount'))
@@ -34,7 +31,6 @@ class SystemRepository(BaseRepository):
         )
         dataset = await self.select_all(stmt, scalars=False)
         systems = list(map(lambda data: data[0].annotate({'cards_amount': data[1]}), dataset))
-        print('systems:', systems)
         return systems
 
     async def get_cards_amount(self, system_id: str) -> int:

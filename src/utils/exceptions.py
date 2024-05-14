@@ -11,3 +11,8 @@ class ForbiddenException(Exception):
 class DBException(Exception):
     def __init__(self):
         self.message = 'Ошибка при выполнении запроса к БД API'
+
+
+class DBDuplicateException(Exception):
+    def __init__(self):
+        self.message = 'Нарушение целостности: попытка добавить идентичную запись.'

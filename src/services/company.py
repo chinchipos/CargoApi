@@ -14,7 +14,7 @@ class CompanyService:
         self.logger = repository.logger
 
     async def edit(self, company_edit_schema: CompanyEditSchema) -> CompanyReadSchema:
-        # Получаем систему из БД
+        # Получаем организацию из БД
         company_obj = await self.repository.session.get(models.Company, company_edit_schema.id)
         if not company_obj:
             raise BadRequestException('Запись не найдена')
@@ -28,8 +28,7 @@ class CompanyService:
 
         # Формируем ответ
         company = await self.repository.get_company(company_obj.id)
-        company_data = company.dumps()
-        company_read_schema = CompanyReadSchema(**company_data)
+        company_read_schema = CompanyReadSchema.model_validate(company)
         return company_read_schema
 
     async def get_company(self, company_id: str) -> Any:
@@ -37,7 +36,8 @@ class CompanyService:
         company = await self.repository.get_company(company_id)
 
         # Отдаем пользователю только ту информацию, которая соответствует его роли
-        if self.repository.user.role.name in [enums.Role.CARGO_SUPER_ADMIN.name, enums.Role.CARGO_MANAGER.name]:
+        major_roles = [enums.Role.CARGO_SUPER_ADMIN.name, enums.Role.CARGO_MANAGER.name, enums.Role.COMPANY_ADMIN.name]
+        if self.repository.user.role.name in major_roles:
             company_read_schema = CompanyReadSchema.model_validate(company)
         else:
             company_read_schema = CompanyReadLowRightsSchema.model_validate(company)
@@ -49,7 +49,8 @@ class CompanyService:
         companies = await self.repository.get_companies()
 
         # Отдаем пользователю только ту информацию, которая соответствует его роли
-        if self.repository.user.role.name in [enums.Role.CARGO_SUPER_ADMIN.name, enums.Role.CARGO_MANAGER.name]:
+        major_roles = [enums.Role.CARGO_SUPER_ADMIN.name, enums.Role.CARGO_MANAGER.name, enums.Role.COMPANY_ADMIN.name]
+        if self.repository.user.role.name in major_roles:
             company_read_schemas = [CompanyReadSchema.model_validate(company) for company in companies]
         else:
             company_read_schemas = [CompanyReadLowRightsSchema.model_validate(company) for company in companies]

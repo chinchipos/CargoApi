@@ -40,6 +40,7 @@ class Tariff(Base):
     # Идентификатор в боевой БД (для синхронизации)
     master_db_id: Mapped[int] = mapped_column(
         sa.Integer(),
+        nullable=True,
         init=False
     )
 
@@ -54,8 +55,7 @@ class Tariff(Base):
     fee_percent: Mapped[float] = mapped_column(
         sa.Numeric(5, 2, asdecimal=False),
         nullable=False,
-        server_default=sa.text("0"),
-        init=False
+        server_default=sa.text("0")
     )
 
     # Список компаний на этом тарифе
@@ -534,6 +534,12 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
 
     def __repr__(self) -> str:
         return f"User({self.username})"
+
+    def is_admin_for_company(self, company_id: str) -> bool:
+        return bool(list(filter(lambda ac: ac.company_id == company_id, self.admin_company)))
+
+    def is_worker_of_company(self, company_id: str) -> bool:
+        return self.company_id == company_id
 
 
 class AdminCompany(Base):

@@ -33,18 +33,6 @@ class CompanyRepository(BaseRepository):
 
     async def get_companies(self) -> List[models.Company]:
         # Получаем полные сведения об организациях
-        '''
-        stmt = (
-            sa_select(models.Company, )
-            .options(
-                joinedload(models.Company.tariff),
-                joinedload(models.Company.users)
-            )
-            .order_by(models.Company.name)
-            .limit(1)
-        )
-        '''
-
         stmt = (
             sa_select(models.Company, sa_func.count(models.Card.id).label('cards_amount'))
             .select_from(models.Card)
@@ -58,7 +46,5 @@ class CompanyRepository(BaseRepository):
         )
         dataset = await self.select_all(stmt, scalars=False)
         companies = list(map(lambda data: data[0].annotate({'cards_amount': data[1]}), dataset))
-        print('HHHHHHHHHHHHHHHHHHHHHHHHHHHHHH')
-        print('companies:', companies)
 
         return companies
