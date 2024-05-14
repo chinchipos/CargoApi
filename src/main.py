@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
+from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import JSONResponse
 
 from src.auth.auth import auth_backend, fastapi_users
@@ -51,6 +52,13 @@ app.include_router(
     prefix="/auth",
     tags=["auth"],
 )
+
+
+@app.get("/docs", include_in_schema=False)
+async def get_documentation(request: Request):
+    print(request.scope)
+    print('jhjhfjgfjgf')
+    return get_swagger_ui_html(openapi_url=request.scope.get("root_path") + "/openapi.json", title="Документация")
 
 
 @app.exception_handler(BadRequestException)
