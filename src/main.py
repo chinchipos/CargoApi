@@ -32,7 +32,11 @@ tags_metadata = [
     system_tag_metadata,
 ]
 
-app = FastAPI(lifespan=lifespan, openapi_tags=tags_metadata)
+app = FastAPI(
+    lifespan=lifespan,
+    openapi_tags=tags_metadata,
+    root_path='/api'
+)
 app.include_router(author_routing)
 app.include_router(book_routing)
 app.include_router(db_routing)
