@@ -35,7 +35,8 @@ tags_metadata = [
 app = FastAPI(
     lifespan=lifespan,
     openapi_tags=tags_metadata,
-    root_path='/api'
+    docs_url='/api/docs',
+    openapi_url='/api/openapi.json'
 )
 app.include_router(author_routing)
 app.include_router(book_routing)
