@@ -15,7 +15,6 @@ db_tag_metadata = {
     "description": "Сервисные операции с базой данных.",
 }
 
-
 @router.post(
     path="/db/init",
     tags=["db"],
