@@ -10,9 +10,6 @@ from src.schemas.system import SystemCreateSchema, SystemEditSchema
 class SystemRepository(BaseRepository):
 
     async def get_system(self, system_id: str) -> models.System:
-        # stmt = sa_select(models.System).where(models.System.id == system_id).limit(1)
-        # dataset = await self.session.scalars(stmt)
-        # system = dataset.first()
         system = await self.session.get(models.System, system_id)
         return system
 

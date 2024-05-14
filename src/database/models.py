@@ -27,88 +27,6 @@ class Base(AsyncAttrs, MappedAsDataclass, DeclarativeBase):
         return self
 
 
-class Author(Base):
-    __tablename__ = "author"
-
-    id: Mapped[str] = mapped_column(
-        sa.Uuid(as_uuid = False),
-        primary_key = True,
-        server_default = sa.text("uuid_generate_v4()"),
-        init=False
-    )
-
-    first_name: Mapped[str] = mapped_column(
-        sa.String(50),
-        nullable = False
-    )
-
-    last_name: Mapped[str] = mapped_column(
-        sa.String(50),
-        nullable = False
-    )
-
-    date_birth: Mapped[date] = mapped_column(
-        sa.Date,
-        nullable = False
-    )
-
-    biography: Mapped[str] = mapped_column(
-        sa.String(),
-        nullable = False,
-        server_default = ""
-    )
-
-    books: Mapped[List["Book"]] = relationship(
-        back_populates="author",
-        cascade="all, delete-orphan",
-        init=False
-    )
-
-    def __repr__(self) -> str:
-        return f"Author({self.first_name} {self.last_name})"
-
-
-class Book(Base):
-    __tablename__ = "book"
-
-    id: Mapped[str] = mapped_column(
-        sa.Uuid(as_uuid = False),
-        primary_key = True,
-        server_default = sa.text("uuid_generate_v4()"),
-        init=False
-    )
-
-    title: Mapped[str] = mapped_column(
-        sa.String(50),
-        nullable = False
-    )
-
-    annotation: Mapped[str] = mapped_column(
-        sa.String(50),
-        nullable = False
-    )
-
-    date_publishing: Mapped[date] = mapped_column(
-        sa.Date,
-        nullable = False,
-        server_default = sa.text("NOW()")
-    )
-
-    author_id: Mapped[int] = mapped_column(
-        sa.ForeignKey("cargonomica.author.id"),
-        nullable = True
-    )
-
-    author: Mapped["Author"] = relationship(
-        back_populates = "books",
-        lazy = "noload",
-        init=False
-    )
-
-    def __repr__(self) -> str:
-        return f"Book({self.title})"
-
-
 class Tariff(Base):
     __tablename__ = "tariff"
 
@@ -194,14 +112,6 @@ class Company(Base):
         nullable=False
     )
 
-    # Адрес
-    address: Mapped[str] = mapped_column(
-        sa.Text,
-        nullable=False,
-        server_default="",
-        init=False
-    )
-
     # Контактные данные (имена, телефоны, email)
     contacts: Mapped[str] = mapped_column(
         sa.String(),
@@ -226,7 +136,7 @@ class Company(Base):
     )
 
     # Текущий баланс
-    current_balance: Mapped[float] = mapped_column(
+    balance: Mapped[float] = mapped_column(
         sa.Numeric(12, 2, asdecimal=False),
         nullable=False,
         server_default=sa.text("0"),

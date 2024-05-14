@@ -2,7 +2,8 @@ from typing import List
 
 from src.database import models
 from src.repositories.system import SystemRepository
-from src.schemas.system import SystemCreateSchema, SystemReadSchema, SystemEditSchema, SystemDeleteSchema
+from src.schemas.common import ModelIDSchema
+from src.schemas.system import SystemCreateSchema, SystemReadSchema, SystemEditSchema
 from src.utils.exceptions import BadRequestException
 
 
@@ -42,5 +43,5 @@ class SystemService:
         systems = await self.repository.get_systems()
         return systems
 
-    async def delete(self, data: SystemDeleteSchema) -> None:
+    async def delete(self, data: ModelIDSchema) -> None:
         await self.repository.delete_one(models.System, data.id)

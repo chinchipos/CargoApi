@@ -3,24 +3,26 @@ from typing import Any
 from fastapi import APIRouter, Depends
 
 from src.depends import get_service_db
-from src.routing.descriptions import db_initial_sync_descr, db_regular_sync_descr, db_init_descr
 from src.schemas.common import SuccessSchema
 from src.schemas.db import DBInitSchema, DBInitialSyncSchema, DBRegularSyncSchema
 from src.services.db import DBService
+from src.utils.descriptions.db import db_tag_description, db_regular_sync_description, db_initial_sync_description, \
+    db_init_description
 from src.utils.schemas import MessageSchema
 
 router = APIRouter()
 db_tag_metadata = {
     "name": "db",
-    "description": "Сервисные операции с базой данных.",
+    "description": db_tag_description,
 }
+
 
 @router.post(
     path="/db/init",
     tags=["db"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SuccessSchema,
-    description = db_init_descr
+    description = db_init_description
 )
 async def init(
     data: DBInitSchema,
@@ -35,7 +37,7 @@ async def init(
     tags=["db"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SuccessSchema,
-    description = db_initial_sync_descr
+    description = db_initial_sync_description
 )
 async def initial_sync(
     data: DBInitialSyncSchema,
@@ -50,7 +52,7 @@ async def initial_sync(
     tags=["db"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = MessageSchema,
-    description = db_regular_sync_descr
+    description = db_regular_sync_description
 )
 async def regular_sync(
     data: DBRegularSyncSchema,

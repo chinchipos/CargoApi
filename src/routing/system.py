@@ -2,19 +2,19 @@ from typing import Any, List
 
 from fastapi import APIRouter, Depends
 
-from src.database import models
 from src.depends import get_service_system
-from src.routing.descriptions import get_systems_descr, delete_system_descr, edit_system_descr, create_system_descr
-from src.schemas.common import SuccessSchema
-from src.schemas.system import SystemReadSchema, SystemCreateSchema, SystemEditSchema, SystemDeleteSchema
+from src.schemas.common import SuccessSchema, ModelIDSchema
+from src.schemas.system import SystemReadSchema, SystemCreateSchema, SystemEditSchema
 from src.services.system import SystemService
+from src.utils.descriptions.system import delete_system_description, get_systems_description, edit_system_description, \
+    create_system_description, system_tag_description
 from src.utils.schemas import MessageSchema
 
 
 router = APIRouter()
 system_tag_metadata = {
     "name": "system",
-    "description": "Операции с системами поставщиков услуг.",
+    "description": system_tag_description,
 }
 
 
@@ -23,7 +23,7 @@ system_tag_metadata = {
     tags=["system"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SystemReadSchema,
-    description = create_system_descr
+    description = create_system_description
 )
 async def create(
     data: SystemCreateSchema,
@@ -38,7 +38,7 @@ async def create(
     tags=["system"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SystemReadSchema,
-    description = edit_system_descr
+    description = edit_system_description
 )
 async def edit(
     data: SystemEditSchema,
@@ -53,13 +53,12 @@ async def edit(
     tags=["system"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = List[SystemReadSchema],
-    description = get_systems_descr
+    description = get_systems_description
 )
 async def get_systems(
     service: SystemService = Depends(get_service_system)
 ):
     systems = await service.get_systems()
-    print('YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY')
     return systems
 
 
@@ -68,10 +67,10 @@ async def get_systems(
     tags=["system"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SuccessSchema,
-    description = delete_system_descr
+    description = delete_system_description
 )
 async def delete(
-    data: SystemDeleteSchema,
+    data: ModelIDSchema,
     service: SystemService = Depends(get_service_system)
 ) -> dict[str, Any]:
     await service.delete(data)

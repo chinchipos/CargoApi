@@ -41,8 +41,3 @@ class SystemEditSchema(BaseModel):
     password: Optional[str] = None
     transaction_days: Optional[int] = None
 
-
-class SystemDeleteSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: str

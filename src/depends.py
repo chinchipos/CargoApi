@@ -3,13 +3,11 @@ from fastapi import Depends
 from src.auth.auth import current_active_user
 from src.database.db import get_session, SessionLocal
 from src.database.models import User
-from src.repositories.author import AuthorRepository
-from src.repositories.book import BookRepository
+from src.repositories.company import CompanyRepository
 from src.repositories.db import DBRepository
 from src.repositories.system import SystemRepository
 from src.repositories.user import UserRepository
-from src.services.author import AuthorService
-from src.services.book import BookService
+from src.services.company import CompanyService
 from src.services.db import DBService
 from src.services.system import SystemService
 from src.services.user import UserService
@@ -17,28 +15,6 @@ from src.services.user import UserService
 """
 Файл внедрения зависимостей
 """
-
-
-def get_service_author(
-    session: SessionLocal = Depends(get_session),
-    user: User = Depends(current_active_user)
-) -> AuthorService:
-    # repository - работа с БД
-    author_repository = AuthorRepository(session)
-    # service - слой UseCase
-    author_service = AuthorService(author_repository, user)
-
-    return author_service
-
-
-def get_service_book(
-    session: SessionLocal = Depends(get_session)
-) -> BookService:
-    # repository - работа с БД
-    book_repository = BookRepository(session)
-    # service - слой UseCase
-    book_service = BookService(book_repository)
-    return book_service
 
 
 def get_service_db(
@@ -64,4 +40,13 @@ def get_service_system(
 ) -> SystemService:
     repository = SystemRepository(session, user.id)
     service = SystemService(repository)
+    return service
+
+
+def get_service_company(
+    session: SessionLocal = Depends(get_session),
+    user: User = Depends(current_active_user)
+) -> CompanyService:
+    repository = CompanyRepository(session, user.id)
+    service = CompanyService(repository)
     return service
