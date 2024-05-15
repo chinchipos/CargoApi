@@ -46,9 +46,10 @@ app = FastAPI(
 
 @app.get("/")
 async def read_root():
-    return {"message": "Hello from FastAPI"}
+    return {"message": "Cargonomica API"}
 
-@app.get("/documentation")
+
+@app.get("/documentation", include_in_schema=False)
 async def get_documentation(request: Request):
     return get_swagger_ui_html(openapi_url=request.scope.get("root_path") + "/openapi.json", title="Документация")
 
