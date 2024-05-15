@@ -30,8 +30,8 @@ class SystemService:
         update_data = system_edit_schema.model_dump(exclude_unset=True)
         system_obj.update_without_saving(update_data)
         self.repository.session.add(system_obj)
-        self.repository.session.commit()
-        self.repository.session.refresh(system_obj)
+        await self.repository.session.commit()
+        await self.repository.session.refresh(system_obj)
 
         # Формируем ответ
         updated_system_data = system_obj.dumps()

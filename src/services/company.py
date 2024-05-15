@@ -23,8 +23,8 @@ class CompanyService:
         update_data = company_edit_schema.model_dump(exclude_unset=True)
         company_obj.update_without_saving(update_data)
         self.repository.session.add(company_obj)
-        self.repository.session.commit()
-        self.repository.session.refresh(company_obj)
+        await self.repository.session.commit()
+        await self.repository.session.refresh(company_obj)
 
         # Формируем ответ
         company = await self.repository.get_company(company_obj.id)

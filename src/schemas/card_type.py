@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -12,3 +14,10 @@ class CardTypeCreateSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     name: str
+
+
+class CardTypeEditSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    name: Optional[str] = None

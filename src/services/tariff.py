@@ -30,8 +30,8 @@ class TariffService:
         update_data = tariff_edit_schema.model_dump(exclude_unset=True)
         tariff_obj.update_without_saving(update_data)
         self.repository.session.add(tariff_obj)
-        self.repository.session.commit()
-        self.repository.session.refresh(tariff_obj)
+        await self.repository.session.commit()
+        await self.repository.session.refresh(tariff_obj)
 
         # Формируем ответ
         companies_amount = await self.repository.get_companies_amount(tariff_obj.id)

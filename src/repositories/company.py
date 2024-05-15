@@ -1,10 +1,10 @@
-from typing import List, Any
-
-from src.database import models
-from src.repositories.base import BaseRepository
+from typing import List
 
 from sqlalchemy import select as sa_select, func as sa_func
 from sqlalchemy.orm import joinedload, selectinload
+
+from src.database import models
+from src.repositories.base import BaseRepository
 
 
 class CompanyRepository(BaseRepository):
