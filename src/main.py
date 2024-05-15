@@ -43,6 +43,15 @@ app = FastAPI(
     lifespan=lifespan,
     openapi_tags=tags_metadata
 )
+
+@app.get("/")
+async def read_root():
+    return {"message": "Hello from FastAPI"}
+
+@app.get("/documentation")
+async def get_documentation(request: Request):
+    return get_swagger_ui_html(openapi_url=request.scope.get("root_path") + "/openapi.json", title="Документация")
+
 app.include_router(db_routing)
 app.include_router(user_routing)
 app.include_router(system_routing)
@@ -60,13 +69,6 @@ app.include_router(
     prefix="/auth",
     tags=["auth"],
 )
-
-
-@app.get("/docs", include_in_schema=False)
-async def get_documentation(request: Request):
-    print(request.scope)
-    print('jhjhfjgfjgf')
-    return get_swagger_ui_html(openapi_url=request.scope.get("root_path") + "/openapi.json", title="Документация")
 
 
 @app.exception_handler(BadRequestException)
