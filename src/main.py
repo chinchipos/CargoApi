@@ -41,7 +41,9 @@ tags_metadata = [
 
 app = FastAPI(
     lifespan=lifespan,
-    openapi_tags=tags_metadata
+    openapi_tags=tags_metadata,
+    docs_url="/doc",
+    redoc_url="/doc2"
 )
 
 @app.get("/")
@@ -49,9 +51,9 @@ async def read_root():
     return {"message": "Cargonomica API"}
 
 
-@app.get("/documentation", include_in_schema=False)
-async def get_documentation(request: Request):
-    return get_swagger_ui_html(openapi_url=request.scope.get("root_path") + "/openapi.json", title="Документация")
+#@app.get("/documentation", include_in_schema=False)
+#async def get_documentation(request: Request):
+#    return get_swagger_ui_html(openapi_url=request.scope.get("root_path") + "/openapi.json", title="Документация")
 
 app.include_router(db_routing)
 app.include_router(user_routing)
