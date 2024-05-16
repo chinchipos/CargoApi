@@ -19,5 +19,4 @@ class CardTypeCreateSchema(BaseModel):
 class CardTypeEditSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: str
     name: Optional[str] = None

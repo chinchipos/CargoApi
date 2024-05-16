@@ -1,17 +1,17 @@
+import uuid
 from typing import Any, List
 
 from fastapi import APIRouter, Depends
 
 from src.depends import get_service_card
-from src.schemas.common import SuccessSchema, ModelIDSchema
 from src.schemas.card import CardReadSchema, CardCreateSchema, CardEditSchema
+from src.schemas.common import SuccessSchema
 from src.services.card import CardService
 from src.utils import enums
 from src.utils.descriptions.card import delete_card_description, get_cards_description, edit_card_description, \
     create_card_description, card_tag_description
 from src.utils.exceptions import ForbiddenException
 from src.utils.schemas import MessageSchema
-
 
 router = APIRouter()
 card_tag_metadata = {
@@ -20,11 +20,31 @@ card_tag_metadata = {
 }
 
 
+@router.get(
+    path="/card/all",
+    tags=["card"],
+    responses = {400: {'model': MessageSchema, "description": "Bad request"}},
+    response_model = List[CardReadSchema],
+    name = 'Получение списка всех карт',
+    description = get_cards_description
+)
+async def get_cards(
+    service: CardService = Depends(get_service_card)
+):
+    # Получить список карт могут все пользователи.
+    # Состав списка определяется ролью пользователя. Эта проверка будет выполнена при формировании списка.
+    cards = await service.get_cards()
+    for card in cards:
+        print('company:', card.company)
+    return cards
+
+
 @router.post(
     path="/card/create",
     tags=["card"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = CardReadSchema,
+    name = 'Создание карты',
     description = create_card_description
 )
 async def create(
@@ -40,51 +60,40 @@ async def create(
 
 
 @router.post(
-    path="/card/edit",
+    path="/card/{card_id}/edit",
     tags=["card"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = CardReadSchema,
+    name = 'Редактирование карты',
     description = edit_card_description
 )
 async def edit(
+    card_id: uuid.UUID,
     data: CardEditSchema,
     service: CardService = Depends(get_service_card)
 ) -> CardReadSchema:
+    cid = str(card_id)
     # Проверка прав доступа будет выполнена на следующем этапе
-    card = await service.edit(data)
+    card = await service.edit(cid, data)
     return card
 
 
-@router.get(
-    path="/card/get_cards",
-    tags=["card"],
-    responses = {400: {'model': MessageSchema, "description": "Bad request"}},
-    response_model = List[CardReadSchema],
-    description = get_cards_description
-)
-async def get_cards(
-    service: CardService = Depends(get_service_card)
-):
-    # Проверка прав доступа. Получить список карт могут все пользователи.
-    # Состав списка определяется ролью пользователя. Эта проверка будет выполнена при формировании списка.
-    cards = await service.get_cards()
-    return cards
-
-
 @router.post(
-    path="/card/delete",
+    path="/card/{card_id}/delete",
     tags=["card"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SuccessSchema,
+    name = 'Удаление карты',
     description = delete_card_description
 )
 async def delete(
-    data: ModelIDSchema,
+    card_id: uuid.UUID,
     service: CardService = Depends(get_service_card)
 ) -> dict[str, Any]:
+    cid = str(card_id)
     # Проверка прав доступа. Удалять может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()
 
-    await service.delete(data)
+    await service.delete(cid)
     return {'success': True}

@@ -2,7 +2,7 @@ from typing import List, Any
 
 from src.database import models
 from src.repositories.company import CompanyRepository
-from src.schemas.company import CompanyEditSchema, CompanyReadSchema, CompanyReadLowRightsSchema
+from src.schemas.company import CompanyEditSchema, CompanyReadSchema, CompanyReadMinimumSchema
 from src.utils import enums
 from src.utils.exceptions import BadRequestException
 
@@ -13,9 +13,9 @@ class CompanyService:
         self.repository = repository
         self.logger = repository.logger
 
-    async def edit(self, company_edit_schema: CompanyEditSchema) -> CompanyReadSchema:
+    async def edit(self, company_id: str, company_edit_schema: CompanyEditSchema) -> CompanyReadSchema:
         # Получаем организацию из БД
-        company_obj = await self.repository.session.get(models.Company, company_edit_schema.id)
+        company_obj = await self.repository.session.get(models.Company, company_id)
         if not company_obj:
             raise BadRequestException('Запись не найдена')
 
@@ -27,7 +27,7 @@ class CompanyService:
         await self.repository.session.refresh(company_obj)
 
         # Формируем ответ
-        company = await self.repository.get_company(company_obj.id)
+        company = await self.repository.get_company(company_id)
         company_read_schema = CompanyReadSchema.model_validate(company)
         return company_read_schema
 
@@ -40,7 +40,7 @@ class CompanyService:
         if self.repository.user.role.name in major_roles:
             company_read_schema = CompanyReadSchema.model_validate(company)
         else:
-            company_read_schema = CompanyReadLowRightsSchema.model_validate(company)
+            company_read_schema = CompanyReadMinimumSchema.model_validate(company)
 
         return company_read_schema
 
@@ -53,6 +53,10 @@ class CompanyService:
         if self.repository.user.role.name in major_roles:
             company_read_schemas = [CompanyReadSchema.model_validate(company) for company in companies]
         else:
-            company_read_schemas = [CompanyReadLowRightsSchema.model_validate(company) for company in companies]
+            company_read_schemas = [CompanyReadMinimumSchema.model_validate(company) for company in companies]
 
         return company_read_schemas
+
+    async def get_drivers(self, company_id: str = None) -> models.User:
+        drivers = await self.repository.get_drivers(company_id)
+        return drivers

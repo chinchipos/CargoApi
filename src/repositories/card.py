@@ -2,10 +2,12 @@ from typing import List
 
 from sqlalchemy import select as sa_select, func as sa_func
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import joinedload
 
 from src.database import models
 from src.repositories.base import BaseRepository
 from src.schemas.card import CardCreateSchema
+from src.utils import enums
 from src.utils.exceptions import DBDuplicateException
 
 
@@ -24,22 +26,46 @@ class CardRepository(BaseRepository):
 
         return new_card
 
+    async def get_card(self, card_id: str) -> models.Card:
+        stmt = (
+            sa_select(models.Card)
+            .options(
+                joinedload(models.Card.card_system).joinedload(models.CardSystem.system),
+                joinedload(models.Card.card_type),
+                joinedload(models.Card.company),
+                joinedload(models.Card.belongs_to_car),
+                joinedload(models.Card.belongs_to_driver)
+            )
+            .where(models.Card.id == card_id)
+        )
+
+        card = await self.select_first(stmt)
+        return card
+
     async def get_cards(self) -> List[models.Card]:
         stmt = (
-            sa_select(models.Card, sa_func.count(models.Company.id).label('companies_amount'))
-            .select_from(models.Company)
-            .outerjoin(models.Card.companies)
-            .group_by(models.Card)
-            .order_by(models.Card.name)
+            sa_select(models.Card)
+            .options(
+                joinedload(models.Card.card_system).joinedload(models.CardSystem.system),
+                joinedload(models.Card.card_type),
+                joinedload(models.Card.company),
+                joinedload(models.Card.belongs_to_car),
+                joinedload(models.Card.belongs_to_driver)
+            )
         )
-        dataset = await self.select_all(stmt, scalars=False)
-        cards = list(map(lambda data: data[0].annotate({'companies_amount': data[1]}), dataset))
-        return cards
 
-    async def get_companies_amount(self, card_id: str) -> int:
-        stmt = (
-            sa_select(sa_func.count(models.Company.id))
-            .where(models.Company.card_id == card_id)
-        )
-        amount = await self.select_single_field(stmt)
-        return amount
+        if self.user.role.name == enums.Role.CARGO_MANAGER.name:
+            stmt = stmt.where(models.Card.company_id.in_(self.user.company_ids_subquery()))
+
+        elif self.user.role.name in [enums.Role.COMPANY_ADMIN.name, enums.Role.COMPANY_LOGIST.name]:
+            stmt = stmt.where(models.Card.company_id == self.user.company_id)
+
+        elif self.user.role.name == enums.Role.COMPANY_DRIVER.name:
+            stmt = (
+                stmt
+                .where(models.Card.company_id == self.user.company_id)
+                .where(models.Card.belongs_to_driver_id == self.user.id)
+            )
+
+        cards = await self.select_all(stmt)
+        return cards

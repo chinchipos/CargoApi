@@ -483,8 +483,7 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     # Организация
     company_id: Mapped[int] = mapped_column(
         sa.ForeignKey("cargonomica.company.id"),
-        nullable=True,
-        init=False
+        nullable=True
     )
 
     # Организация
@@ -540,6 +539,15 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
 
     def is_worker_of_company(self, company_id: str) -> bool:
         return self.company_id == company_id
+
+    def company_ids_subquery(self) -> sa.Subquery:
+        stmt = (
+            sa.select(Company.id)
+            .join(Company.admin_company)
+            .where(AdminCompany.user_id == self.id)
+            .subquery()
+        )
+        return stmt
 
 
 class AdminCompany(Base):
@@ -714,8 +722,7 @@ class Card(Base):
     id: Mapped[str] = mapped_column(
         sa.Uuid(as_uuid=False),
         primary_key=True,
-        server_default=sa.text("uuid_generate_v4()"),
-        init=False
+        server_default=sa.text("uuid_generate_v4()")
     )
 
     # Номер карты
@@ -740,15 +747,13 @@ class Card(Base):
     is_active: Mapped[bool] = mapped_column(
         sa.Boolean,
         nullable=False,
-        server_default=sa.sql.false(),
-        init=False
+        server_default=sa.sql.false()
     )
 
     # Организация, с которой ассоциирована карта
     company_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.company.id"),
-        nullable=True,
-        init=False
+        nullable=True
     )
 
     # Организация, с которой ассоциирована карта
@@ -760,8 +765,7 @@ class Card(Base):
     # Автомобиль, с которым ассоциирована карта
     belongs_to_car_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.car.id"),
-        nullable=True,
-        init=False
+        nullable=True
     )
 
     # Автомобиль, с которым ассоциирована карта
@@ -773,8 +777,7 @@ class Card(Base):
     # Водитель, с которым ассоциирована карта
     belongs_to_driver_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.user.id"),
-        nullable=True,
-        init=False
+        nullable=True
     )
 
     # Водитель, с которым ассоциирована карта
@@ -786,8 +789,7 @@ class Card(Base):
     # Дата последнего использования
     date_last_use: Mapped[date] = mapped_column(
         sa.Date,
-        nullable=True,
-        init=False
+        nullable=True
     )
 
     # Признак ручной блокировки
@@ -1088,7 +1090,7 @@ class Transaction(Base):
     )
 
     # Направление транзакции: покупка или возврат
-    debit: Mapped[bool] = mapped_column(
+    is_debit: Mapped[bool] = mapped_column(
         sa.Boolean,
         nullable=False
     )
@@ -1225,7 +1227,7 @@ class Transaction(Base):
     )
 
     # Баланс карты после выполнения транзакции
-    card_balance_after: Mapped[float] = mapped_column(
+    card_balance: Mapped[float] = mapped_column(
         sa.Numeric(12, 2, asdecimal=False),
         nullable=False,
         server_default=sa.text("0"),
@@ -1233,7 +1235,7 @@ class Transaction(Base):
     )
 
     # Баланс организации после выполнения транзакции
-    company_balance_after: Mapped[float] = mapped_column(
+    company_balance: Mapped[float] = mapped_column(
         sa.Numeric(12, 2, asdecimal=False),
         nullable=False,
         server_default=sa.text("0"),

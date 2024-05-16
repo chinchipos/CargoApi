@@ -20,9 +20,9 @@ class SystemService:
         system_read_schema = SystemReadSchema(**new_system_data)
         return system_read_schema
 
-    async def edit(self, system_edit_schema: SystemEditSchema) -> SystemReadSchema:
+    async def edit(self, system_id: str, system_edit_schema: SystemEditSchema) -> SystemReadSchema:
         # Получаем систему из БД
-        system_obj = await self.repository.session.get(models.System, system_edit_schema.id)
+        system_obj = await self.repository.session.get(models.System, system_id)
         if not system_obj:
             raise BadRequestException('Запись не найдена')
 
@@ -35,7 +35,7 @@ class SystemService:
 
         # Формируем ответ
         updated_system_data = system_obj.dumps()
-        updated_system_data['cards_amount'] = await self.repository.get_cards_amount(system_obj.id)
+        updated_system_data['cards_amount'] = await self.repository.get_cards_amount(system_id)
         system_read_schema = SystemReadSchema(**updated_system_data)
         return system_read_schema
 
@@ -43,5 +43,5 @@ class SystemService:
         systems = await self.repository.get_systems()
         return systems
 
-    async def delete(self, data: ModelIDSchema) -> None:
-        await self.repository.delete_one(models.System, data.id)
+    async def delete(self, system_id: str) -> None:
+        await self.repository.delete_one(models.System, system_id)

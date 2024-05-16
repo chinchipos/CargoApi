@@ -1,3 +1,4 @@
+import uuid
 from typing import Any, List
 
 from fastapi import APIRouter, Depends
@@ -20,11 +21,28 @@ card_type_tag_metadata = {
 }
 
 
+@router.get(
+    path="/card_type/all",
+    tags=["card_type"],
+    responses = {400: {'model': MessageSchema, "description": "Bad request"}},
+    response_model = List[CardTypeReadSchema],
+    name = 'Получение списка типов карт',
+    description = get_card_types_description
+)
+async def get_card_types(
+    service: CardTypeService = Depends(get_service_card_type)
+):
+    # Получить список типов карт могут пользователи с любой ролью.
+    card_types = await service.get_card_types()
+    return card_types
+
+
 @router.post(
     path="/card_type/create",
     tags=["card_type"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = CardTypeReadSchema,
+    name = 'Создание типа карт',
     description = create_card_type_description
 )
 async def create(
@@ -40,53 +58,42 @@ async def create(
 
 
 @router.post(
-    path="/card_type/edit",
+    path="/card_type/{card_type_id}/edit",
     tags=["card_type"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = CardTypeReadSchema,
+    name = 'Редактирование типа карт',
     description = edit_card_type_description
 )
 async def edit(
+    card_type_id: uuid.UUID,
     data: CardTypeEditSchema,
     service: CardTypeService = Depends(get_service_card_type)
 ) -> CardTypeReadSchema:
+    ctid = str(card_type_id)
     # Проверка прав доступа. Редактировать типы карт может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()
 
-    card_type = await service.edit(data)
+    card_type = await service.edit(ctid, data)
     return card_type
 
 
-@router.get(
-    path="/card_type/get_card_types",
-    tags=["card_type"],
-    responses = {400: {'model': MessageSchema, "description": "Bad request"}},
-    response_model = List[CardTypeReadSchema],
-    description = get_card_types_description
-)
-async def get_card_types(
-    service: CardTypeService = Depends(get_service_card_type)
-):
-    # Получить список типов карт могут пользователи с любой ролью.
-    card_types = await service.get_card_types()
-    return card_types
-
-
 @router.post(
-    path="/card_type/delete",
+    path="/card_type/{card_type_id}/delete",
     tags=["card_type"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SuccessSchema,
     description = delete_card_type_description
 )
 async def delete(
-    data: ModelIDSchema,
+    card_type_id: uuid.UUID,
     service: CardTypeService = Depends(get_service_card_type)
 ) -> dict[str, Any]:
+    ctid = str(card_type_id)
     # Проверка прав доступа. Удалять может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()
 
-    await service.delete(data)
+    await service.delete(ctid)
     return {'success': True}

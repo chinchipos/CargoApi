@@ -10,6 +10,13 @@ class TariffReadSchema(BaseModel):
     companies_amount: int
 
 
+class TariffMinimumReadSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    name: str
+
+
 class TariffCreateSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

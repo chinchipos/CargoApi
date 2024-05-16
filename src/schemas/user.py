@@ -2,12 +2,14 @@ import uuid
 from typing import Optional
 
 from fastapi_users import models, schemas
+
 from pydantic import EmailStr
+from pydantic import BaseModel, ConfigDict
 
 from src.schemas.role import RoleReadSchema
 
 
-class UserReadSchema(schemas.BaseUser[uuid.UUID]):
+class NewUserReadSchema(schemas.BaseUser[uuid.UUID]):
     id: models.ID
     username: str
     first_name: str
@@ -15,7 +17,19 @@ class UserReadSchema(schemas.BaseUser[uuid.UUID]):
     email: EmailStr
     phone: str
     is_active: bool = True
-    role: RoleReadSchema
+
+
+class UserReadSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    username: str
+    first_name: str
+    last_name: str
+    email: EmailStr
+    phone: str
+    is_active: bool = True
+    role: Optional[RoleReadSchema] = None
 
 
 class UserCreateSchema(schemas.BaseUserCreate):

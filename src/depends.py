@@ -9,6 +9,7 @@ from src.repositories.company import CompanyRepository
 from src.repositories.db import DBRepository
 from src.repositories.system import SystemRepository
 from src.repositories.tariff import TariffRepository
+from src.repositories.transaction import TransactionRepository
 from src.repositories.user import UserRepository
 from src.services.card import CardService
 from src.services.card_type import CardTypeService
@@ -16,6 +17,7 @@ from src.services.company import CompanyService
 from src.services.db import DBService
 from src.services.system import SystemService
 from src.services.tariff import TariffService
+from src.services.transaction import TransactionService
 from src.services.user import UserService
 
 """
@@ -82,4 +84,13 @@ def get_service_card(
 ) -> CardService:
     repository = CardRepository(session, user.id)
     service = CardService(repository)
+    return service
+
+
+def get_service_transaction(
+    session: SessionLocal = Depends(get_session),
+    user: User = Depends(current_active_user)
+) -> TransactionService:
+    repository = TransactionRepository(session, user.id)
+    service = TransactionService(repository)
     return service

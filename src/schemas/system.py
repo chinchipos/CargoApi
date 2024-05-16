@@ -19,6 +19,14 @@ class SystemReadSchema(BaseModel):
     cards_amount: int
 
 
+class SystemReadMinimumSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    full_name: str
+    short_name: str
+
+
 class SystemCreateSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -33,7 +41,6 @@ class SystemCreateSchema(BaseModel):
 class SystemEditSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: str
     full_name: Optional[str] = None
     short_name: Optional[str] = None
     contract_num: Optional[str] = None

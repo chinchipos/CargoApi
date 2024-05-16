@@ -3,12 +3,13 @@ from typing import Dict, Any
 import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.exc import IntegrityError
 
 from src.database import models
 from src.database.db import SessionLocal
 import asyncio
 
-from src.utils.exceptions import DBException
+from src.utils.exceptions import DBException, DBDuplicateException
 from src.utils.log import logger
 
 import traceback
@@ -150,3 +151,13 @@ class BaseRepository:
         except Exception:
             self.logger.error(traceback.format_exc())
             raise DBException()
+
+    async def update_model_instance(self, model_instance, update_data: Dict[str, Any]) -> None:
+        try:
+            model_instance.update_without_saving(update_data)
+            self.session.add(model_instance)
+            await self.session.commit()
+            await self.session.refresh(model_instance)
+
+        except IntegrityError:
+            raise DBDuplicateException()

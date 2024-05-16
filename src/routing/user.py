@@ -4,26 +4,22 @@ from src.database import models
 from src.depends import get_service_user
 from src.schemas.user import UserReadSchema
 from src.services.user import UserService
+from src.utils.descriptions.user import user_tag_description, get_me_description
 from src.utils.schemas import MessageSchema
 
 
-router = APIRouter(prefix="/user/me", tags=["user"])
+router = APIRouter()
 user_tag_metadata = {
     "name": "user",
-    "description": 'Операции с объектом "Пользователь".',
+    "description": user_tag_description,
 }
 
 @router.get(
-    "",
+    path="/user/me",
+    tags=["user"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = UserReadSchema,
-    description = (
-        """
-        Получение собственного профиля.<br>
-        <br>
-        Входные параметры отсутствуют.
-        """
-    ),
+    description = get_me_description
 )
 async def get_me(
     user_service: UserService = Depends(get_service_user)

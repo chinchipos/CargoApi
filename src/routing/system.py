@@ -1,3 +1,4 @@
+import uuid
 from typing import Any, List
 
 from fastapi import APIRouter, Depends
@@ -20,11 +21,31 @@ system_tag_metadata = {
 }
 
 
+@router.get(
+    path="/system/all",
+    tags=["system"],
+    responses = {400: {'model': MessageSchema, "description": "Bad request"}},
+    response_model = List[SystemReadSchema],
+    name = 'Получение списка всех поставщиков услуг',
+    description = get_systems_description
+)
+async def get_systems(
+    service: SystemService = Depends(get_service_system)
+):
+    # Проверка прав доступа. Получить список систем может только суперадмин.
+    if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
+        raise ForbiddenException()
+
+    systems = await service.get_systems()
+    return systems
+
+
 @router.post(
     path="/system/create",
     tags=["system"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SystemReadSchema,
+    name = 'Создание поставщика услуг',
     description = create_system_description
 )
 async def create(
@@ -40,56 +61,43 @@ async def create(
 
 
 @router.post(
-    path="/system/edit",
+    path="/system/{system_id}/edit",
     tags=["system"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SystemReadSchema,
+    name = 'Редактирование поставщика услуг',
     description = edit_system_description
 )
 async def edit(
+    system_id: uuid.UUID,
     data: SystemEditSchema,
     service: SystemService = Depends(get_service_system)
 ) -> SystemReadSchema:
+    sid = str(system_id)
     # Проверка прав доступа. Редактировать системы может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()
 
-    system = await service.edit(data)
+    system = await service.edit(sid, data)
     return system
 
 
-@router.get(
-    path="/system/get_systems",
-    tags=["system"],
-    responses = {400: {'model': MessageSchema, "description": "Bad request"}},
-    response_model = List[SystemReadSchema],
-    description = get_systems_description
-)
-async def get_systems(
-    service: SystemService = Depends(get_service_system)
-):
-    # Проверка прав доступа. Получить список систем может только суперадмин.
-    if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
-        raise ForbiddenException()
-
-    systems = await service.get_systems()
-    return systems
-
-
 @router.post(
-    path="/system/delete",
+    path="/system/{system_id}/delete",
     tags=["system"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SuccessSchema,
+    name = 'Удаление поставщика услуг',
     description = delete_system_description
 )
 async def delete(
-    data: ModelIDSchema,
+    system_id: uuid.UUID,
     service: SystemService = Depends(get_service_system)
 ) -> dict[str, Any]:
+    sid = str(system_id)
     # Проверка прав доступа. Удалять может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()
 
-    await service.delete(data)
+    await service.delete(sid)
     return {'success': True}

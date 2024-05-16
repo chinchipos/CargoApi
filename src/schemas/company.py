@@ -42,7 +42,7 @@ class CompanyReadSchema(BaseModel):
     users: Optional[List[CompanyUserSchema]] = None
 
 
-class CompanyReadLowRightsSchema(BaseModel):
+class CompanyReadMinimumSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
@@ -53,7 +53,6 @@ class CompanyReadLowRightsSchema(BaseModel):
 class CompanyEditSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: str
     name: Optional[str] = None
     inn: Optional[str] = None
     tariff_id: Optional[str] = None

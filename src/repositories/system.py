@@ -1,10 +1,12 @@
 from typing import List
 
 from sqlalchemy import select as sa_select, func as sa_func
+from sqlalchemy.exc import IntegrityError
 
 from src.database import models
 from src.repositories.base import BaseRepository
 from src.schemas.system import SystemCreateSchema
+from src.utils.exceptions import DBDuplicateException
 
 
 class SystemRepository(BaseRepository):
@@ -14,12 +16,14 @@ class SystemRepository(BaseRepository):
         return system
 
     async def create(self, system: SystemCreateSchema) -> models.System:
-        new_system = models.System(**system.model_dump())
-        self.session.add(new_system)
-        await self.session.flush()
-        await self.session.commit()
-        new_system = await self.get_system(new_system.id)
-        return new_system
+        try:
+            new_system = models.System(**system.model_dump())
+            await self.save_object(new_system)
+            new_system = await self.get_system(new_system.id)
+            return new_system
+
+        except IntegrityError:
+            raise DBDuplicateException()
 
     async def get_systems(self) -> List[models.System]:
         stmt = (
