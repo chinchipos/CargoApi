@@ -12,3 +12,11 @@ class DriverReadSchema(BaseModel):
     first_name: str
     last_name: str
     company: Optional[CompanyReadMinimumSchema] = None
+
+
+class DriverReadMinimumSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    first_name: str
+    last_name: str

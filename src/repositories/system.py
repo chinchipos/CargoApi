@@ -15,15 +15,11 @@ class SystemRepository(BaseRepository):
         system = await self.session.get(models.System, system_id)
         return system
 
-    async def create(self, system: SystemCreateSchema) -> models.System:
-        try:
-            new_system = models.System(**system.model_dump())
-            await self.save_object(new_system)
-            new_system = await self.get_system(new_system.id)
-            return new_system
-
-        except IntegrityError:
-            raise DBDuplicateException()
+    async def create(self, create_schema: SystemCreateSchema) -> models.System:
+        new_system = models.System(**create_schema.model_dump())
+        await self.save_object(new_system)
+        new_system = await self.get_system(new_system.id)
+        return new_system
 
     async def get_systems(self) -> List[models.System]:
         stmt = (

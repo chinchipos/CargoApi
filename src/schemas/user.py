@@ -33,6 +33,8 @@ class UserReadSchema(BaseModel):
 
 
 class UserCreateSchema(schemas.BaseUserCreate):
+    model_config = ConfigDict(from_attributes=True)
+
     username: str
     password: str
     first_name: str

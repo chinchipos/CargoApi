@@ -4,15 +4,14 @@ from typing import Any, List
 from fastapi import APIRouter, Depends
 
 from src.depends import get_service_card_type
-from src.schemas.common import SuccessSchema, ModelIDSchema
 from src.schemas.card_type import CardTypeReadSchema, CardTypeCreateSchema, CardTypeEditSchema
+from src.schemas.common import SuccessSchema
 from src.services.card_type import CardTypeService
 from src.utils import enums
 from src.utils.descriptions.card_type import delete_card_type_description, get_card_types_description, \
     edit_card_type_description, create_card_type_description, card_type_tag_description
 from src.utils.exceptions import ForbiddenException
 from src.utils.schemas import MessageSchema
-
 
 router = APIRouter()
 card_type_tag_metadata = {
@@ -70,12 +69,12 @@ async def edit(
     data: CardTypeEditSchema,
     service: CardTypeService = Depends(get_service_card_type)
 ) -> CardTypeReadSchema:
-    ctid = str(card_type_id)
+    _id_ = str(card_type_id)
     # Проверка прав доступа. Редактировать типы карт может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()
 
-    card_type = await service.edit(ctid, data)
+    card_type = await service.edit(_id_, data)
     return card_type
 
 
@@ -84,16 +83,17 @@ async def edit(
     tags=["card_type"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SuccessSchema,
+    name = 'Удаление типа карт',
     description = delete_card_type_description
 )
 async def delete(
     card_type_id: uuid.UUID,
     service: CardTypeService = Depends(get_service_card_type)
 ) -> dict[str, Any]:
-    ctid = str(card_type_id)
+    _id_ = str(card_type_id)
     # Проверка прав доступа. Удалять может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()
 
-    await service.delete(ctid)
+    await service.delete(_id_)
     return {'success': True}

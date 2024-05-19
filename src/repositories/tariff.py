@@ -11,16 +11,10 @@ from src.utils.exceptions import DBDuplicateException
 
 class TariffRepository(BaseRepository):
 
-    async def create(self, tariff: TariffCreateSchema) -> models.Tariff:
-        try:
-            new_tariff = models.Tariff(**tariff.model_dump())
-            self.session.add(new_tariff)
-            await self.session.flush()
-            await self.session.commit()
-            await self.session.refresh(new_tariff)
-
-        except IntegrityError:
-            raise DBDuplicateException()
+    async def create(self, create_schema: TariffCreateSchema) -> models.Tariff:
+        new_tariff = models.Tariff(**create_schema.model_dump())
+        await self.save_object(new_tariff)
+        await self.session.refresh(new_tariff)
 
         return new_tariff
 

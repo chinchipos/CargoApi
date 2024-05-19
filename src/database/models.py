@@ -483,7 +483,8 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     # Организация
     company_id: Mapped[int] = mapped_column(
         sa.ForeignKey("cargonomica.company.id"),
-        nullable=True
+        nullable=True,
+        init=False
     )
 
     # Организация
@@ -629,6 +630,7 @@ class Car(Base):
     # Идентификатор в боевой БД (для синхронизации)
     master_db_id: Mapped[int] = mapped_column(
         sa.Integer(),
+        nullable=True,
         init=False
     )
 
@@ -636,8 +638,7 @@ class Car(Base):
     model: Mapped[str] = mapped_column(
         sa.String(50),
         nullable=False,
-        server_default="",
-        init=False
+        server_default=""
     )
 
     # Государственный регистрационный номер
@@ -650,14 +651,14 @@ class Car(Base):
     # Организация
     company_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.company.id"),
-        nullable=False,
-        init=False
+        nullable=False
     )
 
     # Организация
     company: Mapped["Company"] = relationship(
         back_populates="cars",
-        lazy="noload"
+        lazy="noload",
+        init=False
     )
 
     # Список карт привязанных к этому автомобилю
@@ -1026,6 +1027,7 @@ class OuterGoods(Base):
     # внешних товаров/услуг
     inner_goods_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.inner_goods.id"),
+        nullable=True,
         init=False
     )
 

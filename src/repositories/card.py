@@ -13,16 +13,10 @@ from src.utils.exceptions import DBDuplicateException
 
 class CardRepository(BaseRepository):
 
-    async def create(self, card: CardCreateSchema) -> models.Card:
-        try:
-            new_card = models.Card(**card.model_dump())
-            self.session.add(new_card)
-            await self.session.flush()
-            await self.session.commit()
-            await self.session.refresh(new_card)
-
-        except IntegrityError:
-            raise DBDuplicateException()
+    async def create(self, create_schema: CardCreateSchema) -> models.Card:
+        new_card = models.Card(**create_schema.model_dump())
+        await self.save_object(new_card)
+        await self.session.refresh(new_card)
 
         return new_card
 

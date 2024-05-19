@@ -6,7 +6,8 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 
 from src.database import models
-from src.database.db import SessionLocal
+from src.database.db import get_session
+#from src.database.db import SessionLocal
 import asyncio
 
 from src.utils.exceptions import DBException, DBDuplicateException
@@ -17,7 +18,7 @@ import traceback
 
 class BaseRepository:
 
-    def __init__(self, session: SessionLocal, user_id: str | None = None):
+    def __init__(self, session: get_session, user_id: str | None = None):
         self.session = session
         self.user = None
         self.logger = logger
@@ -148,9 +149,14 @@ class BaseRepository:
             await self.session.flush()
             await self.session.commit()
 
+        except IntegrityError:
+            raise DBDuplicateException()
+
         except Exception:
-            self.logger.error(traceback.format_exc())
             raise DBException()
+
+        finally:
+            self.logger.error(traceback.format_exc())
 
     async def update_model_instance(self, model_instance, update_data: Dict[str, Any]) -> None:
         try:

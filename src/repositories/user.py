@@ -20,10 +20,7 @@ class UserRepository(BaseRepository):
         return user
 
     async def create_user(self, user: UserCreateSchema) -> models.User:
-        print(user.model_dump())
         new_user = models.User(**user.model_dump())
-        self.session.add(new_user)
-        await self.session.flush()
-        await self.session.commit()
+        await self.save_object(new_user)
         await self.load_user_profile(new_user.id)
         return self.user

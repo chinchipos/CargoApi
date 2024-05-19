@@ -72,7 +72,7 @@ class DBService:
         if transactions:
             # Формируем историю баланса
             previous_transaction = transactions[0]
-            previous_transaction.company_balance_after = company.current_balance
+            previous_transaction.company_balance_after = company.balance
             i = 1
             length = len(transactions)
             dataset = [{

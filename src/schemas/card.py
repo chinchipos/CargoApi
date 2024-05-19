@@ -28,6 +28,7 @@ class CardReadSchema(BaseModel):
 class CardMinimumReadSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    card_number: str
     belongs_to_car: Optional[CarReadSchema] = None
     belongs_to_driver: Optional[DriverReadSchema] = None
 

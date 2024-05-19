@@ -20,21 +20,18 @@ class TariffService:
         tariff_read_schema = TariffReadSchema(**new_tariff_data)
         return tariff_read_schema
 
-    async def edit(self, tariff_edit_schema: TariffEditSchema) -> TariffReadSchema:
+    async def edit(self, tariff_id: str, tariff_edit_schema: TariffEditSchema) -> TariffReadSchema:
         # Получаем тариф из БД
-        tariff_obj = await self.repository.session.get(models.Tariff, tariff_edit_schema.id)
+        tariff_obj = await self.repository.session.get(models.Tariff, tariff_id)
         if not tariff_obj:
             raise BadRequestException('Запись не найдена')
 
         # Обновляем данные, сохраняем в БД
         update_data = tariff_edit_schema.model_dump(exclude_unset=True)
-        tariff_obj.update_without_saving(update_data)
-        self.repository.session.add(tariff_obj)
-        await self.repository.session.commit()
-        await self.repository.session.refresh(tariff_obj)
+        await self.repository.update_model_instance(tariff_obj, update_data)
 
         # Формируем ответ
-        companies_amount = await self.repository.get_companies_amount(tariff_obj.id)
+        companies_amount = await self.repository.get_companies_amount(tariff_id)
         tariff_obj.annotate({'companies_amount': companies_amount})
         tariff_read_schema = TariffReadSchema.model_validate(tariff_obj)
         return tariff_read_schema
@@ -43,5 +40,5 @@ class TariffService:
         tariffs = await self.repository.get_tariffs()
         return tariffs
 
-    async def delete(self, data: ModelIDSchema) -> None:
-        await self.repository.delete_one(models.Tariff, data.id)
+    async def delete(self, tariff_id: str) -> None:
+        await self.repository.delete_one(models.Tariff, tariff_id)
