@@ -1,14 +1,11 @@
 from typing import Dict, Any
 
 import sqlalchemy as sa
-from sqlalchemy.orm import joinedload
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 
 from src.database import models
 from src.database.db import get_session
-#from src.database.db import SessionLocal
-import asyncio
 
 from src.utils.exceptions import DBException, DBDuplicateException
 from src.utils.log import logger
@@ -18,13 +15,12 @@ import traceback
 
 class BaseRepository:
 
-    def __init__(self, session: get_session, user_id: str | None = None):
+    def __init__(self, session: get_session, user: models.User | None = None):
         self.session = session
-        self.user = None
+        self.user = user
         self.logger = logger
-        if user_id:
-            asyncio.run(self.load_user_profile(user_id))
 
+    '''
     async def load_user_profile(self, user_id: str) -> None:
         try:
             stmt = (
@@ -42,6 +38,7 @@ class BaseRepository:
         except Exception:
             self.logger.error(traceback.format_exc())
             raise DBException()
+    '''
 
     async def select_helper(self, stmt, scalars=True) -> Any:
         try:
@@ -54,7 +51,7 @@ class BaseRepository:
             else:
                 result = await self.session.execute(stmt)
 
-            await self.session.commit()
+            # await self.session.commit()
             return result
 
         except Exception:

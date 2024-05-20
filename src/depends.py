@@ -2,7 +2,7 @@ from fastapi import Depends
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.auth.auth import current_active_user
+from src.auth.auth import current_active_user, get_current_active_user
 from src.database.db import get_session
 from src.database.models import User
 from src.repositories.car import CarRepository
@@ -39,7 +39,7 @@ def get_service_db(
 
 def get_service_user(
     session: AsyncSession = Depends(get_session),
-    user: User = Depends(current_active_user)
+    user: User = Depends(get_current_active_user)
 ) -> UserService:
     repository = UserRepository(session, user.id)
     service = UserService(repository)
@@ -48,16 +48,16 @@ def get_service_user(
 
 def get_service_system(
     session: AsyncSession = Depends(get_session),
-    user: User = Depends(current_active_user)
+    user: User = Depends(get_current_active_user)
 ) -> SystemService:
-    repository = SystemRepository(session, user.id)
+    repository = SystemRepository(session, user)
     service = SystemService(repository)
     return service
 
 
 def get_service_company(
     session: AsyncSession = Depends(get_session),
-    user: User = Depends(current_active_user)
+    user: User = Depends(get_current_active_user)
 ) -> CompanyService:
     repository = CompanyRepository(session, user.id)
     service = CompanyService(repository)
@@ -66,7 +66,7 @@ def get_service_company(
 
 def get_service_tariff(
     session: AsyncSession = Depends(get_session),
-    user: User = Depends(current_active_user)
+    user: User = Depends(get_current_active_user)
 ) -> TariffService:
     repository = TariffRepository(session, user.id)
     service = TariffService(repository)
@@ -75,7 +75,7 @@ def get_service_tariff(
 
 def get_service_card_type(
     session: AsyncSession = Depends(get_session),
-    user: User = Depends(current_active_user)
+    user: User = Depends(get_current_active_user)
 ) -> CardTypeService:
     repository = CardTypeRepository(session, user.id)
     service = CardTypeService(repository)
@@ -84,7 +84,7 @@ def get_service_card_type(
 
 def get_service_card(
     session: AsyncSession = Depends(get_session),
-    user: User = Depends(current_active_user)
+    user: User = Depends(get_current_active_user)
 ) -> CardService:
     repository = CardRepository(session, user.id)
     service = CardService(repository)
@@ -93,7 +93,7 @@ def get_service_card(
 
 def get_service_transaction(
     session: AsyncSession = Depends(get_session),
-    user: User = Depends(current_active_user)
+    user: User = Depends(get_current_active_user)
 ) -> TransactionService:
     repository = TransactionRepository(session, user.id)
     service = TransactionService(repository)
@@ -102,7 +102,7 @@ def get_service_transaction(
 
 def get_service_car(
     session: AsyncSession = Depends(get_session),
-    user: User = Depends(current_active_user)
+    user: User = Depends(get_current_active_user)
 ) -> CarService:
     repository = CarRepository(session, user.id)
     service = CarService(repository)

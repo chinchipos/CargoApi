@@ -1,12 +1,10 @@
 from typing import List
 
 from sqlalchemy import select as sa_select, func as sa_func
-from sqlalchemy.exc import IntegrityError
 
 from src.database import models
 from src.repositories.base import BaseRepository
 from src.schemas.system import SystemCreateSchema
-from src.utils.exceptions import DBDuplicateException
 
 
 class SystemRepository(BaseRepository):

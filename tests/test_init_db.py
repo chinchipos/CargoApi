@@ -9,6 +9,7 @@ from src.repositories.base import BaseRepository
 
 
 @pytest.mark.incremental
+@pytest.mark.order(1)
 class TestInitDB:
 
     # Инициализация БД

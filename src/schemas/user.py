@@ -29,7 +29,7 @@ class UserReadSchema(BaseModel):
     email: EmailStr
     phone: str
     is_active: bool = True
-    role: Optional[RoleReadSchema] = None
+    role: Optional[RoleReadSchema]
 
 
 class UserCreateSchema(schemas.BaseUserCreate):

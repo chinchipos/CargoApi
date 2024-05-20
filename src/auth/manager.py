@@ -5,11 +5,10 @@ from typing import Optional
 from fastapi import Depends, Request
 from fastapi_users import BaseUserManager, UUIDIDMixin
 from fastapi_users.exceptions import UserAlreadyExists
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth.db import get_user_db
 from src.config import JWT_SECRET
-from src.database.db import get_session, sessionmanager
+from src.database.db import sessionmanager
 from src.database.models import User
 from src.schemas.user import UserCreateSchema
 from src.utils.exceptions import DBDuplicateException
@@ -41,20 +40,6 @@ async def get_user_manager(user_db=Depends(get_user_db)):
 # get_async_session_context = contextlib.asynccontextmanager(get_session)
 get_user_db_context = contextlib.asynccontextmanager(get_user_db)
 get_user_manager_context = contextlib.asynccontextmanager(get_user_manager)
-
-'''
-async def create_user(user_schema: UserCreateSchema):
-    try:
-        async with get_async_session_context() as session:
-            async with get_user_db_context(session) as user_db:
-                async with get_user_manager_context(user_db) as user_manager:
-                    user = await user_manager.create(user_schema)
-                    print(f"User created {user}")
-                    return user
-
-    except UserAlreadyExists:
-        pass
-'''
 
 
 async def create_user(user_schema: UserCreateSchema):

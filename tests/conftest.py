@@ -1,7 +1,7 @@
 import asyncio
 import os
 from contextlib import ExitStack
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 
 import pytest
 from dotenv import load_dotenv
@@ -26,6 +26,13 @@ TEST_URI = "postgresql+psycopg://{}:{}@{}:{}/{}".format(
     DB_PORT_TEST,
     DB_NAME_TEST
 )
+
+
+class Config:
+    TOKEN: Optional[str] = None
+
+
+config = Config()
 
 
 @pytest.fixture(autouse=True, scope='session')
@@ -64,3 +71,20 @@ def pytest_runtest_setup(item):
 @pytest.fixture(scope="session")
 def client(app):
     return TestClient(app=app)
+
+
+@pytest.fixture(scope="function")
+async def config_obj() -> Config:
+    return config
+
+
+@pytest.fixture(scope="function")
+async def token() -> Optional[str]:
+    return config.TOKEN
+
+
+def headers(token: str):
+    return {
+        "Accept": "application/json",
+        "Authorization": f"Bearer {token}"
+    }
