@@ -22,7 +22,7 @@ class TestInitDB:
         msg = "Не выполнена проверка сложности пароля"
         assert response.status_code == 400 and body.get('message', None) and 'сложности' in body['message'], msg
 
-    async def test_init_db_operation(self, aclient: AsyncClient):
+    async def test_init_db(self, aclient: AsyncClient):
         response = await aclient.post("/db/init", json={
             "service_token": SERVICE_TOKEN,
             "superuser_password": "One2345!"
@@ -31,7 +31,7 @@ class TestInitDB:
         assert response.status_code == 200, msg
 
     # Проверяем правильность создания ролей
-    async def test_init_roles_created(self):
+    async def test_init_roles_created_successfully(self):
         async with sessionmanager.session() as session:
             repository = BaseRepository(session, None)
 
@@ -44,7 +44,7 @@ class TestInitDB:
             assert role_names == roles_list, msg
 
     # Проверяем правильность создания типов карт
-    async def test_init_card_types_created(self):
+    async def test_init_card_types_created_successfully(self):
         async with sessionmanager.session() as session:
             repository = BaseRepository(session, None)
 
@@ -57,7 +57,7 @@ class TestInitDB:
             assert card_type_names == ['Пластиковая карта', 'Виртуальная карта'], msg
 
     # Проверяем правильность создания суперадмина
-    async def test_cargo_superadmin_created(self):
+    async def test_cargo_superadmin_created_successfully(self):
         async with sessionmanager.session() as session:
             repository = BaseRepository(session, None)
 

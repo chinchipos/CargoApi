@@ -61,7 +61,7 @@ async def create(
 
 
 @router.post(
-    path="/system/{system_id}/edit",
+    path="/system/{id}/edit",
     tags=["system"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SystemReadSchema,
@@ -69,11 +69,11 @@ async def create(
     description = edit_system_description
 )
 async def edit(
-    system_id: uuid.UUID,
+    id: uuid.UUID,
     data: SystemEditSchema,
     service: SystemService = Depends(get_service_system)
 ) -> SystemReadSchema:
-    sid = str(system_id)
+    sid = str(id)
     # Проверка прав доступа. Редактировать системы может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()
@@ -83,7 +83,7 @@ async def edit(
 
 
 @router.post(
-    path="/system/{system_id}/delete",
+    path="/system/{id}/delete",
     tags=["system"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SuccessSchema,
@@ -91,10 +91,10 @@ async def edit(
     description = delete_system_description
 )
 async def delete(
-    system_id: uuid.UUID,
+    id: uuid.UUID,
     service: SystemService = Depends(get_service_system)
 ) -> dict[str, Any]:
-    sid = str(system_id)
+    sid = str(id)
     # Проверка прав доступа. Удалять может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()
