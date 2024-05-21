@@ -293,7 +293,7 @@ class DBRepository(BaseRepository):
                 external_id=transaction['id'],
                 date_time=datetime.fromisoformat(transaction['date']),
                 date_time_load=datetime.fromisoformat(transaction['date_load']),
-                debit=True if transaction['sum'] < 0 else False,
+                is_debit=True if transaction['sum'] < 0 else False,
                 system_id=system_ids[transaction['system_id']] if transaction['system_id'] else None,
                 card_id=card_numbers_related_to_card_ids[str(transaction['card_num'])] if transaction['card_num'] else None,
                 company_id=company_ids[transaction['company_id']] if transaction['company_id'] else None,
