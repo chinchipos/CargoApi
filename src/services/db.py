@@ -73,20 +73,19 @@ class DBService:
         if transactions:
             # Формируем историю баланса
             previous_transaction = transactions[0]
-            previous_transaction.company_balance_after = company.balance
+            previous_transaction.company_balance = company.balance
             i = 1
             length = len(transactions)
             dataset = [{
                 'id': transactions[0].id,
-                'company_balance_after': transactions[0].company_balance_after,
+                'company_balance': transactions[0].company_balance,
             }]
             while i < length:
-                transactions[i].company_balance_after = previous_transaction.company_balance_after - \
-                                                        previous_transaction.total_sum
+                transactions[i].company_balance = previous_transaction.company_balance - previous_transaction.total_sum
                 previous_transaction = transactions[i]
                 dataset.append({
                     'id': transactions[i].id,
-                    'company_balance_after': transactions[i].company_balance_after,
+                    'company_balance': transactions[i].company_balance,
                 })
                 i += 1
 
