@@ -305,7 +305,7 @@ class DBRepository(BaseRepository):
                 transaction_sum=transaction['sum'],
                 fee_sum=transaction['sum_service'],
                 total_sum=transaction['total'],
-                company_balance_after=0,
+                company_balance=0,
                 comments=transaction['comment'],
             ) for transaction in transactions
         ]
