@@ -82,7 +82,7 @@ class DBRepository(BaseRepository):
                 tariff_id=rate_ids_related_to_tariff_ids[company['rate_id']],
                 personal_account=('000000' + str(random.randint(1, 9999999)))[-7:],
                 inn=company['inn'],
-                current_balance=company['amount'],
+                balance=company['amount'],
                 min_balance=company['min_balance'],
                 min_balance_period_end_date=None if company['min_balance_date_to'] == '0000-00-00 00:00:00' else
                 company['min_balance_date_to'],
@@ -104,7 +104,7 @@ class DBRepository(BaseRepository):
                 tariff_id=None,
                 personal_account=('000000' + str(random.randint(1, 9999999)))[-7:],
                 inn=company['inn'],
-                current_balance=company['amount'],
+                balance=company['amount'],
                 min_balance=company['min_balance'],
                 min_balance_period_end_date=None if company['min_balance_date_to'] == '0000-00-00 00:00:00' else
                 company['min_balance_date_to'],
