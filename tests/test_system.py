@@ -167,3 +167,42 @@ class TestSystem:
 
         msg = "Не пройдена проверка на редактирование записи"
         assert response.status_code == 200 and body == correct_response_data, msg
+
+    """
+    Получение всех записей
+    """
+
+    async def test_get_all_systems(self, aclient: AsyncClient, token: str):
+        response = await aclient.get(
+            url=f"/system/all",
+            headers=headers(token)
+        )
+        body = response.json()
+        if response.status_code != 200:
+            print(body)
+
+        msg = "Не пройдена проверка на получение всех записей"
+        assert response.status_code == 200 and len(body) == 2, msg
+
+    """
+    Удаление записи
+    """
+
+    async def test_delete_system(self, aclient: AsyncClient, token: str):
+        async with sessionmanager.session() as session:
+            repository = BaseRepository(session, None)
+            stmt = sa_select(System).where(System.full_name == 'Лукойл')
+            system = await repository.select_first(stmt)
+
+        response = await aclient.get(
+            url=f"/system/{system.id}/delete",
+            headers=headers(token)
+        )
+
+        async with sessionmanager.session() as session:
+            repository = BaseRepository(session, None)
+            stmt = sa_select(System).where(System.full_name == 'Лукойл')
+            system = await repository.select_first(stmt)
+
+        msg = "Не пройдена проверка на удаление записи"
+        assert response.status_code == 200 and system is None, msg

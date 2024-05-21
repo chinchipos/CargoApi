@@ -61,7 +61,7 @@ async def create(
 
 
 @router.post(
-    path="/tariff/{tariff_id}/edit",
+    path="/tariff/{id}/edit",
     tags=["tariff"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = TariffReadSchema,
@@ -69,11 +69,11 @@ async def create(
     description = edit_tariff_description
 )
 async def edit(
-    tariff_id: uuid.UUID,
+    id: uuid.UUID,
     data: TariffEditSchema,
     service: TariffService = Depends(get_service_tariff)
 ) -> TariffReadSchema:
-    _id_ = str(tariff_id)
+    _id_ = str(id)
     # Проверка прав доступа. Редактировать тарифы может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()
@@ -83,7 +83,7 @@ async def edit(
 
 
 @router.post(
-    path="/tariff/{tariff_id}/delete",
+    path="/tariff/{id}/delete",
     tags=["tariff"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SuccessSchema,
@@ -91,10 +91,10 @@ async def edit(
     description = delete_tariff_description
 )
 async def delete(
-    tariff_id: uuid.UUID,
+    id: uuid.UUID,
     service: TariffService = Depends(get_service_tariff)
 ) -> dict[str, Any]:
-    _id_ = str(tariff_id)
+    _id_ = str(id)
     # Проверка прав доступа. Удалять может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()

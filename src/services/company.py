@@ -2,9 +2,10 @@ from typing import List, Any
 
 from src.database import models
 from src.repositories.company import CompanyRepository
+from src.repositories.user import UserRepository
 from src.schemas.company import CompanyEditSchema, CompanyReadSchema, CompanyReadMinimumSchema
 from src.utils import enums
-from src.utils.exceptions import BadRequestException
+from src.utils.exceptions import BadRequestException, ForbiddenException
 
 
 class CompanyService:
@@ -27,6 +28,15 @@ class CompanyService:
         company = await self.repository.get_company(company_id)
         company_read_schema = CompanyReadSchema.model_validate(company)
         return company_read_schema
+
+    async def bind_manager(self, company_id: str, user_id: str) -> None:
+        # Назначаемый менеджер обязан обладать соответствующей ролью
+        user_repository = UserRepository(self.repository.session, self.repository.user)
+        manager = await user_repository.get_user(user_id)
+        if manager.role.name != enums.Role.CARGO_MANAGER.name:
+            raise ForbiddenException()
+
+        await self.repository.bind_manager(company_id, user_id)
 
     async def get_company(self, company_id: str) -> Any:
         # Получаем организацию

@@ -7,3 +7,10 @@ get_me_description = (
     Входные параметры отсутствуют.
     """
 )
+
+create_user_description = "Создание пользователя"
+
+get_companies_users_description = "Получение всех сотрудников организаций"
+
+get_cargo_users_description = "Получение всех сотрудников ПроАВТО"
+

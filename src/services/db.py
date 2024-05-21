@@ -62,11 +62,10 @@ class DBService:
             last_name = 'Главный',
             email = 'cargo@cargonomica.com',
             phone = '',
+            is_active = True,
             role_id = role.id
         )
         superadmin = await create_user(user_schema)
-        superadmin.is_active = True
-        await self.repository.save_object(superadmin)
 
     async def calculate_company_balance(self, company: models.Company, transactions) -> None:
         if transactions:

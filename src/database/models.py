@@ -18,7 +18,17 @@ class Base(AsyncAttrs, MappedAsDataclass, DeclarativeBase):
             setattr(self, field, value)
 
     def dumps(self) -> Dict[str, Any]:
+        # Формируем словарь, состоящий из полей модели
         dump = {column.key: getattr(self, column.key) for column in inspect(self).mapper.column_attrs}
+
+        # Добавляем в словарь связанные модели
+        relationships = inspect(self.__class__).relationships
+        for rel in relationships:
+            try:
+                dump[rel.key] = getattr(self, rel.key)
+            except Exception:
+                pass
+
         return dump
 
     def annotate(self, data: Dict[str, Any]) -> Any:
@@ -463,8 +473,7 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     is_active: Mapped[bool] = mapped_column(
         sa.Boolean,
         nullable=False,
-        server_default=sa.sql.false(),
-        init=False
+        server_default=sa.sql.false()
     )
 
     # Роль
@@ -565,24 +574,28 @@ class AdminCompany(Base):
     user_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.user.id"),
         nullable=False,
-        init=False
+        init=True
     )
 
     # Пользователь
     user: Mapped["User"] = relationship(
         back_populates="admin_company",
-        lazy="noload"
+        lazy="noload",
+        init = False
     )
 
     # Организация
     company_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.company.id")
+        sa.ForeignKey("cargonomica.company.id"),
+        nullable = False,
+        init = True
     )
 
     # Организация
     company: Mapped["Company"] = relationship(
         back_populates="admin_company",
-        lazy="noload"
+        lazy="noload",
+        init = False
     )
 
     def __repr__(self) -> str:

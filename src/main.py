@@ -7,11 +7,11 @@ from src import config
 from src.auth.auth import auth_backend, fastapi_users
 from src.database.db import sessionmanager
 from src.routing.car import router as car_routing, car_tag_metadata
-# from src.database.db import engine
 from src.routing.card import router as card_routing, card_tag_metadata
 from src.routing.card_type import router as card_type_routing, card_type_tag_metadata
 from src.routing.company import router as company_routing, company_tag_metadata
 from src.routing.db import router as db_routing, db_tag_metadata
+from src.routing.role import router as role_routing, role_tag_metadata
 from src.routing.system import router as system_routing, system_tag_metadata
 from src.routing.tariff import router as tariff_routing, tariff_tag_metadata
 from src.routing.transaction import router as transaction_routing, transaction_tag_metadata
@@ -53,6 +53,7 @@ def init_app(dsn: str, tests: bool = False):
         card_tag_metadata,
         transaction_tag_metadata,
         car_tag_metadata,
+        role_tag_metadata,
     ]
 
     app = FastAPI(
@@ -76,6 +77,7 @@ def init_app(dsn: str, tests: bool = False):
     app.include_router(card_routing)
     app.include_router(transaction_routing)
     app.include_router(car_routing)
+    app.include_router(role_routing)
     app.include_router(
         fastapi_users.get_auth_router(auth_backend),
         prefix="/auth/jwt",

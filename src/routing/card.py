@@ -34,8 +34,6 @@ async def get_cards(
     # Получить список карт могут все пользователи.
     # Состав списка определяется ролью пользователя. Эта проверка будет выполнена при формировании списка.
     cards = await service.get_cards()
-    for card in cards:
-        print('company:', card.company)
     return cards
 
 
@@ -60,7 +58,7 @@ async def create(
 
 
 @router.post(
-    path="/card/{card_id}/edit",
+    path="/card/{id}/edit",
     tags=["card"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = CardReadSchema,
@@ -68,18 +66,18 @@ async def create(
     description = edit_card_description
 )
 async def edit(
-    card_id: uuid.UUID,
+    id: uuid.UUID,
     data: CardEditSchema,
     service: CardService = Depends(get_service_card)
 ) -> CardReadSchema:
-    cid = str(card_id)
+    _id_ = str(id)
     # Проверка прав доступа будет выполнена на следующем этапе
-    card = await service.edit(cid, data)
+    card = await service.edit(_id_, data)
     return card
 
 
 @router.post(
-    path="/card/{card_id}/delete",
+    path="/card/{id}/delete",
     tags=["card"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SuccessSchema,
@@ -87,13 +85,13 @@ async def edit(
     description = delete_card_description
 )
 async def delete(
-    card_id: uuid.UUID,
+    id: uuid.UUID,
     service: CardService = Depends(get_service_card)
 ) -> dict[str, Any]:
-    cid = str(card_id)
+    _id_ = str(id)
     # Проверка прав доступа. Удалять может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()
 
-    await service.delete(cid)
+    await service.delete(_id_)
     return {'success': True}

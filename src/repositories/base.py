@@ -20,26 +20,6 @@ class BaseRepository:
         self.user = user
         self.logger = logger
 
-    '''
-    async def load_user_profile(self, user_id: str) -> None:
-        try:
-            stmt = (
-                sa.select(models.User)
-                .options(
-                    joinedload(models.User.role).joinedload(models.Role.role_permition).joinedload(
-                        models.RolePermition.permition)
-                )
-                .where(models.User.id == user_id)
-                .limit(1)
-            )
-            dataset = await self.session.scalars(stmt)
-            self.user = dataset.first()
-
-        except Exception:
-            self.logger.error(traceback.format_exc())
-            raise DBException()
-    '''
-
     async def select_helper(self, stmt, scalars=True) -> Any:
         try:
             if scalars:

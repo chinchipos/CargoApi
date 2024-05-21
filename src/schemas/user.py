@@ -1,11 +1,12 @@
 import uuid
-from typing import Optional
+from typing import Optional, List
 
 from fastapi_users import models, schemas
 
 from pydantic import EmailStr
 from pydantic import BaseModel, ConfigDict
 
+from src.schemas.company import CompanyReadMinimumSchema
 from src.schemas.role import RoleReadSchema
 
 
@@ -28,8 +29,36 @@ class UserReadSchema(BaseModel):
     last_name: str
     email: EmailStr
     phone: str
-    is_active: bool = True
+    is_active: bool
     role: Optional[RoleReadSchema]
+
+
+class UserCompanyReadSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    username: str
+    first_name: str
+    last_name: str
+    email: EmailStr
+    phone: str
+    is_active: bool
+    role: Optional[RoleReadSchema]
+    company: Optional[CompanyReadMinimumSchema]
+
+
+class UserCargoReadSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    username: str
+    first_name: str
+    last_name: str
+    email: EmailStr
+    phone: str
+    is_active: bool
+    role: Optional[RoleReadSchema]
+    companies: Optional[List[CompanyReadMinimumSchema]]
 
 
 class UserCreateSchema(schemas.BaseUserCreate):
@@ -44,8 +73,6 @@ class UserCreateSchema(schemas.BaseUserCreate):
     is_active: Optional[bool] = True
     role_id: str
     company_id: Optional[str] = None
-    is_superuser: Optional[bool] = False
-    is_verified: Optional[bool] = False
 
 
 '''

@@ -4,7 +4,7 @@ from typing import Any, List
 from fastapi import APIRouter, Depends
 
 from src.depends import get_service_system
-from src.schemas.common import SuccessSchema, ModelIDSchema
+from src.schemas.common import SuccessSchema
 from src.schemas.system import SystemReadSchema, SystemCreateSchema, SystemEditSchema
 from src.services.system import SystemService
 from src.utils import enums
@@ -73,16 +73,16 @@ async def edit(
     data: SystemEditSchema,
     service: SystemService = Depends(get_service_system)
 ) -> SystemReadSchema:
-    sid = str(id)
+    _id_ = str(id)
     # Проверка прав доступа. Редактировать системы может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()
 
-    system = await service.edit(sid, data)
+    system = await service.edit(_id_, data)
     return system
 
 
-@router.post(
+@router.get(
     path="/system/{id}/delete",
     tags=["system"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
@@ -94,10 +94,10 @@ async def delete(
     id: uuid.UUID,
     service: SystemService = Depends(get_service_system)
 ) -> dict[str, Any]:
-    sid = str(id)
+    _id_ = str(id)
     # Проверка прав доступа. Удалять может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()
 
-    await service.delete(sid)
+    await service.delete(_id_)
     return {'success': True}

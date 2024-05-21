@@ -56,7 +56,7 @@ async def create(
 
 
 @router.post(
-    path="/car/{car_id}/edit",
+    path="/car/{id}/edit",
     tags=["car"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = CarReadSchema,
@@ -64,11 +64,11 @@ async def create(
     description = edit_car_description
 )
 async def edit(
-    car_id: uuid.UUID,
+    id: uuid.UUID,
     data: CarEditSchema,
     service: CarService = Depends(get_service_car)
 ) -> CarReadSchema:
-    _id_ = str(car_id)
+    _id_ = str(id)
     # Проверка прав доступа будет выполнена далее
 
     car = await service.edit(_id_, data)
@@ -76,7 +76,7 @@ async def edit(
 
 
 @router.post(
-    path="/car/{car_id}/delete",
+    path="/car/{id}/delete",
     tags=["car"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SuccessSchema,
@@ -84,10 +84,10 @@ async def edit(
     description = delete_car_description
 )
 async def delete(
-    car_id: uuid.UUID,
+    id: uuid.UUID,
     service: CarService = Depends(get_service_car)
 ) -> dict[str, Any]:
-    _id_ = str(car_id)
+    _id_ = str(id)
     # Проверка прав доступа.
     # Суперадмин ПроАВТО не имеет ограничений.
     # Менеджер ПроАВТО может удалять записи в рамках своих организаций.

@@ -57,7 +57,7 @@ async def create(
 
 
 @router.post(
-    path="/card_type/{card_type_id}/edit",
+    path="/card_type/{id}/edit",
     tags=["card_type"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = CardTypeReadSchema,
@@ -65,11 +65,11 @@ async def create(
     description = edit_card_type_description
 )
 async def edit(
-    card_type_id: uuid.UUID,
+    id: uuid.UUID,
     data: CardTypeEditSchema,
     service: CardTypeService = Depends(get_service_card_type)
 ) -> CardTypeReadSchema:
-    _id_ = str(card_type_id)
+    _id_ = str(id)
     # Проверка прав доступа. Редактировать типы карт может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()
@@ -79,7 +79,7 @@ async def edit(
 
 
 @router.post(
-    path="/card_type/{card_type_id}/delete",
+    path="/card_type/{id}/delete",
     tags=["card_type"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SuccessSchema,
@@ -87,10 +87,10 @@ async def edit(
     description = delete_card_type_description
 )
 async def delete(
-    card_type_id: uuid.UUID,
+    id: uuid.UUID,
     service: CardTypeService = Depends(get_service_card_type)
 ) -> dict[str, Any]:
-    _id_ = str(card_type_id)
+    _id_ = str(id)
     # Проверка прав доступа. Удалять может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()
