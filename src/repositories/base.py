@@ -72,6 +72,24 @@ class BaseRepository:
             self.logger.error(traceback.format_exc())
             raise DBException()
 
+    async def insert(self, _model_, **fields):
+        try:
+            stmt = pg_insert(_model_).values(fields)
+            result = await self.session.scalars(
+                stmt.returning(_model_),
+                execution_options={"populate_existing": True}
+            )
+            await self.session.commit()
+            return result.first()
+
+        except sa.exc.IntegrityError:
+            self.logger.error(traceback.format_exc())
+            raise DBDuplicateException()
+
+        except Exception:
+            self.logger.error(traceback.format_exc())
+            raise DBException()
+
     async def insert_or_update(self, _model_, index_field, **set_fields) -> Any:
         try:
             stmt = pg_insert(_model_).values(set_fields)
@@ -101,7 +119,6 @@ class BaseRepository:
                 else:
                     stmt = stmt.on_conflict_do_nothing()
 
-                # async with self.session.begin():
                 await self.session.execute(stmt, dataset)
                 await self.session.commit()
 
@@ -127,20 +144,23 @@ class BaseRepository:
             await self.session.commit()
 
         except IntegrityError:
+            self.logger.error(traceback.format_exc())
             raise DBDuplicateException()
 
         except Exception:
+            self.logger.error(traceback.format_exc())
             raise DBException()
 
-        finally:
-            self.logger.error(traceback.format_exc())
-
-    async def update_model_instance(self, model_instance, update_data: Dict[str, Any]) -> None:
+    async def update_object(self, obj, update_data: Dict[str, Any]) -> None:
         try:
-            model_instance.update_without_saving(update_data)
-            self.session.add(model_instance)
-            await self.session.commit()
-            await self.session.refresh(model_instance)
+            obj.update_without_saving(update_data)
+            await self.save_object(obj)
+            await self.session.refresh(obj)
 
         except IntegrityError:
+            self.logger.error(traceback.format_exc())
             raise DBDuplicateException()
+
+        except Exception:
+            self.logger.error(traceback.format_exc())
+            raise DBException()

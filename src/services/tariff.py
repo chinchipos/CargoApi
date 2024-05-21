@@ -28,7 +28,7 @@ class TariffService:
 
         # Обновляем данные, сохраняем в БД
         update_data = tariff_edit_schema.model_dump(exclude_unset=True)
-        await self.repository.update_model_instance(tariff_obj, update_data)
+        await self.repository.update_object(tariff_obj, update_data)
 
         # Формируем ответ
         companies_amount = await self.repository.get_companies_amount(tariff_id)

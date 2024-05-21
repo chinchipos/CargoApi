@@ -7,26 +7,6 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from src.config import PRODUCTION
 from src.database.models import Base
 
-'''
-engine = create_async_engine(
-    URI,
-    connect_args = {'sslmode': "verify-full", 'target_session_attrs': 'read-write'},
-    pool_size = 10,
-    max_overflow = 5,
-    echo = True if not PRODUCTION else False
-)
-SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
-
-
-# Dependency
-async def get_session():
-    try:
-        async with SessionLocal() as session:
-            yield session
-    finally:
-        await engine.dispose()
-'''
-
 
 class DatabaseSessionManager:
     def __init__(self):
@@ -37,7 +17,8 @@ class DatabaseSessionManager:
         if tests:
             echo = False
         else:
-            echo = True if not PRODUCTION else False
+            echo = False if PRODUCTION else True
+            # echo = False
 
         self._engine = create_async_engine(
             connection_string,

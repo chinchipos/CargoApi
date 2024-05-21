@@ -72,7 +72,7 @@ class CarService:
 
 
         update_data = car_edit_schema.model_dump(exclude_unset=True)
-        await self.repository.update_model_instance(car_obj, update_data)
+        await self.repository.update_object(car_obj, update_data)
 
         # Формируем ответ
         # car_read_schema = CarReadSchema.model_validate(car_obj)

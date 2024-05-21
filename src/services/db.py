@@ -65,6 +65,8 @@ class DBService:
             is_active = True,
             role_id = role.id
         )
+        print('YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY')
+        print(user_schema)
         superadmin = await create_user(user_schema)
 
     async def calculate_company_balance(self, company: models.Company, transactions) -> None:

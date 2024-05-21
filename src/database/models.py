@@ -493,7 +493,7 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     company_id: Mapped[int] = mapped_column(
         sa.ForeignKey("cargonomica.company.id"),
         nullable=True,
-        init=False
+        default=None
     )
 
     # Организация

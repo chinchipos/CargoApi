@@ -1,9 +1,10 @@
 from datetime import date
 from typing import Optional, List
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from src.schemas.role import RoleReadSchema
+from src.utils import enums
 
 
 class CompanyTariffSchema(BaseModel):
@@ -60,3 +61,10 @@ class CompanyEditSchema(BaseModel):
     min_balance: Optional[float] = None
     min_balance_on_period: Optional[float] = None
     min_balance_period_end_date: Optional[date] = None
+
+
+class CompanyBalanceEditSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    direction: enums.Finance
+    delta_sum: float = Field(gt=0)

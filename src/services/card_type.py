@@ -26,7 +26,7 @@ class CardTypeService:
 
         # Обновляем данные, сохраняем в БД
         update_data = card_type_edit_schema.model_dump(exclude_unset=True)
-        await self.repository.update_model_instance(card_type_obj, update_data)
+        await self.repository.update_object(card_type_obj, update_data)
 
         # Формируем ответ
         card_type_read_schema = CardTypeReadSchema.model_validate(card_type_obj)

@@ -11,3 +11,5 @@ get_companies_description = "Получение сведений обо всех
 get_company_drivers_description = "Получение списка водителей по конкретной компании"
 
 get_companies_drivers_description = "Получение списка водителей по всем компаниям"
+
+edit_balance_description = "Редактирование баланса организации"

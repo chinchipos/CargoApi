@@ -6,12 +6,13 @@ from fastapi import APIRouter, Depends
 from src.database import models
 from src.depends import get_service_company
 from src.schemas.common import SuccessSchema
-from src.schemas.company import CompanyReadSchema, CompanyEditSchema
+from src.schemas.company import CompanyReadSchema, CompanyEditSchema, CompanyBalanceEditSchema
 from src.schemas.driver import DriverReadSchema
 from src.services.company import CompanyService
 from src.utils import enums
 from src.utils.descriptions.company import company_tag_description, edit_company_description, get_company_description, \
-    get_companies_description, get_company_drivers_description, bind_manager_to_company_description
+    get_companies_description, get_company_drivers_description, bind_manager_to_company_description, \
+    edit_balance_description
 from src.utils.exceptions import ForbiddenException
 from src.utils.schemas import MessageSchema
 
@@ -23,7 +24,7 @@ company_tag_metadata = {
 
 
 @router.get(
-    path="/company/all/",
+    path="/company/all",
     tags=["company"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = List[CompanyReadSchema],
@@ -62,7 +63,7 @@ async def get_companies_drivers(
 
 
 @router.get(
-    path="/company/{id}/",
+    path="/company/{id}",
     tags=["company"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = CompanyReadSchema,
@@ -73,7 +74,7 @@ async def get_company(
     id: uuid.UUID,
     service: CompanyService = Depends(get_service_company)
 ) -> Any:
-    _id_ = str(id)
+    id = str(id)
     minor_roles = [enums.Role.COMPANY_ADMIN.name, enums.Role.COMPANY_LOGIST.name, enums.Role.COMPANY_DRIVER.name]
     # Проверка прав доступа.
     # Суперадмин имеет права на все организации.
@@ -83,14 +84,14 @@ async def get_company(
     # Отдать расширенные или ограниченные сведения - решение принимается при формировании сведений о компании.
 
     if service.repository.user.role.name == enums.Role.CARGO_MANAGER.name:
-        if not service.repository.user.is_admin_for_company(_id_):
+        if not service.repository.user.is_admin_for_company(id):
             raise ForbiddenException()
 
     elif service.repository.user.role.name in minor_roles:
-        if not service.repository.user.is_worker_of_company(_id_):
+        if not service.repository.user.is_worker_of_company(id):
             raise ForbiddenException()
 
-    company = await service.get_company(_id_)
+    company = await service.get_company(id)
     return company
 
 
@@ -107,14 +108,27 @@ async def edit_company(
     data: CompanyEditSchema,
     service: CompanyService = Depends(get_service_company)
 ):
-    _id_ = str(id)
-    # Проверка прав доступа. Получить список систем могут только сотрудники ПроАВТО.
-    major_roles = [enums.Role.CARGO_SUPER_ADMIN.name, enums.Role.CARGO_MANAGER.name]
-    if service.repository.user.role.name not in major_roles:
-        raise ForbiddenException()
-
-    company = await service.edit(_id_, data)
+    id = str(id)
+    company = await service.edit(id, data)
     return company
+
+
+@router.post(
+    path="/company/{id}/balance/edit",
+    tags=["company"],
+    responses = {400: {'model': MessageSchema, "description": "Bad request"}},
+    response_model = SuccessSchema,
+    name = 'Редактирование баланса организации',
+    description = edit_balance_description
+)
+async def edit_balance(
+    id: uuid.UUID,
+    data: CompanyBalanceEditSchema,
+    service: CompanyService = Depends(get_service_company)
+):
+    id = str(id)
+    await service.edit_company_balance(id, data)
+    return {'success': True}
 
 
 @router.get(
@@ -130,14 +144,14 @@ async def bind_manager(
     user_id: uuid.UUID,
     service: CompanyService = Depends(get_service_company)
 ) -> dict[str, Any]:
-    _id_ = str(id)
-    _user_id_ = str(user_id)
+    id = str(id)
+    user_id = str(user_id)
 
     # Выполнять операцию имеет право только суперадмин ПроАВТО.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()
 
-    await service.bind_manager(_id_, _user_id_)
+    await service.bind_manager(id, user_id)
     return {'success': True}
 
 
@@ -153,7 +167,7 @@ async def get_company_drivers(
     id: uuid.UUID,
     service: CompanyService = Depends(get_service_company)
 ) -> models.User:
-    _id_ = str(id)
+    id = str(id)
     # Проверка прав доступа.
     # Суперадмин может получать любые данные.
     # Менеджер ПроАВТО может получать водителей только по своим организациям.
@@ -163,15 +177,15 @@ async def get_company_drivers(
         pass
 
     elif service.repository.user.role.name == enums.Role.CARGO_MANAGER.name:
-        if not service.repository.user.is_admin_for_company(_id_):
+        if not service.repository.user.is_admin_for_company(id):
             raise ForbiddenException()
 
     elif service.repository.user.role.name in [enums.Role.COMPANY_ADMIN.name, enums.Role.COMPANY_LOGIST.name]:
-        if not service.repository.user.is_worker_of_company(_id_):
+        if not service.repository.user.is_worker_of_company(id):
             raise ForbiddenException()
 
     else:
         raise ForbiddenException()
 
-    drivers = await service.get_drivers(_id_)
+    drivers = await service.get_drivers(id)
     return drivers

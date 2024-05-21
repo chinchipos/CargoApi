@@ -83,7 +83,7 @@ class CardService:
             update_data = temporary_update_data
 
         # Обновляем запись в БД
-        await self.repository.update_model_instance(card_obj, update_data)
+        await self.repository.update_object(card_obj, update_data)
 
         # Формируем ответ
         card_read_schema = CardReadSchema.model_validate(card_obj)

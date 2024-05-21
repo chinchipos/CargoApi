@@ -1,4 +1,5 @@
 from enum import Enum, StrEnum
+from typing import Any, Type
 
 
 class Role(Enum):
@@ -38,6 +39,7 @@ class Permition(StrEnum):
 
 
 class LogType(StrEnum):
+
     USERS = 'USERS'
     CARDS = 'CARDS'
     CARS = 'CARS'
@@ -46,3 +48,18 @@ class LogType(StrEnum):
     TRANSACTIONS = 'TRANSACTIONS'
     TARIFFS = 'TARIFFS'
     COMMON = 'COMMON'
+
+
+
+class Finance(StrEnum):
+
+    DEBIT = "DEBIT"
+    CREDIT = "CREDIT"
+
+    @classmethod
+    def _missing_(cls, value: Any):
+        value = str(value).upper()
+        for member in cls:
+            if member.value == value:
+                return member
+        return None

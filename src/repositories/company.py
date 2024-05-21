@@ -71,3 +71,5 @@ class CompanyRepository(BaseRepository):
     async def bind_manager(self, company_id: str, user_id: str) -> None:
         new_company_nanager_link = models.AdminCompany(company_id = company_id, user_id = user_id)
         await self.save_object(new_company_nanager_link)
+
+

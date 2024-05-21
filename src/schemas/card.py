@@ -19,7 +19,7 @@ class CardReadSchema(BaseModel):
     date_last_use: Optional[date] = None
     manual_lock: bool
     card_type: CardTypeReadSchema
-    systems: List[SystemReadMinimumSchema] = None
+    systems: List[SystemReadMinimumSchema] = []
     company: Optional[CompanyReadMinimumSchema] = None
     belongs_to_car: Optional[CarReadSchema] = None
     belongs_to_driver: Optional[DriverReadSchema] = None
