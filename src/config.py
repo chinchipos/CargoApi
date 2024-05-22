@@ -11,3 +11,7 @@ DB_PASSWORD = os.environ.get('DB_PASSWORD')
 JWT_SECRET = os.environ.get('JWT_SECRET')
 SERVICE_TOKEN = os.environ.get('SERVICE_TOKEN')
 PRODUCTION = True if os.environ.get('PRODUCTION') == 'true' else False
+BUILTIN_ADMIN_NAME = os.environ.get('BUILTIN_ADMIN_NAME')
+BUILTIN_ADMIN_EMAIL = os.environ.get('BUILTIN_ADMIN_EMAIL')
+BUILTIN_ADMIN_LASTNAME = os.environ.get('BUILTIN_ADMIN_LASTNAME')
+BUILTIN_ADMIN_FIRSTNAME = os.environ.get('BUILTIN_ADMIN_FIRSTNAME')

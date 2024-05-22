@@ -70,9 +70,9 @@ async def edit(
     data: CardEditSchema,
     service: CardService = Depends(get_service_card)
 ) -> CardReadSchema:
-    _id_ = str(id)
+    id = str(id)
     # Проверка прав доступа будет выполнена на следующем этапе
-    card = await service.edit(_id_, data)
+    card = await service.edit(id, data)
     return card
 
 
@@ -88,10 +88,10 @@ async def delete(
     id: uuid.UUID,
     service: CardService = Depends(get_service_card)
 ) -> dict[str, Any]:
-    _id_ = str(id)
+    id = str(id)
     # Проверка прав доступа. Удалять может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()
 
-    await service.delete(_id_)
+    await service.delete(id)
     return {'success': True}

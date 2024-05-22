@@ -68,10 +68,10 @@ async def edit(
     data: CarEditSchema,
     service: CarService = Depends(get_service_car)
 ) -> CarReadSchema:
-    _id_ = str(id)
+    id = str(id)
     # Проверка прав доступа будет выполнена далее
 
-    car = await service.edit(_id_, data)
+    car = await service.edit(id, data)
     return car
 
 
@@ -87,7 +87,7 @@ async def delete(
     id: uuid.UUID,
     service: CarService = Depends(get_service_car)
 ) -> dict[str, Any]:
-    _id_ = str(id)
+    id = str(id)
     # Проверка прав доступа.
     # Суперадмин ПроАВТО не имеет ограничений.
     # Менеджер ПроАВТО может удалять записи в рамках своих организаций.
@@ -96,5 +96,5 @@ async def delete(
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()
 
-    await service.delete(_id_)
+    await service.delete(id)
     return {'success': True}

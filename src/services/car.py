@@ -113,4 +113,4 @@ class CarService:
         else:
             raise ForbiddenException()
 
-        await self.repository.delete_one(models.Car, car_id)
+        await self.repository.delete_object(models.Car, car_id)

@@ -95,4 +95,4 @@ class CardService:
         return cards
 
     async def delete(self, card_id: str) -> None:
-        await self.repository.delete_one(models.Card, card_id)
+        await self.repository.delete_object(models.Card, card_id)

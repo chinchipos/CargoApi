@@ -43,4 +43,4 @@ class SystemService:
         return systems
 
     async def delete(self, system_id: str) -> None:
-        await self.repository.delete_one(models.System, system_id)
+        await self.repository.delete_object(models.System, system_id)

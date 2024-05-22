@@ -26,6 +26,7 @@ class Base(AsyncAttrs, MappedAsDataclass, DeclarativeBase):
         for rel in relationships:
             try:
                 dump[rel.key] = getattr(self, rel.key)
+
             except Exception:
                 pass
 
@@ -106,6 +107,7 @@ class Company(Base):
     # Идентификатор в боевой БД (для синхронизации)
     master_db_id: Mapped[int] = mapped_column(
         sa.Integer(),
+        nullable=True,
         init=False
     )
 

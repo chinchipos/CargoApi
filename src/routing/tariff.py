@@ -73,12 +73,12 @@ async def edit(
     data: TariffEditSchema,
     service: TariffService = Depends(get_service_tariff)
 ) -> TariffReadSchema:
-    _id_ = str(id)
+    id = str(id)
     # Проверка прав доступа. Редактировать тарифы может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()
 
-    tariff = await service.edit(_id_, data)
+    tariff = await service.edit(id, data)
     return tariff
 
 
@@ -94,10 +94,10 @@ async def delete(
     id: uuid.UUID,
     service: TariffService = Depends(get_service_tariff)
 ) -> dict[str, Any]:
-    _id_ = str(id)
+    id = str(id)
     # Проверка прав доступа. Удалять может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()
 
-    await service.delete(_id_)
+    await service.delete(id)
     return {'success': True}

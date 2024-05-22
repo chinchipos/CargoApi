@@ -1,12 +1,14 @@
+import traceback
 from typing import List
 
-from sqlalchemy import select as sa_select
+from sqlalchemy import select as sa_select, delete as sa_delete
 from sqlalchemy.orm import joinedload
 
 from src.database import models
 from src.repositories.base import BaseRepository
 from src.schemas.user import UserCreateSchema
 from src.utils import enums
+from src.utils.exceptions import DBException
 
 
 class UserRepository(BaseRepository):
@@ -14,7 +16,10 @@ class UserRepository(BaseRepository):
     async def get_user(self, user_id: str) -> models.User:
         stmt = (
             sa_select(models.User)
-            .options(joinedload(models.User.role))
+            .options(
+                joinedload(models.User.admin_company).joinedload(models.AdminCompany.company),
+                joinedload(models.User.role)
+            )
             .where(models.User.id == user_id)
             .limit(1)
         )
@@ -69,3 +74,33 @@ class UserRepository(BaseRepository):
 
         users = await self.select_all(stmt)
         return users
+
+    async def bind_managed_companies(self, user_id: str, company_ids: List[str]) -> None:
+        if company_ids:
+            dataset = [{"user_id": user_id, "company_id": company_id} for company_id in company_ids]
+            await self.bulk_insert_or_update(models.AdminCompany, dataset)
+
+    async def unbind_managed_companies(self, user_id: str, company_ids: List[str]) -> None:
+        if company_ids:
+            stmt = (
+                sa_delete(models.AdminCompany)
+                .where(models.AdminCompany.user_id == user_id)
+                .where(models.AdminCompany.company_id.in_(company_ids))
+            )
+            try:
+                await self.session.execute(stmt)
+                await self.session.commit()
+
+            except Exception:
+                self.logger.error(traceback.format_exc())
+                raise DBException()
+
+    async def get_role(self, role_id: str) -> models.Role:
+        try:
+            stmt = sa_select(models.Role).where(models.Role.id == role_id)
+            role = await self.select_first(stmt)
+            return role
+
+        except Exception:
+            self.logger.error(traceback.format_exc())
+            raise DBException()

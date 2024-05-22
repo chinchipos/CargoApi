@@ -1,13 +1,14 @@
 from typing import Dict, Any
 
 import sqlalchemy as sa
+import sqlalchemy.exc
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 
 from src.database import models
 from src.database.db import get_session
 
-from src.utils.exceptions import DBException, DBDuplicateException
+from src.utils.exceptions import DBException, DBDuplicateException, BadRequestException
 from src.utils.log import logger
 
 import traceback
@@ -51,11 +52,15 @@ class BaseRepository:
         row = dataset.first()
         return row[0] if row else None
 
-    async def delete_one(self, _model_, _id_: str):
+    async def delete_object(self, _model_, _id_: str):
         try:
             stmt = sa.delete(_model_).where(_model_.id == _id_)
             await self.session.execute(stmt)
             await self.session.commit()
+
+        except sqlalchemy.exc.IntegrityError:
+            self.logger.error(traceback.format_exc())
+            raise BadRequestException("Невозможно удалить объект, так как на него ссылаются другие записи")
 
         except Exception:
             self.logger.error(traceback.format_exc())
@@ -108,7 +113,7 @@ class BaseRepository:
             self.logger.error(traceback.format_exc())
             raise DBException()
 
-    async def bulk_insert_or_update(self, dataset: list[Dict[str, Any]], _model_, index_field: str = None) -> None:
+    async def bulk_insert_or_update(self, _model_, dataset: list[Dict[str, Any]], index_field: str = None) -> None:
         if dataset:
             try:
                 stmt = pg_insert(_model_)
@@ -155,7 +160,7 @@ class BaseRepository:
         try:
             obj.update_without_saving(update_data)
             await self.save_object(obj)
-            await self.session.refresh(obj)
+            # await self.session.refresh(obj)
 
         except IntegrityError:
             self.logger.error(traceback.format_exc())

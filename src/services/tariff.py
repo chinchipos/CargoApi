@@ -41,4 +41,4 @@ class TariffService:
         return tariffs
 
     async def delete(self, tariff_id: str) -> None:
-        await self.repository.delete_one(models.Tariff, tariff_id)
+        await self.repository.delete_object(models.Tariff, tariff_id)

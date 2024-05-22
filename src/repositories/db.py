@@ -54,7 +54,7 @@ class DBRepository(BaseRepository):
                 transaction_days=system['transaction_days'],
             ) for system in systems
         ]
-        await self.bulk_insert_or_update(dataset, System, 'full_name')
+        await self.bulk_insert_or_update(System, dataset, 'full_name')
 
     async def import_tariffs(self, tariffs: list[Dict[str, Any]]) -> None:
         dataset = [
@@ -64,7 +64,7 @@ class DBRepository(BaseRepository):
                 fee_percent=tariff['service_online'],
             ) for tariff in tariffs
         ]
-        await self.bulk_insert_or_update(dataset, Tariff, 'name')
+        await self.bulk_insert_or_update(Tariff, dataset, 'name')
 
     async def import_companies(self, companies: list[Dict[str, Any]]) -> None:
         # Тариф. Сопоставление id записи на боевом сервере с наименованием тарифа на новом сервере.
@@ -89,7 +89,7 @@ class DBRepository(BaseRepository):
                 min_balance_on_period=company['min_balance_period'],
             ) for company in companies
         ]
-        await self.bulk_insert_or_update(dataset, Company, 'inn')
+        await self.bulk_insert_or_update(Company, dataset, 'inn')
 
     async def sync_companies(self, companies: list[Dict[str, Any]]) -> int:
         # Получаем список идентификаторов, указывающих на организации из БД основной площадки
@@ -112,7 +112,7 @@ class DBRepository(BaseRepository):
             ) for company in companies if company['id'] not in excluded_master_db_ids
         ]
         if dataset:
-            await self.bulk_insert_or_update(dataset, Company, 'inn')
+            await self.bulk_insert_or_update(Company, dataset, 'inn')
 
         return len(dataset)
 
@@ -131,7 +131,7 @@ class DBRepository(BaseRepository):
                 company_id=company_ids[car['company_id']],
             ) for car in cars
         ]
-        await self.bulk_insert_or_update(dataset, Car, 'reg_number')
+        await self.bulk_insert_or_update(Car, dataset, 'reg_number')
 
     async def import_cards(self, cards: list[Dict[str, Any]]) -> None:
         # Тип карты по умолчанию для вновь импортируемых карт
@@ -171,7 +171,7 @@ class DBRepository(BaseRepository):
                 manual_lock=card['manual_lock'],
             ) for card in cards
         ]
-        await self.bulk_insert_or_update(dataset, Card, 'card_number')
+        await self.bulk_insert_or_update(Card, dataset, 'card_number')
 
     async def import_card_systems(self, cards: list[Dict[str, Any]]) -> None:
         # Номера карт в привязке к id
@@ -194,7 +194,7 @@ class DBRepository(BaseRepository):
                 system_id=system_ids[card['system_id']],
             ) for card in cards
         ]
-        await self.bulk_insert_or_update(dataset, CardSystem)
+        await self.bulk_insert_or_update(CardSystem, dataset)
 
     async def import_inner_goods(self, goods: list[Dict[str, Any]], transactions: list[Dict[str, Any]]) -> None:
         dataset = [{'name': good['inner_goods']} for good in goods]
@@ -212,7 +212,7 @@ class DBRepository(BaseRepository):
                 if not found:
                     dataset.append({'name': transaction['gds']})
 
-        await self.bulk_insert_or_update(dataset, InnerGoods)
+        await self.bulk_insert_or_update(InnerGoods, dataset)
 
     async def import_outer_goods(self, goods: list[Dict[str, Any]], transactions: list[Dict[str, Any]]) -> None:
         # Система. Сопоставление id записи на боевом сервере с id на новом сервере.
@@ -256,7 +256,7 @@ class DBRepository(BaseRepository):
                         )
                     )
 
-        await self.bulk_insert_or_update(dataset, OuterGoods)
+        await self.bulk_insert_or_update(OuterGoods, dataset)
 
     async def import_transactions(self, transactions: list[Dict[str, Any]]) -> None:
         # Система. Сопоставление id записи на боевом сервере с id на новом сервере.
@@ -310,7 +310,7 @@ class DBRepository(BaseRepository):
             ) for transaction in transactions
         ]
 
-        await self.bulk_insert_or_update(dataset, Transaction)
+        await self.bulk_insert_or_update(Transaction, dataset)
 
     async def get_cargo_superadmin_role(self) -> models.Role:
         try:
@@ -335,4 +335,3 @@ class DBRepository(BaseRepository):
         )
         dataset = await self.select_all(stmt)
         return dataset
-

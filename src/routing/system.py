@@ -73,12 +73,12 @@ async def edit(
     data: SystemEditSchema,
     service: SystemService = Depends(get_service_system)
 ) -> SystemReadSchema:
-    _id_ = str(id)
+    id = str(id)
     # Проверка прав доступа. Редактировать системы может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()
 
-    system = await service.edit(_id_, data)
+    system = await service.edit(id, data)
     return system
 
 
@@ -94,10 +94,10 @@ async def delete(
     id: uuid.UUID,
     service: SystemService = Depends(get_service_system)
 ) -> dict[str, Any]:
-    _id_ = str(id)
+    id = str(id)
     # Проверка прав доступа. Удалять может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()
 
-    await service.delete(_id_)
+    await service.delete(id)
     return {'success': True}

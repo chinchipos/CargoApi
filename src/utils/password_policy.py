@@ -20,14 +20,14 @@ def test_password_strength(role_name: str, password: str) -> None:
             length=8,
             numbers=1,
         )
-        strength = 'не менее 8 знаков, прописные буквы, цифры.'
+        strength = 'не менее 8 знаков, прописные буквы или цифры.'
 
     elif role_name == enums.Role.COMPANY_ADMIN.name:
         policy = PasswordPolicy.from_names(
             length=8,
             numbers=1,
         )
-        strength = 'не менее 8 знаков, прописные буквы, цифры.'
+        strength = 'не менее 8 знаков, прописные буквы или цифры.'
 
     elif role_name == enums.Role.COMPANY_LOGIST.name:
         policy = PasswordPolicy.from_names(

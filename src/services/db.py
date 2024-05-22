@@ -1,5 +1,6 @@
 from src.auth.manager import create_user
-from src.config import SERVICE_TOKEN
+from src.config import SERVICE_TOKEN, BUILTIN_ADMIN_NAME, BUILTIN_ADMIN_EMAIL, BUILTIN_ADMIN_FIRSTNAME, \
+    BUILTIN_ADMIN_LASTNAME
 from src.database import models
 from src.repositories.db import DBRepository
 from src.schemas.db import DBInitSchema, DBInitialSyncSchema, DBRegularSyncSchema
@@ -56,18 +57,16 @@ class DBService:
 
         # Создание суперадмина
         user_schema = UserCreateSchema(
-            username = 'cargo',
+            username = BUILTIN_ADMIN_NAME,
             password = data.superuser_password,
-            first_name = 'Администратор',
-            last_name = 'Главный',
-            email = 'cargo@cargonomica.com',
+            first_name = BUILTIN_ADMIN_FIRSTNAME,
+            last_name = BUILTIN_ADMIN_LASTNAME,
+            email = BUILTIN_ADMIN_EMAIL,
             phone = '',
             is_active = True,
             role_id = role.id
         )
-        print('YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY')
-        print(user_schema)
-        superadmin = await create_user(user_schema)
+        await create_user(user_schema)
 
     async def calculate_company_balance(self, company: models.Company, transactions) -> None:
         if transactions:

@@ -37,4 +37,4 @@ class CardTypeService:
         return card_types
 
     async def delete(self, card_type_id: str) -> None:
-        await self.repository.delete_one(models.CardType, card_type_id)
+        await self.repository.delete_object(models.CardType, card_type_id)

@@ -22,6 +22,7 @@ class CompanyUserSchema(BaseModel):
     username: str
     first_name: str
     last_name: str
+    phone: str
     role: RoleReadSchema
 
 

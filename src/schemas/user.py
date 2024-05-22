@@ -58,7 +58,7 @@ class UserCargoReadSchema(BaseModel):
     phone: str
     is_active: bool
     role: Optional[RoleReadSchema]
-    companies: Optional[List[CompanyReadMinimumSchema]]
+    managed_companies: Optional[List[CompanyReadMinimumSchema]]
 
 
 class UserCreateSchema(schemas.BaseUserCreate):
@@ -75,11 +75,14 @@ class UserCreateSchema(schemas.BaseUserCreate):
     company_id: Optional[str] = None
 
 
-'''
-class UserUpdate(schemas.BaseUserUpdate):
+class UserEditSchema(schemas.BaseUserCreate):
+    model_config = ConfigDict(from_attributes=True)
+
+    username: Optional[str] = None
     password: Optional[str] = None
-    email: Optional[EmailStr] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    phone: Optional[str] = None
     is_active: Optional[bool] = None
-    is_superuser: Optional[bool] = None
-    is_verified: Optional[bool] = None
-'''
+    role_id: Optional[str] = None
+    company_id: Optional[str] = None
