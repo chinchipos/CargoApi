@@ -62,9 +62,10 @@ def init_app(dsn: str, tests: bool = False):
         title="Cargonomica API",
         lifespan=lifespan,
         openapi_tags=tags_metadata,
-        docs_url="/api/doc",
+        root_path="/api",
+        docs_url="/doc",
         redoc_url=None,
-        openapi_url="/api/openapi.json"
+        openapi_url="/openapi.json"
     )
 
     @app.get("/")
