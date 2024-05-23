@@ -52,19 +52,25 @@ class BaseRepository:
         row = dataset.first()
         return row[0] if row else None
 
-    async def delete_object(self, _model_, _id_: str):
+    async def delete_object(self, _model_, _id_: str, silent: bool = False):
         try:
             stmt = sa.delete(_model_).where(_model_.id == _id_)
             await self.session.execute(stmt)
             await self.session.commit()
 
         except sqlalchemy.exc.IntegrityError:
-            self.logger.error(traceback.format_exc())
-            raise BadRequestException("Невозможно удалить объект, так как на него ссылаются другие записи")
+            if silent:
+                pass
+            else:
+                self.logger.error(traceback.format_exc())
+                raise BadRequestException("Невозможно удалить объект, так как на него ссылаются другие записи")
 
         except Exception:
-            self.logger.error(traceback.format_exc())
-            raise DBException()
+            if silent:
+                pass
+            else:
+                self.logger.error(traceback.format_exc())
+                raise DBException()
 
     async def delete_all(self, _model_) -> None:
         try:
@@ -101,13 +107,12 @@ class BaseRepository:
             index_elements = [index_field]
             values_set = {field: getattr(stmt.excluded, field) for field in set_fields}
             stmt = stmt.on_conflict_do_update(index_elements=index_elements, set_=values_set)
-            async with self.session.begin():
-                result = await self.session.scalars(
-                    stmt.returning(_model_),
-                    execution_options={"populate_existing": True}
-                )
-                await self.session.commit()
-                return result.first()
+            result = await self.session.scalars(
+                stmt.returning(_model_),
+                execution_options={"populate_existing": True}
+            )
+            await self.session.commit()
+            return result.first()
 
         except Exception:
             self.logger.error(traceback.format_exc())

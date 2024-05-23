@@ -1,6 +1,6 @@
 from typing import List
 
-from sqlalchemy import select as sa_select, desc
+from sqlalchemy import select as sa_select, desc, nulls_first
 from sqlalchemy.orm import joinedload
 
 from src.database import models
@@ -8,7 +8,7 @@ from src.repositories.base import BaseRepository
 
 
 class GoodsRepository(BaseRepository):
-    async def get_all_goods(self) -> List[models.OuterGoods]:
+    async def get_all_outer_goods(self) -> List[models.OuterGoods]:
         stmt = (
             sa_select(models.OuterGoods)
             .options(
@@ -16,7 +16,7 @@ class GoodsRepository(BaseRepository):
                 joinedload(models.OuterGoods.inner_goods)
             )
             .outerjoin(models.InnerGoods)
-            .order_by(models.InnerGoods.name, models.OuterGoods.name)
+            .order_by(nulls_first(models.InnerGoods.name), models.OuterGoods.name)
         )
         goods = await self.select_all(stmt)
         return goods

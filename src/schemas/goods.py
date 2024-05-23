@@ -22,6 +22,6 @@ class OuterGoodsReadSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
-    outer_name: str
-    inner_name: str
+    name: str
+    inner_goods: Optional[InnerGoodsReadSchema] = []
     system: Optional[SystemReadMinimumSchema] = None

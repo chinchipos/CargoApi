@@ -1,5 +1,5 @@
 import uuid
-from typing import List, Optional
+from typing import List
 
 from fastapi import APIRouter, Depends
 
@@ -28,11 +28,11 @@ goods_tag_metadata = {
     name = 'Получение списка товаров/услуг',
     description = get_all_goods_description
 )
-async def get_all_goods(
+async def get_all_outer_goods(
     service: GoodsService = Depends(get_service_goods)
-) -> List[OuterGoodsReadSchema]:
+) -> List[models.OuterGoods]:
     # Нет ограничений доступа.
-    goods = await service.get_all_goods()
+    goods = await service.get_all_outer_goods()
     return goods
 
 
@@ -63,7 +63,7 @@ async def get_all_inner_goods(
 async def get_single_goods(
     id: uuid.UUID,
     service: GoodsService = Depends(get_service_goods)
-) -> OuterGoodsReadSchema:
+) -> models.OuterGoods:
     id = str(id)
     # Доступ не ограничивается
     goods = await service.get_single_goods(id)
