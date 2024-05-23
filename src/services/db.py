@@ -143,8 +143,8 @@ class DBService:
         await self.repository.import_card_systems(data.cards)
 
         self.logger.info('Импортирую товары/услуги')
-        await self.repository.import_inner_goods(data.goods, data.transactions)
-        await self.repository.import_outer_goods(data.goods, data.transactions)
+        await self.repository.import_inner_goods(data.goods)
+        await self.repository.import_outer_goods(data.goods)
 
         self.logger.info('Импортирую транзакции')
         await self.repository.import_transactions(data.transactions)

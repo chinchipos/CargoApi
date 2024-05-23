@@ -196,25 +196,11 @@ class DBRepository(BaseRepository):
         ]
         await self.bulk_insert_or_update(CardSystem, dataset)
 
-    async def import_inner_goods(self, goods: list[Dict[str, Any]], transactions: list[Dict[str, Any]]) -> None:
+    async def import_inner_goods(self, goods: list[Dict[str, Any]]) -> None:
         dataset = [{'name': good['inner_goods']} for good in goods]
-
-        # Некоторые товары/услуги отсутствуют в списке "goods".
-        # Они содержатся в транзакциях. Импортируем их тоже.
-        for transaction in transactions:
-            if transaction['gds']:
-                found = False
-                for data in dataset:
-                    if data['name'] == transaction['gds']:
-                        found = True
-                        break
-
-                if not found:
-                    dataset.append({'name': transaction['gds']})
-
         await self.bulk_insert_or_update(InnerGoods, dataset)
 
-    async def import_outer_goods(self, goods: list[Dict[str, Any]], transactions: list[Dict[str, Any]]) -> None:
+    async def import_outer_goods(self, goods: list[Dict[str, Any]]) -> None:
         # Пример входной строки goods:
         # {
         #     "system_id": System.master_db_id,
@@ -266,20 +252,6 @@ class DBRepository(BaseRepository):
             ) for good in goods if good['system_id'] in system_ids
         ]
 
-        # Некоторые товары/услуги отсутствуют в списке "goods".
-        # Они содержатся в транзакциях. Импортируем их тоже.
-        # for transaction in transactions:
-        #     if transaction['gds'] and transaction['system_id']:
-#
-        #         system_id = system_ids[transaction['system_id']]
-        #         if system_id not in data:
-        #             data[system_id] = {}
-#
-        #         name = transaction['gds']
-        #         if name not in data[system_id]:
-        #             inner_goods_id = inner_goods_ids[transaction['gds']]
-        #             data[system_id][name] = inner_goods_id
-#
         # dataset = []
         # for system_id, other_data in data.items():
         #     name = next(iter(other_data))
@@ -288,23 +260,6 @@ class DBRepository(BaseRepository):
         #         "system_id": system_id,
         #         "inner_goods_id": other_data[name]
         #     })
-
-        for transaction in transactions:
-           if transaction['gds']:
-               found = False
-               for data in dataset:
-                   if data['name'] == transaction['gds'] and data['system_id'] == transaction['system_id']:
-                       found = True
-                       break
-
-               if not found:
-                   dataset.append(
-                       dict(
-                           name=transaction['gds'],
-                           system_id=system_ids[transaction['system_id']],
-                           inner_goods_id=inner_goods_ids[transaction['gds']],
-                       )
-                   )
 
         await self.bulk_insert_or_update(OuterGoods, dataset)
 

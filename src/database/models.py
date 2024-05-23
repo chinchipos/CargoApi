@@ -1018,6 +1018,9 @@ class InnerGoods(Base):
 
 class OuterGoods(Base):
     __tablename__ = "outer_goods"
+    __table_args__ = (
+        sa.UniqueConstraint("name", "system_id"),
+    )
 
     id: Mapped[str] = mapped_column(
         sa.Uuid(as_uuid=False),
