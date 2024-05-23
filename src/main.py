@@ -63,7 +63,8 @@ def init_app(dsn: str, tests: bool = False):
         lifespan=lifespan,
         openapi_tags=tags_metadata,
         docs_url="/doc",
-        redoc_url="/doc2"
+        redoc_url="/doc2",
+        openapi_url="/openapi.json"
     )
 
     @app.get("/")
