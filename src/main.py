@@ -62,7 +62,7 @@ def init_app(dsn: str, tests: bool = False):
         title="Cargonomica API",
         lifespan=lifespan,
         openapi_tags=tags_metadata,
-        docs_url="/doc",
+        docs_url="/swagger",
         redoc_url="/doc2"
     )
 
