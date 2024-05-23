@@ -245,66 +245,66 @@ class DBRepository(BaseRepository):
         #     }
         # }
 
-        data = {}
-        for good in goods:
-            if good['system_id'] in system_ids:
-                system_id = system_ids[good['system_id']]
+        # data = {}
+        # for good in goods:
+        #     if good['system_id'] in system_ids:
+        #         system_id = system_ids[good['system_id']]
+#
+        #         if system_id not in data:
+        #             data[system_id] = {}
+#
+        #         name = str(good['outer_goods'])
+        #         if name not in data[system_id]:
+        #             inner_goods_id = inner_goods_ids[good['inner_goods']]
+        #             data[system_id][name] = inner_goods_id
 
-                if system_id not in data:
-                    data[system_id] = {}
-
-                name = str(good['outer_goods'])
-                if name not in data[system_id]:
-                    inner_goods_id = inner_goods_ids[good['inner_goods']]
-                    data[system_id][name] = inner_goods_id
-
-        # dataset = [
-        #     dict(
-        #         name=str(good['outer_goods']),
-        #         system_id=system_ids[good['system_id']],
-        #         inner_goods_id=inner_goods_ids[good['inner_goods']],
-        #     ) for good in goods if good['system_id'] in system_ids
-        # ]
+        dataset = [
+            dict(
+                name=str(good['outer_goods']),
+                system_id=system_ids[good['system_id']],
+                inner_goods_id=inner_goods_ids[good['inner_goods']],
+            ) for good in goods if good['system_id'] in system_ids
+        ]
 
         # Некоторые товары/услуги отсутствуют в списке "goods".
         # Они содержатся в транзакциях. Импортируем их тоже.
+        # for transaction in transactions:
+        #     if transaction['gds'] and transaction['system_id']:
+#
+        #         system_id = system_ids[transaction['system_id']]
+        #         if system_id not in data:
+        #             data[system_id] = {}
+#
+        #         name = transaction['gds']
+        #         if name not in data[system_id]:
+        #             inner_goods_id = inner_goods_ids[transaction['gds']]
+        #             data[system_id][name] = inner_goods_id
+#
+        # dataset = []
+        # for system_id, other_data in data.items():
+        #     name = next(iter(other_data))
+        #     dataset.append({
+        #         "name": name,
+        #         "system_id": system_id,
+        #         "inner_goods_id": other_data[name]
+        #     })
+
         for transaction in transactions:
-            if transaction['gds'] and transaction['system_id']:
+           if transaction['gds']:
+               found = False
+               for data in dataset:
+                   if data['name'] == transaction['gds'] and data['system_id'] == transaction['system_id']:
+                       found = True
+                       break
 
-                system_id = system_ids[transaction['system_id']]
-                if system_id not in data:
-                    data[system_id] = {}
-
-                name = transaction['gds']
-                if name not in data[system_id]:
-                    inner_goods_id = inner_goods_ids[transaction['gds']]
-                    data[system_id][name] = inner_goods_id
-
-        dataset = []
-        for system_id, other_data in data.items():
-            name = next(iter(other_data))
-            dataset.append({
-                "name": name,
-                "system_id": system_id,
-                "inner_goods_id": other_data[name]
-            })
-
-        # or transaction in transactions:
-        #    if transaction['gds']:
-        #        found = False
-        #        for data in dataset:
-        #            if data['name'] == transaction['gds'] and data['system_id'] == transaction['system_id']:
-        #                found = True
-        #                break
-
-        #        if not found:
-        #            dataset.append(
-        #                dict(
-        #                    name=transaction['gds'],
-        #                    system_id=system_ids[transaction['system_id']],
-        #                    inner_goods_id=inner_goods_ids[transaction['gds']],
-        #                )
-        #            )
+               if not found:
+                   dataset.append(
+                       dict(
+                           name=transaction['gds'],
+                           system_id=system_ids[transaction['system_id']],
+                           inner_goods_id=inner_goods_ids[transaction['gds']],
+                       )
+                   )
 
         await self.bulk_insert_or_update(OuterGoods, dataset)
 
