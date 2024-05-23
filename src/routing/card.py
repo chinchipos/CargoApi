@@ -1,15 +1,16 @@
 import uuid
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Dict
 
 from fastapi import APIRouter, Depends
 
 from src.depends import get_service_card
-from src.schemas.card import CardReadSchema, CardCreateSchema, CardEditSchema
+from src.schemas.card import CardReadSchema, CardCreateSchema, CardEditSchema, BulkBindSchema, BulkUnbindSchema
 from src.schemas.common import SuccessSchema
 from src.services.card import CardService
 from src.utils import enums
 from src.utils.descriptions.card import delete_card_description, get_cards_description, edit_card_description, \
-    create_card_description, card_tag_description, get_card_description
+    create_card_description, card_tag_description, get_card_description, bulk_bind_description, \
+    bulk_unbind_systems_description, bulk_unbind_company_description, bulk_block_description, bulk_activate_description
 from src.utils.exceptions import ForbiddenException
 from src.utils.schemas import MessageSchema
 
@@ -57,6 +58,86 @@ async def create(
     systems = [str(system) for system in systems]
     card = await service.create(card, systems)
     return card
+
+
+@router.post(
+    path="/card/bulk/bind",
+    tags=["card"],
+    responses = {400: {'model': MessageSchema, "description": "Bad request"}},
+    response_model = SuccessSchema,
+    name = 'Групповая привязка карт к организации и/или системам',
+    description = bulk_bind_description
+)
+async def bulk_bind(
+    data: BulkBindSchema,
+    service: CardService = Depends(get_service_card)
+) -> Dict[str, Any]:
+    await service.bulk_bind(data.card_numbers, data.company_id, data.system_ids)
+    return {'success': True}
+
+
+@router.post(
+    path="/card/bulk/unbind/company",
+    tags=["card"],
+    responses = {400: {'model': MessageSchema, "description": "Bad request"}},
+    response_model = SuccessSchema,
+    name = 'Групповое открепление карт от текущей организации',
+    description = bulk_unbind_company_description
+)
+async def bulk_unbind_company(
+    data: BulkUnbindSchema,
+    service: CardService = Depends(get_service_card)
+) -> Dict[str, Any]:
+    await service.bulk_unbind_company(data.card_numbers)
+    return {'success': True}
+
+
+@router.post(
+    path="/card/bulk/unbind/systems",
+    tags=["card"],
+    responses = {400: {'model': MessageSchema, "description": "Bad request"}},
+    response_model = SuccessSchema,
+    name = 'Групповое открепление карт от всех систем',
+    description = bulk_unbind_systems_description
+)
+async def bulk_unbind_systems(
+    data: BulkUnbindSchema,
+    service: CardService = Depends(get_service_card)
+) -> Dict[str, Any]:
+    await service.bulk_unbind_systems(data.card_numbers)
+    return {'success': True}
+
+
+@router.post(
+    path="/card/bulk/activate",
+    tags=["card"],
+    responses = {400: {'model': MessageSchema, "description": "Bad request"}},
+    response_model = SuccessSchema,
+    name = 'Групповая разблокировка карт',
+    description = bulk_activate_description
+)
+async def bulk_activate(
+    data: BulkUnbindSchema,
+    service: CardService = Depends(get_service_card)
+) -> Dict[str, Any]:
+    await service.bulk_activate(data.card_numbers)
+    return {'success': True}
+
+
+@router.post(
+    path="/card/bulk/block",
+    tags=["card"],
+    responses = {400: {'model': MessageSchema, "description": "Bad request"}},
+    response_model = SuccessSchema,
+    name = 'Групповая блокировка карт',
+    description = bulk_block_description
+)
+async def bulk_block(
+    data: BulkUnbindSchema,
+    service: CardService = Depends(get_service_card)
+) -> Dict[str, Any]:
+    await service.bulk_block(data.card_numbers)
+    return {'success': True}
 
 
 @router.get(

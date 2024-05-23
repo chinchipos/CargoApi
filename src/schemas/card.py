@@ -53,3 +53,17 @@ class CardEditSchema(BaseModel):
     company_id: Optional[EmptyStrToNone] = None
     belongs_to_car_id: Optional[EmptyStrToNone] = None
     belongs_to_driver_id: Optional[EmptyStrToNone] = None
+
+
+class BulkBindSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    card_numbers: List[str]
+    company_id: Optional[str] = None
+    system_ids: Optional[List[str]] = []
+
+
+class BulkUnbindSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    card_numbers: Optional[List[str]] = []

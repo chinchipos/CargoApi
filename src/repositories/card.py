@@ -36,7 +36,7 @@ class CardRepository(BaseRepository):
         card = await self.select_first(stmt)
         return card
 
-    async def get_cards(self) -> List[models.Card]:
+    async def get_cards(self, card_numbers: List[str] = None) -> List[models.Card]:
         stmt = (
             sa_select(models.Card)
             .options(
@@ -47,6 +47,8 @@ class CardRepository(BaseRepository):
                 joinedload(models.Card.belongs_to_driver)
             )
         )
+        if card_numbers:
+            stmt = stmt.where(models.Card.card_number.in_(card_numbers))
 
         if self.user.role.name == enums.Role.CARGO_MANAGER.name:
             stmt = stmt.where(models.Card.company_id.in_(self.user.company_ids_subquery()))
@@ -104,3 +106,8 @@ class CardRepository(BaseRepository):
         except Exception:
             self.logger.error(traceback.format_exc())
             raise DBException()
+
+    async def get_systems(self, system_ids: List[str]) -> List[models.System]:
+        stmt = sa_select(models.System).where(models.System.id.in_(system_ids))
+        systems = await self.select_all(stmt)
+        return systems
