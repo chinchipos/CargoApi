@@ -12,10 +12,16 @@ class InnerGoodsReadSchema(BaseModel):
     name: str
 
 
+class InnerGoodsEditSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    inner_name: Optional[str] = ''
+
+
 class OuterGoodsReadSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
-    name: str
-    inner_goods: Optional[InnerGoodsReadSchema] = None
+    outer_name: str
+    inner_name: str
     system: Optional[SystemReadMinimumSchema] = None

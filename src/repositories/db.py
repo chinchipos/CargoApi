@@ -197,7 +197,7 @@ class DBRepository(BaseRepository):
         await self.bulk_insert_or_update(CardSystem, dataset)
 
     async def import_inner_goods(self, goods: list[Dict[str, Any]]) -> None:
-        dataset = [{'name': good['inner_goods']} for good in goods]
+        dataset = [{'name': good['inner_goods']} for good in goods if good['inner_goods']]
         await self.bulk_insert_or_update(InnerGoods, dataset)
 
     async def import_outer_goods(self, goods: list[Dict[str, Any]]) -> None:
@@ -222,44 +222,13 @@ class DBRepository(BaseRepository):
         )
         inner_goods_ids = {item[0]: item[1] for item in inner_goods_ids}
 
-        # Новая структура данных для вставки в таблицу OuterGoods. Предназначена для исключения повторяющихся записей.
-        # На самом деле это костыль. Можно было решить проблему созданием составного условия на уникальность полей
-        # таблицы OuterGoods (name + system_id) и использованием bulk_insert_or_do_nothing().
-        # {
-        #     <system_id:UUID>: {
-        #         <name:str>: <inner_goods_id:UUID>
-        #     }
-        # }
-
-        # data = {}
-        # for good in goods:
-        #     if good['system_id'] in system_ids:
-        #         system_id = system_ids[good['system_id']]
-#
-        #         if system_id not in data:
-        #             data[system_id] = {}
-#
-        #         name = str(good['outer_goods'])
-        #         if name not in data[system_id]:
-        #             inner_goods_id = inner_goods_ids[good['inner_goods']]
-        #             data[system_id][name] = inner_goods_id
-
         dataset = [
             dict(
                 name=str(good['outer_goods']),
                 system_id=system_ids[good['system_id']],
-                inner_goods_id=inner_goods_ids[good['inner_goods']],
+                inner_goods_id=inner_goods_ids[good['inner_goods']] if good['inner_goods'] else None,
             ) for good in goods if good['system_id'] in system_ids
         ]
-
-        # dataset = []
-        # for system_id, other_data in data.items():
-        #     name = next(iter(other_data))
-        #     dataset.append({
-        #         "name": name,
-        #         "system_id": system_id,
-        #         "inner_goods_id": other_data[name]
-        #     })
 
         await self.bulk_insert_or_update(OuterGoods, dataset)
 
