@@ -215,6 +215,13 @@ class DBRepository(BaseRepository):
         await self.bulk_insert_or_update(InnerGoods, dataset)
 
     async def import_outer_goods(self, goods: list[Dict[str, Any]], transactions: list[Dict[str, Any]]) -> None:
+        # Пример входной строки goods:
+        # {
+        #     "system_id": System.master_db_id,
+        #     "outer_goods": OuterGoods.name,
+        #     "inner_goods": InnerGoods.name
+        # }
+
         # Система. Сопоставление id записи на боевом сервере с id на новом сервере.
         system_ids = await self.select_all(
             sa_select(System.master_db_id, System.id).where(System.master_db_id != None),
@@ -229,34 +236,77 @@ class DBRepository(BaseRepository):
         )
         inner_goods_ids = {item[0]: item[1] for item in inner_goods_ids}
 
-        dataset = [
-            dict(
-                name=str(good['outer_goods']),
-                system_id=system_ids[good['system_id']],
-                inner_goods_id=inner_goods_ids[good['inner_goods']],
-            ) for good in goods if good['system_id'] in system_ids
-        ]
+        # Новая структура данных для вставки в таблицу OuterGoods. Предназначена для исключения повторяющихся записей.
+        # На самом деле это костыль. Можно было решить проблему созданием составного условия на уникальность полей
+        # таблицы OuterGoods (name + system_id) и использованием bulk_insert_or_do_nothing().
+        # {
+        #     <system_id:UUID>: {
+        #         <name:str>: <inner_goods_id:UUID>
+        #     }
+        # }
+
+        data = {}
+        for good in goods:
+            if good['system_id'] in system_ids:
+                system_id = system_ids[good['system_id']]
+
+                if system_id not in data:
+                    data[system_id] = {}
+
+                name = str(good['outer_goods'])
+                if name not in data[system_id]:
+                    inner_goods_id = inner_goods_ids[good['inner_goods']]
+                    data[system_id][name] = inner_goods_id
+
+        # dataset = [
+        #     dict(
+        #         name=str(good['outer_goods']),
+        #         system_id=system_ids[good['system_id']],
+        #         inner_goods_id=inner_goods_ids[good['inner_goods']],
+        #     ) for good in goods if good['system_id'] in system_ids
+        # ]
 
         # Некоторые товары/услуги отсутствуют в списке "goods".
         # Они содержатся в транзакциях. Импортируем их тоже.
         for transaction in transactions:
-            if transaction['gds']:
-                found = False
-                for data in dataset:
-                    if data['name'] == transaction['gds'] and data['system_id'] == transaction['system_id']:
-                        found = True
-                        break
+            if transaction['gds'] and transaction['system_id']:
 
-                if not found:
-                    dataset.append(
-                        dict(
-                            name=transaction['gds'],
-                            system_id=system_ids[transaction['system_id']],
-                            inner_goods_id=inner_goods_ids[transaction['gds']],
-                        )
-                    )
+                system_id = system_ids[transaction['system_id']]
+                if system_id not in data:
+                    data[system_id] = {}
 
-        await self.bulk_insert_or_update(OuterGoods, dataset, 'name')
+                name = transaction['gds']
+                if name not in data[system_id]:
+                    inner_goods_id = inner_goods_ids[transaction['gds']]
+                    data[system_id][name] = inner_goods_id
+
+        dataset = []
+        for system_id, other_data in data.items():
+            name = next(iter(other_data))
+            dataset.append({
+                "name": name,
+                "system_id": system_id,
+                "inner_goods_id": other_data[name]
+            })
+
+        # or transaction in transactions:
+        #    if transaction['gds']:
+        #        found = False
+        #        for data in dataset:
+        #            if data['name'] == transaction['gds'] and data['system_id'] == transaction['system_id']:
+        #                found = True
+        #                break
+
+        #        if not found:
+        #            dataset.append(
+        #                dict(
+        #                    name=transaction['gds'],
+        #                    system_id=system_ids[transaction['system_id']],
+        #                    inner_goods_id=inner_goods_ids[transaction['gds']],
+        #                )
+        #            )
+
+        await self.bulk_insert_or_update(OuterGoods, dataset)
 
     async def import_transactions(self, transactions: list[Dict[str, Any]]) -> None:
         # Система. Сопоставление id записи на боевом сервере с id на новом сервере.
