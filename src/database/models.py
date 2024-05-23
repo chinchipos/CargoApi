@@ -738,7 +738,8 @@ class Card(Base):
     id: Mapped[str] = mapped_column(
         sa.Uuid(as_uuid=False),
         primary_key=True,
-        server_default=sa.text("uuid_generate_v4()")
+        server_default=sa.text("uuid_generate_v4()"),
+        init=False
     )
 
     # Номер карты
@@ -756,7 +757,8 @@ class Card(Base):
     # Тип карты
     card_type: Mapped["CardType"] = relationship(
         back_populates="cards",
-        lazy="noload"
+        lazy="noload",
+        init=False
     )
 
     # Карта активна
@@ -775,7 +777,8 @@ class Card(Base):
     # Организация, с которой ассоциирована карта
     company: Mapped["Company"] = relationship(
         back_populates="cards",
-        lazy="noload"
+        lazy="noload",
+        init=False
     )
 
     # Автомобиль, с которым ассоциирована карта
@@ -787,7 +790,8 @@ class Card(Base):
     # Автомобиль, с которым ассоциирована карта
     belongs_to_car: Mapped["Car"] = relationship(
         back_populates="cards",
-        lazy="noload"
+        lazy="noload",
+        init=False
     )
 
     # Водитель, с которым ассоциирована карта
@@ -799,13 +803,15 @@ class Card(Base):
     # Водитель, с которым ассоциирована карта
     belongs_to_driver: Mapped["User"] = relationship(
         back_populates="cards",
-        lazy="noload"
+        lazy="noload",
+        init=False
     )
 
     # Дата последнего использования
     date_last_use: Mapped[date] = mapped_column(
         sa.Date,
-        nullable=True
+        nullable=True,
+        init=False
     )
 
     # Признак ручной блокировки

@@ -256,7 +256,7 @@ class DBRepository(BaseRepository):
                         )
                     )
 
-        await self.bulk_insert_or_update(OuterGoods, dataset)
+        await self.bulk_insert_or_update(OuterGoods, dataset, 'name')
 
     async def import_transactions(self, transactions: list[Dict[str, Any]]) -> None:
         # Система. Сопоставление id записи на боевом сервере с id на новом сервере.

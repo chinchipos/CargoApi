@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from src.database import models
 from src.repositories.card import CardRepository
@@ -13,17 +13,37 @@ class CardService:
         self.repository = repository
         self.logger = repository.logger
 
-    async def create(self, card_create_schema: CardCreateSchema) -> CardReadSchema:
+    async def get_card(self, card_id: str):
+        card = await self.repository.get_card(card_id)
+        if not card:
+            raise BadRequestException('Запись не найдена')
+        return card
+
+    async def create(
+        self,
+        card_create_schema: CardCreateSchema,
+        systems: Optional[List[str]]
+    ) -> CardReadSchema:
+        # Создаем карту
         new_card_obj = await self.repository.create(card_create_schema)
+
+        # Привязываем к системам
+        await self.binding_systems(
+            system_id=new_card_obj.id,
+            current_systems=[],
+            new_systems=systems
+        )
+
+        # Получаем полную информацию о карте
         card_obj = await self.repository.get_card(new_card_obj.id)
+
+        # Формируем ответ
         card_read_schema = CardReadSchema.model_validate(card_obj)
         return card_read_schema
 
-    async def edit(self, card_id: str, card_edit_schema: CardEditSchema) -> CardReadSchema:
+    async def edit(self, card_id: str, card_edit_schema: CardEditSchema, systems: List[str]) -> CardReadSchema:
         # Получаем карту из БД
-        card_obj = await self.repository.get_card(card_id)
-        if not card_obj:
-            raise BadRequestException('Запись не найдена')
+        card_obj = await self.get_card(card_id)
 
         # Проверяем права доступа
         # У Суперадмина ПроАВТО есть право в отношении любых сарт
@@ -85,14 +105,45 @@ class CardService:
         # Обновляем запись в БД
         await self.repository.update_object(card_obj, update_data)
 
+        # Отвязываем от неактуальных систем, привязываем к новым
+        await self.binding_systems(
+            system_id=card_obj.id,
+            current_systems=[cs.system_id for cs in card_obj.card_system],
+            new_systems=systems
+        )
+
+        # Получаем карту из БД
+        card_obj = await self.get_card(card_id)
+
         # Формируем ответ
         card_read_schema = CardReadSchema.model_validate(card_obj)
-
         return card_read_schema
 
-    async def get_cards(self) -> List[models.Card]:
+    async def get_cards(self) -> List[CardReadSchema]:
         cards = await self.repository.get_cards()
+
+        def get_card_schema(card_obj: models.Card) -> CardReadSchema:
+            card_data = card_obj.dumps()
+            card_data['systems'] = [cs.system for cs in card_obj.card_system]
+            card_read_schema = CardReadSchema(**card_data)
+            return card_read_schema
+
+        cards = list(map(get_card_schema, cards))
         return cards
 
     async def delete(self, card_id: str) -> None:
-        await self.repository.delete_object(models.Card, card_id)
+        # Проверяем наличие транзакций по карте
+        has_transactions = await self.repository.has_transactions(card_id)
+
+        if has_transactions:
+            raise BadRequestException("Невозможно удалить карту, так как по ней были транзакции.")
+
+        # Открепляем карту от других объектов и удаляем её саму
+        await self.repository.delete(card_id)
+
+    async def binding_systems(self, system_id: str, current_systems: List[str], new_systems: List[str]) -> None:
+        to_unbind = [_id_ for _id_ in current_systems if _id_ not in new_systems]
+        await self.repository.unbind_managed_companies(system_id, to_unbind)
+
+        to_bind = [_id_ for _id_ in new_systems if _id_ not in current_systems]
+        await self.repository.bind_managed_companies(system_id, to_bind)

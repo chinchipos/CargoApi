@@ -1,14 +1,14 @@
+import traceback
 from typing import List
 
-from sqlalchemy import select as sa_select, func as sa_func
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import select as sa_select, delete as sa_delete, func as sa_func
 from sqlalchemy.orm import joinedload
 
 from src.database import models
 from src.repositories.base import BaseRepository
 from src.schemas.card import CardCreateSchema
 from src.utils import enums
-from src.utils.exceptions import DBDuplicateException
+from src.utils.exceptions import DBException
 
 
 class CardRepository(BaseRepository):
@@ -63,3 +63,44 @@ class CardRepository(BaseRepository):
 
         cards = await self.select_all(stmt)
         return cards
+
+    async def bind_managed_companies(self, card_id: str, system_ids: List[str]) -> None:
+        if system_ids:
+            dataset = [{"card_id": card_id, "system_id": system_id} for system_id in system_ids]
+            await self.bulk_insert_or_update(models.CardSystem, dataset)
+
+    async def unbind_managed_companies(self, card_id: str, system_ids: List[str]) -> None:
+        if system_ids:
+            stmt = (
+                sa_delete(models.CardSystem)
+                .where(models.CardSystem.card_id == card_id)
+                .where(models.CardSystem.system_id.in_(system_ids))
+            )
+            try:
+                await self.session.execute(stmt)
+                await self.session.commit()
+
+            except Exception:
+                self.logger.error(traceback.format_exc())
+                raise DBException()
+
+    async def has_transactions(self, card_id: str) -> bool:
+        stmt = sa_select(sa_func.count(models.Transaction.id)).where(models.Transaction.card_id == card_id)
+        amount = await self.select_single_field(stmt)
+        return amount > 0
+
+    async def delete(self, card_id: str) -> None:
+        try:
+            # Удаляем связь Карта-Система
+            stmt = sa_delete(models.CardSystem).where(models.CardSystem.card_id == card_id)
+            await self.session.execute(stmt)
+
+            # Удаляем карту
+            stmt = sa_delete(models.Card).where(models.Card.id == card_id)
+            await self.session.execute(stmt)
+
+            await self.session.commit()
+
+        except Exception:
+            self.logger.error(traceback.format_exc())
+            raise DBException()

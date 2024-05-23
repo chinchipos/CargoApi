@@ -15,6 +15,7 @@ from src.routing.role import router as role_routing, role_tag_metadata
 from src.routing.system import router as system_routing, system_tag_metadata
 from src.routing.tariff import router as tariff_routing, tariff_tag_metadata
 from src.routing.transaction import router as transaction_routing, transaction_tag_metadata
+from src.routing.goods import router as goods_routing, goods_tag_metadata
 from src.routing.user import router as user_routing, user_tag_metadata
 from src.schemas.user import NewUserReadSchema, UserCreateSchema
 from src.utils.exceptions import BadRequestException, ForbiddenException, DBException, DBDuplicateException
@@ -54,6 +55,7 @@ def init_app(dsn: str, tests: bool = False):
         transaction_tag_metadata,
         car_tag_metadata,
         role_tag_metadata,
+        goods_tag_metadata,
     ]
 
     app = FastAPI(
@@ -78,6 +80,7 @@ def init_app(dsn: str, tests: bool = False):
     app.include_router(transaction_routing)
     app.include_router(car_routing)
     app.include_router(role_routing)
+    app.include_router(goods_routing)
     app.include_router(
         fastapi_users.get_auth_router(auth_backend),
         prefix="/auth/jwt",

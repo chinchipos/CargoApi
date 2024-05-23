@@ -8,6 +8,7 @@ from src.schemas.card_type import CardTypeReadSchema
 from src.schemas.company import CompanyReadMinimumSchema
 from src.schemas.driver import DriverReadSchema
 from src.schemas.system import SystemReadMinimumSchema
+from src.schemas.validators import EmptyStrToNone
 
 
 class CardReadSchema(BaseModel):
@@ -39,18 +40,16 @@ class CardCreateSchema(BaseModel):
     card_number: str
     is_active: bool
     card_type_id: str
-    system_ids: List[str] = None
     company_id: Optional[str] = None
-    belongs_to_car_id: Optional[str] = None
-    belongs_to_driver_id: Optional[str] = None
+    belongs_to_car_id: Optional[EmptyStrToNone] = None
+    belongs_to_driver_id: Optional[EmptyStrToNone] = None
 
 
 class CardEditSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    is_active: bool
-    card_type_id: str
-    system_ids: List[str] = None
-    company_id: Optional[str] = None
-    belongs_to_car_id: Optional[str] = None
-    belongs_to_driver_id: Optional[str] = None
+    is_active: Optional[bool] = None
+    card_type_id: Optional[EmptyStrToNone] = None
+    company_id: Optional[EmptyStrToNone] = None
+    belongs_to_car_id: Optional[EmptyStrToNone] = None
+    belongs_to_driver_id: Optional[EmptyStrToNone] = None

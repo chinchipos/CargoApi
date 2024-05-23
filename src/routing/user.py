@@ -33,13 +33,14 @@ user_tag_metadata = {
 )
 async def create(
     user: UserCreateSchema,
-    managed_companies: Optional[List[str]] = [],
+    managed_companies: Optional[List[uuid.UUID]] = [],
     service: UserService = Depends(get_service_user)
 ) -> models.User:
     # Создавать пользователей может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()
 
+    managed_companies = [str(company) for company in managed_companies]
     new_user = await service.create(user, managed_companies)
     return new_user
 
@@ -112,7 +113,7 @@ async def get_cargo_users(
 async def edit(
     id: uuid.UUID,
     user: UserEditSchema,
-    managed_companies: Optional[List[str]] = [],
+    managed_companies: Optional[List[uuid.UUID]] = [],
     service: UserService = Depends(get_service_user)
 ) -> UserReadSchema:
     id = str(id)
@@ -120,6 +121,7 @@ async def edit(
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()
 
+    managed_companies = [str(company) for company in managed_companies]
     user = await service.edit(id, user, managed_companies)
     return user
 
