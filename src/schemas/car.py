@@ -12,7 +12,7 @@ class CarReadSchema(BaseModel):
     id: str
     model: str
     reg_number: str
-    company: CompanyReadMinimumSchema
+    company: Optional[CompanyReadMinimumSchema] = None
     drivers: Optional[List[DriverReadMinimumSchema]] = []
 
 
