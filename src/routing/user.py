@@ -7,7 +7,7 @@ from src.database import models
 from src.depends import get_service_user
 from src.schemas.common import SuccessSchema
 from src.schemas.user import UserReadSchema, UserCompanyReadSchema, UserCargoReadSchema, UserCreateSchema, \
-    UserEditSchema
+    UserEditSchema, UserImpersonatedSchema
 from src.services.user import UserService
 from src.utils import enums
 from src.utils.descriptions.user import user_tag_description, get_me_description, get_companies_users_description, \
@@ -76,7 +76,8 @@ async def get_companies_users(
     # Менеджер ПроАВТО имеет права в рамках своих организаций.
     # Остальные роли не имеют прав.
     # Состав списка пользователей зависит от роли - проверка будет выполнена при формировании списка.
-    if service.repository.user.role.name not in [enums.Role.CARGO_SUPER_ADMIN.name, enums.Role.CARGO_MANAGER.name]:
+    allowed_roles = [enums.Role.CARGO_SUPER_ADMIN.name, enums.Role.CARGO_MANAGER.name, enums.Role.COMPANY_ADMIN.name]
+    if service.repository.user.role.name not in allowed_roles:
         raise ForbiddenException()
 
     users = await service.get_companies_users()
@@ -145,3 +146,20 @@ async def delete(
 
     await service.delete(id)
     return {'success': True}
+
+
+@router.get(
+    path="/user/{id}/impersonate",
+    tags=["user"],
+    responses = {400: {'model': MessageSchema, "description": "Bad request"}},
+    response_model = UserImpersonatedSchema,
+    name = 'Вход под пользователем',
+    description = edit_user_description
+)
+async def edit(
+    id: uuid.UUID,
+    service: UserService = Depends(get_service_user)
+) -> UserImpersonatedSchema:
+    id = str(id)
+    impersonated_user = await service.impersonate(id)
+    return impersonated_user

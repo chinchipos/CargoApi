@@ -34,10 +34,9 @@ company_tag_metadata = {
 async def get_companies(
     service: CompanyService = Depends(get_service_company)
 ) -> List[Any]:
-    # Получить список организаций может любой пользователь. Состав списка зависит от роли пользователя.
+    # Получить список организаций может любой пользователь.
+    # Состав списка зависит от роли пользователя.
     # Проверка будет выполнена при формировании списка.
-    if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
-        raise ForbiddenException()
 
     company = await service.get_companies()
     return company

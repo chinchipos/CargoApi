@@ -86,3 +86,17 @@ class UserEditSchema(schemas.BaseUserCreate):
     is_active: Optional[bool] = None
     role_id: Optional[str] = None
     company_id: Optional[str] = None
+
+
+class UserImpersonatedSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    access_token: str
+    token_type: str
+    username: str
+    first_name: str
+    last_name: str
+    email: EmailStr
+    is_active: bool
+    role: RoleReadSchema

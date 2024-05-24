@@ -1,13 +1,18 @@
-from typing import List, Optional
+from datetime import timedelta, datetime, timezone
+from typing import List, Optional, Dict, Any
 
 from src.auth.manager import create_user
-from src.config import BUILTIN_ADMIN_EMAIL
+from src.config import BUILTIN_ADMIN_EMAIL, JWT_SECRET
 from src.database import models
 from src.repositories.user import UserRepository
-from src.schemas.user import UserCargoReadSchema, UserCreateSchema, UserEditSchema, UserReadSchema
+from src.schemas.role import RoleReadSchema
+from src.schemas.user import UserCargoReadSchema, UserCreateSchema, UserEditSchema, UserReadSchema, \
+    UserImpersonatedSchema
 from src.utils import enums
 from src.utils.exceptions import ForbiddenException, BadRequestException
 from src.utils.password_policy import test_password_strength
+
+import jwt
 
 
 class UserService:
@@ -133,3 +138,54 @@ class UserService:
             raise BadRequestException("Невозможно удалить встроенного администратора")
 
         await self.repository.delete_object(models.User, user_id)
+
+    def create_access_token(self, data: Dict[str, Any], expires_delta: timedelta | None = None) -> str:
+        to_encode = data.copy()
+        if expires_delta:
+            expire = datetime.now(timezone.utc) + expires_delta
+        else:
+            expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+        to_encode.update({"exp": expire})
+        encoded_jwt = jwt.encode(to_encode, JWT_SECRET, algorithm="HS256")
+        return encoded_jwt
+
+    async def impersonate(self, user_id: str) -> UserImpersonatedSchema:
+        # Получаем пользователя из БД
+        user = await self.repository.get_user(user_id)
+
+        # Проверка прав доступа.
+        # Суперадмин ПроАВТО имеет полные права в отношении пользователей с нижестоящей ролью.
+        # Менеджер ПроАВТО имеет права в отношении пользователей администрируемых организаций с нижестоящей ролью.
+        # Остальные роли не имеют прав.
+        if self.repository.user.role.name == enums.Role.CARGO_SUPER_ADMIN.name:
+            if user.role.name == enums.Role.CARGO_SUPER_ADMIN.name:
+                raise ForbiddenException()
+
+        elif self.repository.user.role.name == enums.Role.CARGO_MANAGER.name:
+            if not user.company_id or not self.repository.user.is_admin_for_company(user.company_id) or \
+                    user.role.name in [enums.Role.CARGO_SUPER_ADMIN.name, enums.Role.CARGO_MANAGER.name]:
+                raise ForbiddenException()
+
+        else:
+            raise ForbiddenException()
+
+        # Создаем токен
+        access_token_expires = timedelta(minutes=30)
+        access_token = self.create_access_token(
+            data={"sub": user.id, "aud": ["fastapi-users:auth"]},
+            expires_delta=access_token_expires
+        )
+
+        role_schema = RoleReadSchema(**user.role.dumps())
+        impersonated_user_schema = UserImpersonatedSchema(
+            id=user.id,
+            access_token=access_token,
+            token_type="bearer",
+            username=user.username,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            email=user.email,
+            is_active=user.is_active,
+            role=role_schema
+        )
+        return impersonated_user_schema

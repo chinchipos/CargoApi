@@ -45,6 +45,14 @@ class CompanyRepository(BaseRepository):
                 selectinload(models.Company.users).joinedload(models.User.role)
             )
         )
+
+        company_roles = [enums.Role.COMPANY_ADMIN.name, enums.Role.COMPANY_LOGIST.name, enums.Role.COMPANY_DRIVER]
+        if self.user.role.name == enums.Role.CARGO_MANAGER.name:
+            stmt = stmt.where(models.Company.id.in_(self.user.company_ids_subquery()))
+
+        elif self.user.role.name in company_roles:
+            stmt = stmt.where(models.Company.id == self.user.company_id)
+
         dataset = await self.select_all(stmt, scalars=False)
         companies = list(map(lambda data: data[0].annotate({'cards_amount': data[1]}), dataset))
 
