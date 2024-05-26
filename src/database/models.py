@@ -73,6 +73,7 @@ class Tariff(Base):
     companies: Mapped[List["Company"]] = relationship(
         back_populates="tariff",
         cascade="all, delete-orphan",
+        lazy="noload",
         init=False
     )
 
@@ -80,6 +81,7 @@ class Tariff(Base):
     transactions: Mapped[List["Transaction"]] = relationship(
         back_populates="tariff",
         cascade="all, delete-orphan",
+        lazy="noload",
         init=False
     )
 
@@ -87,6 +89,7 @@ class Tariff(Base):
     tariff_history: Mapped[List["TariffHistory"]] = relationship(
         back_populates="tariff",
         cascade="all, delete-orphan",
+        lazy="noload",
         init=False
     )
 
@@ -196,6 +199,7 @@ class Company(Base):
     cars: Mapped[List["Car"]] = relationship(
         back_populates="company",
         cascade="all, delete-orphan",
+        lazy="noload",
         init=False
     )
 
@@ -203,6 +207,7 @@ class Company(Base):
     cards: Mapped[List["Card"]] = relationship(
         back_populates="company",
         cascade="all, delete-orphan",
+        lazy="noload",
         init=False
     )
 
@@ -210,6 +215,7 @@ class Company(Base):
     transactions: Mapped[List["Transaction"]] = relationship(
         back_populates="company",
         cascade="all, delete-orphan",
+        lazy="noload",
         init=False
     )
 
@@ -217,6 +223,7 @@ class Company(Base):
     users: Mapped[List["User"]] = relationship(
         back_populates="company",
         cascade="all, delete-orphan",
+        lazy="noload",
         init=False
     )
 
@@ -224,6 +231,7 @@ class Company(Base):
     admin_company: Mapped[List["AdminCompany"]] = relationship(
         back_populates="company",
         cascade="all, delete-orphan",
+        lazy="noload",
         init=False
     )
 
@@ -231,6 +239,7 @@ class Company(Base):
     tariff_history: Mapped[List["TariffHistory"]] = relationship(
         back_populates="company",
         cascade="all, delete-orphan",
+        lazy="noload",
         init=False
     )
 
@@ -316,6 +325,7 @@ class Permition(Base):
     role_permition: Mapped[List["RolePermition"]] = relationship(
         back_populates="permition",
         cascade="all, delete-orphan",
+        lazy="noload",
         init=False
     )
 
@@ -357,6 +367,7 @@ class Role(Base):
     users: Mapped[List["User"]] = relationship(
         back_populates="role",
         cascade="all, delete-orphan",
+        lazy="noload",
         init=False
     )
 
@@ -364,6 +375,7 @@ class Role(Base):
     role_permition: Mapped[List["RolePermition"]] = relationship(
         back_populates="role",
         cascade="all, delete-orphan",
+        lazy="noload",
         init=False
     )
 
@@ -525,6 +537,7 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     admin_company: Mapped[List["AdminCompany"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
+        lazy="noload",
         init=False
     )
 
@@ -533,6 +546,7 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     car_driver: Mapped[List["CarDriver"]] = relationship(
         back_populates="driver",
         cascade="all, delete-orphan",
+        lazy="noload",
         init=False
     )
 
@@ -540,6 +554,7 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     cards: Mapped[List["Card"]] = relationship(
         back_populates="belongs_to_driver",
         cascade="all, delete-orphan",
+        lazy="noload",
         init=False
     )
 
@@ -625,6 +640,7 @@ class CardType(Base):
     cards: Mapped[List["Card"]] = relationship(
         back_populates="card_type",
         cascade="all, delete-orphan",
+        lazy="noload",
         init=False
     )
 
@@ -680,6 +696,7 @@ class Car(Base):
     cards: Mapped[List["Card"]] = relationship(
         back_populates="belongs_to_car",
         cascade="all, delete-orphan",
+        lazy="noload",
         init=False
     )
 
@@ -826,6 +843,7 @@ class Card(Base):
     card_system: Mapped[List["CardSystem"]] = relationship(
         back_populates="card",
         cascade="all, delete-orphan",
+        lazy="noload",
         init=False
     )
 
@@ -833,6 +851,7 @@ class Card(Base):
     transactions: Mapped[List["Transaction"]] = relationship(
         back_populates="card",
         cascade="all, delete-orphan",
+        lazy="noload",
         init=False
     )
 
@@ -929,6 +948,7 @@ class System(Base):
     card_system: Mapped[List["CardSystem"]] = relationship(
         back_populates="system",
         cascade="all, delete-orphan",
+        lazy="noload",
         init=False
     )
 
@@ -936,6 +956,7 @@ class System(Base):
     outer_goods: Mapped[List["OuterGoods"]] = relationship(
         back_populates="system",
         cascade="all, delete-orphan",
+        lazy="noload",
         init=False
     )
 
@@ -943,6 +964,7 @@ class System(Base):
     transactions: Mapped[List["Transaction"]] = relationship(
         back_populates="system",
         cascade="all, delete-orphan",
+        lazy="noload",
         init=False
     )
 
@@ -1009,6 +1031,7 @@ class InnerGoods(Base):
     outer_goods: Mapped[List["OuterGoods"]] = relationship(
         back_populates="inner_goods",
         cascade="all, delete-orphan",
+        lazy="noload",
         init=False
     )
 
@@ -1067,6 +1090,7 @@ class OuterGoods(Base):
     transactions: Mapped[List["Transaction"]] = relationship(
         back_populates="outer_goods",
         cascade="all, delete-orphan",
+        lazy="noload",
         init=False
     )
 
@@ -1304,6 +1328,7 @@ class LogType(Base):
     logs: Mapped[List["Log"]] = relationship(
         back_populates="log_type",
         cascade="all, delete-orphan",
+        lazy="noload",
         init=False
     )
 

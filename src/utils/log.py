@@ -7,13 +7,13 @@ from termcolor import colored
 
 class ColoredLogger:
 
-    def __init__(self):
+    def __init__(self, logfile_name: str, logger_name: str):
         logfile_dir = os.path.join(os.getcwd(), 'log')
-        logfile_path = os.path.join(logfile_dir, 'api.log')
+        logfile_path = os.path.join(logfile_dir, logfile_name)
         if not os.path.exists(logfile_dir):
             os.makedirs(logfile_dir)
 
-        self.logger = logging.getLogger('CARGONOMICA-API')
+        self.logger = logging.getLogger(logger_name)
         self.logger.setLevel(logging.INFO)
 
         formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s", '%Y-%m-%d %H:%M:%S')
@@ -36,4 +36,4 @@ class ColoredLogger:
         self.logger.error(colored(message, 'light_red'))
 
 
-logger = ColoredLogger()
+logger = ColoredLogger(logfile_name='api.log', logger_name='CARGONOMICA-API')

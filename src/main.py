@@ -21,6 +21,11 @@ from src.schemas.user import NewUserReadSchema, UserCreateSchema
 from src.utils.exceptions import BadRequestException, ForbiddenException, DBException, DBDuplicateException
 from src.utils.log import logger
 
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.redis import RedisBackend
+
+from redis import asyncio as aioredis
+
 PROD_URI = "postgresql+psycopg://{}:{}@{}:{}/{}".format(
     config.DB_USER,
     config.DB_PASSWORD,
@@ -34,8 +39,10 @@ def init_app(dsn: str, tests: bool = False):
     sessionmanager.init(dsn, tests)
 
     @asynccontextmanager
-    async def lifespan(app: FastAPI):
+    async def lifespan(_: FastAPI):
         logger.info('APP START')
+        redis = aioredis.from_url("redis://localhost")
+        FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
         yield
         print('APP SHUTDOWN')
         await sessionmanager.close()  # dispose()
