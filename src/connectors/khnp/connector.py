@@ -9,7 +9,7 @@ from src.connectors.exceptions import sync_logger
 from src.connectors.khnp.config import SYSTEM_SHORT_NAME
 from src.connectors.khnp.exceptions import KHNPConnectorError
 from src.connectors.khnp.parser import KHNPParser
-from src.database.models import User, CardSystem, Card, System, CardType, Transaction, OuterGoods
+from src.database.models import User, CardSystem, Card, System, CardType, Transaction, OuterGoods, Company
 from src.repositories.base import BaseRepository
 from src.repositories.system import SystemRepository
 from src.repositories.tariff import TariffRepository
@@ -62,7 +62,7 @@ class KHNPConnector(BaseRepository):
         stmt = (
             sa_select(CardSystem)
             .options(
-                joinedload(CardSystem.card).joinedload(Card.company)
+                joinedload(CardSystem.card).joinedload(Card.company).joinedload(Company.tariff)
             )
             .where(CardSystem.system_id == system.id)
             .outerjoin(CardSystem.card)
@@ -260,6 +260,8 @@ class KHNPConnector(BaseRepository):
             company=card.company,
             _date_=provider_transaction['date_time'].date()
         ) if card.company else None
+        print('tariff:', tariff)
+        print('card.company:', card.company)
 
         # Объем топлива
         fuel_volume = provider_transaction['liters_ordered'] if debit else -provider_transaction['liters_ordered']
