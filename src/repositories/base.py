@@ -83,7 +83,7 @@ class BaseRepository:
             self.logger.error(traceback.format_exc())
             raise DBException()
 
-    async def insert(self, _model_, **fields):
+    async def insert(self, _model_, **fields) -> Any:
         try:
             stmt = pg_insert(_model_).values(fields)
             result = await self.session.scalars(

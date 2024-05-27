@@ -1,0 +1,6 @@
+/src/connectors/khnp/selenium/
+/src/connectors/log/
+/log/
+/alembic/
+/.env
+/alembic.ini

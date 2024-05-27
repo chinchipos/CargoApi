@@ -39,3 +39,8 @@ class SystemRepository(BaseRepository):
         )
         amount = await self.select_single_field(stmt)
         return amount
+
+    async def get_system_by_short_name(self, system_fhort_name: str) -> models.System:
+        stmt = sa_select(models.System).where(models.System.short_name == system_fhort_name)
+        system = await self.select_first(stmt)
+        return system

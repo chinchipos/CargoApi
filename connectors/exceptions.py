@@ -1,2 +1,0 @@
-class KHNPParserError(Exception):
-    pass

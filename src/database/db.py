@@ -4,7 +4,7 @@ from typing import AsyncIterator, AsyncGenerator
 from psycopg import AsyncConnection
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession, AsyncEngine
 
-from src.config import PRODUCTION
+from src.config import PRODUCTION, SQLALCHEMY_ECHO
 from src.database.models import Base
 
 
@@ -17,8 +17,7 @@ class DatabaseSessionManager:
         if tests:
             echo = False
         else:
-            echo = False if PRODUCTION else True
-            # echo = False
+            echo = SQLALCHEMY_ECHO
 
         self._engine = create_async_engine(
             connection_string,
