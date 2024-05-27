@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
@@ -13,9 +14,9 @@ class SystemReadSchema(BaseModel):
     login: str
     transaction_days: int
     balance: float
-    transactions_sync_dt: Optional[str]
-    cards_sync_dt: Optional[str]
-    balance_sync_dt: Optional[str]
+    transactions_sync_dt: Optional[datetime]
+    cards_sync_dt: Optional[datetime]
+    balance_sync_dt: Optional[datetime]
     cards_amount: int
 
 

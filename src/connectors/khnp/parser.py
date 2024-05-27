@@ -2,7 +2,6 @@
 # https://googlechromelabs.github.io/chrome-for-testing/#stable
 
 import os
-import shutil
 import sys
 import time
 from datetime import date, datetime
@@ -16,8 +15,11 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from xls2xlsx import XLS2XLSX
 
-from src.connectors.khnp.exceptions import KHNPParserError, khnp_logger
+from src.connectors.exceptions import sync_logger
+from src.connectors.khnp.exceptions import KHNPParserError
 from src.connectors.khnp.config import KHNP_URL, SYSTEM_USERNAME, SYSTEM_PASSWORD
+
+from pathlib import Path
 
 
 class KHNPParser:
@@ -34,10 +36,11 @@ class KHNPParser:
         base_dir = os.getcwd()
 
         # Папка Chrome
-        chrome_dir = os.path.join(base_dir, 'khnp', 'selenium')
+        chrome_dir = os.path.join(base_dir, 'src', 'khnp', 'selenium')
+
 
         # Папка для загрузок
-        self.downloads_dir = os.path.join(base_dir, 'khnp', 'downloads')
+        self.downloads_dir = os.path.join(str(Path.home()), 'Downloads')
 
         options = driver.ChromeOptions()
 
@@ -77,7 +80,7 @@ class KHNPParser:
         self.ac = ActionChains(self.driver)
 
     def login(self) -> None:
-        khnp_logger.info(f'Открываю главную страницу: {self.site}')
+        sync_logger.info(f'Открываю главную страницу: {self.site}')
         self.driver.get(self.site)
 
         if 'info.html' in self.driver.current_url:
@@ -86,19 +89,19 @@ class KHNPParser:
         if 'login.html' in self.driver.current_url:
             try:
                 # После открытия стартовой страницы сервер перенаправил на страницу авторизации
-                khnp_logger.info(f'Сайт перенаправил на страницу авторизации.')
+                sync_logger.info(f'Сайт перенаправил на страницу авторизации.')
 
-                khnp_logger.info('Ввожу логин.')
+                sync_logger.info('Ввожу логин.')
                 login_input = WebDriverWait(self.driver, 5).until(
                     lambda x: x.find_element(By.ID, 'LoginForm_username'))
                 login_input.send_keys(SYSTEM_USERNAME)
 
-                khnp_logger.info('Ввожу пароль.')
+                sync_logger.info('Ввожу пароль.')
                 password_input = WebDriverWait(self.driver, 5).until(
                     lambda x: x.find_element(By.ID, 'LoginForm_password'))
                 password_input.send_keys(SYSTEM_PASSWORD)
 
-                khnp_logger.info('Устанавливаю опцию "запомнить меня на этом компьютере".')
+                sync_logger.info('Устанавливаю опцию "запомнить меня на этом компьютере".')
                 remember_me_checkbox = WebDriverWait(self.driver, 5).until(
                     lambda x: x.find_element(By.ID, 'login_form_save_id'))
                 remember_me_checkbox.click()
@@ -137,7 +140,7 @@ class KHNPParser:
 
     def open_cards_page(self) -> None:
         try:
-            khnp_logger.info(f'Открываю страницу "Информация по картам": {self.site}/card/info.html')
+            sync_logger.info(f'Открываю страницу "Информация по картам": {self.site}/card/info.html')
             self.driver.get(self.site + "/card/info.html")
 
         except Exception:
@@ -164,7 +167,7 @@ class KHNPParser:
         # Отображаем все карты (активные и заблокированные)
         try:
             state_changed = False
-            khnp_logger.info('Убираю фильтрацию карт')
+            sync_logger.info('Убираю фильтрацию карт')
             filter_cards_form = WebDriverWait(self.driver, 5).until(
                 lambda x: x.find_element(By.ID, 'filter_cards_form'))
 
@@ -198,16 +201,16 @@ class KHNPParser:
 
     def select_all_cards(self) -> None:
         try:
-            khnp_logger.info('Устанавливаю галку "выбрать все карты"')
+            sync_logger.info('Устанавливаю галку "выбрать все карты"')
             cards_all_block = WebDriverWait(self.driver, 5).until(lambda x: x.find_element(By.CLASS_NAME, 'cards-all'))
             container_table_block = WebDriverWait(cards_all_block, 5).until(
                 lambda x: x.find_element(By.CLASS_NAME, 'table'))
             select_all_checkbox = WebDriverWait(container_table_block, 5).until(
                 lambda x: x.find_element(By.CSS_SELECTOR, 'input[name="all"]'))
             select_all_checkbox.click()
-            khnp_logger.info('Жду отображения полного списка карт')
+            sync_logger.info('Жду отображения полного списка карт')
             time.sleep(2)
-            khnp_logger.info('Список сформирован')
+            sync_logger.info('Список сформирован')
 
         except Exception:
             raise KHNPParserError(trace=True, message='Не удалось установить галку "выбрать все карты"')
@@ -307,20 +310,19 @@ class KHNPParser:
             days = (end_date - start_date).days
 
             # Получаем данные за период
-            khnp_logger.info(f"Запрашиваю данные за период с {start_date_str} по {end_date_str} ({days} дн)")
+            sync_logger.info(f"Запрашиваю данные за период с {start_date_str} по {end_date_str} ({days} дн)")
             script = "$('input[name=" + '"cards[startDate]"' + f"]').val('{start_date_str}');"
             self.driver.execute_script(script)
             script = "$('input[name=" + '"cards[endDate]"' + f"]').val('{end_date_str}');"
             self.driver.execute_script(script)
 
-            # пересоздаем папку для загрузок
-            if os.path.exists(self.downloads_dir):
-                shutil.rmtree(self.downloads_dir)
-
-            os.makedirs(self.downloads_dir)
+            # Удаляем из папки загрузок все предыдущие отчеты
+            files = [f for f in os.listdir(self.downloads_dir) if f.startswith('cards_details')]
+            for filename in files:
+                os.remove(os.path.join(self.downloads_dir, filename))
 
             # Скачиваем сводный Excel файл
-            khnp_logger.info('Приступаю к скачиванию файла отчета')
+            sync_logger.info('Приступаю к скачиванию файла отчета')
             summary_article_block = WebDriverWait(self.driver, 5).until(
                 lambda x: x.find_element(By.CSS_SELECTOR, 'article.cards-total'))
             form = WebDriverWait(summary_article_block, 5).until(lambda x: x.find_element(By.TAG_NAME, 'form'))
@@ -329,29 +331,36 @@ class KHNPParser:
             xls_download_btn.click()
 
             def file_downloaded():
-                listdir = os.listdir(self.downloads_dir)
-                return listdir[0] if listdir and listdir[0].endswith('.xls') else False
+                _files = [os.path.join(self.downloads_dir, f) for f in os.listdir(self.downloads_dir) \
+                          if f.startswith('cards_details') and f.endswith('xls')]
+                if _files:
+                    transactions_file = _files[0]
+                    size1 = os.path.getsize(transactions_file)
+                    time.sleep(1)
+                    size2 = os.path.getsize(transactions_file)
+                    return transactions_file if size2 == size1 else False
+
+                else:
+                    return False
 
             time.sleep(10)
             WebDriverWait(self.driver, 30).until(lambda x: file_downloaded())
             xls_filename = file_downloaded()
-            khnp_logger.info(f'Файл скачан: {xls_filename}')
+            sync_logger.info(f'Файл скачан: {xls_filename}')
 
             # Скачанный файл в старом XLS формате. С ним неудобно работать. Преобразуем в XLSX.
-            khnp_logger.info('Преобразование формата: XLS -> XLSX')
-            xls_filepath = self.downloads_dir + os.sep + xls_filename
+            sync_logger.info('Преобразование формата: XLS -> XLSX')
+            xls_filepath = xls_filename
             x2x = XLS2XLSX(xls_filepath)
 
             wb = x2x.to_xlsx()
             ws = wb.active
             excel = ws.values
-            print('YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY')
-            print(type(excel))
 
             # Парсим содержимое файла
-            khnp_logger.info('Начинаю парсинг содержимого файла, формирую JSON')
+            sync_logger.info('Начинаю парсинг содержимого файла, формирую JSON')
             transactions = self.parse_transactions_report(excel, start_date)
-            khnp_logger.info('Парсинг выполнен, сформирован JSON')
+            sync_logger.info('Парсинг выполнен, сформирован JSON')
 
             for card_number, card_transactions in transactions.items():
                 for card_transaction in card_transactions:

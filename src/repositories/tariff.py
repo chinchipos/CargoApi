@@ -1,6 +1,8 @@
-from typing import List
+from datetime import date
+from typing import List, Optional
 
 from sqlalchemy import select as sa_select, func as sa_func
+from sqlalchemy.orm import joinedload
 
 from src.database import models
 from src.repositories.base import BaseRepository
@@ -35,3 +37,29 @@ class TariffRepository(BaseRepository):
         )
         amount = await self.select_single_field(stmt)
         return amount
+
+    async def get_company_tariff_on_date(self, company: models.Company, _date_: date) -> models.Tariff:
+        # Получаем историю применения тарифов для найденной организации
+        stmt = (
+            sa_select(models.TariffHistory)
+            .options(
+                joinedload(models.TariffHistory.tariff),
+            )
+            .where(models.TariffHistory.company_id == company.id)
+            .where(models.TariffHistory.start_date <= _date_)
+        )
+        history = await self.select_all(stmt)
+
+        # Выполняем поиск по записям, в которых указана дата окончания действия тарифа
+        for record in history:
+            if record.end_date > _date_:
+                return record.tariff
+
+        # Если существует запись без даты прекращения действия тарифа,
+        # то возвращаем тариф, указанный в ней
+        for record in history:
+            if not record.end_date:
+                return record.tariff
+
+        # Если в истории никаких записей не найдено, то возвращаем текущий тариф организации
+        return company.tariff

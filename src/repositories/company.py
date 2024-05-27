@@ -5,6 +5,7 @@ from sqlalchemy.orm import joinedload, selectinload
 
 from src.database import models
 from src.repositories.base import BaseRepository
+from src.repositories.transaction import TransactionRepository
 from src.utils import enums
 
 
@@ -80,4 +81,14 @@ class CompanyRepository(BaseRepository):
         new_company_nanager_link = models.AdminCompany(company_id = company_id, user_id = user_id)
         await self.save_object(new_company_nanager_link)
 
+    async def set_company_balance_by_last_transaction(self, company_id: str) -> models.Company:
+        # Получаем организацию
+        company = await self.get_company(company_id)
 
+        # Получаем последнюю транзакцию
+        transaction_repository = TransactionRepository(self.session, self.user)
+        last_transaction = await transaction_repository.get_last_transaction(company_id)
+
+        # Устанавливаем текущий баланс организации
+        await self.update_object(company, update_data={"balance": last_transaction.company_balance})
+        return company
