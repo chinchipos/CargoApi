@@ -1,23 +1,17 @@
 import traceback
 
-from src.utils.log import ColoredLogger
-
-sync_logger = ColoredLogger(logfile_name='khnp.log', logger_name='KHNP')
+from src.tasks.sync import sync_task_logger
 
 
-class BaseError(Exception):
+class SyncError(Exception):
 
     def __init__(self, trace: bool, message: str) -> None:
         if trace:
             trace_info = traceback.format_exc()
-            sync_logger.error(message)
-            sync_logger.error(trace_info)
+            sync_task_logger.error(message)
+            sync_task_logger.error(trace_info)
 
         else:
-            sync_logger.error(message)
+            sync_task_logger.error(message)
 
         super().__init__(message)
-
-
-class SyncError(BaseError):
-    ...

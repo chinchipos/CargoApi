@@ -4,10 +4,10 @@ from sqlalchemy import select as sa_select
 
 from datetime import datetime
 
-from src.connectors.exceptions import sync_logger
 from src.database import models
 from src.repositories.base import BaseRepository
 from src.repositories.company import CompanyRepository
+from src.tasks.init import sync_task_logger
 
 
 class CalcBalance(BaseRepository):
@@ -92,4 +92,4 @@ class CalcBalance(BaseRepository):
             # Устанавливаем текущий баланс организации
             company_repository = CompanyRepository(self.session, self.user)
             company = await company_repository.set_company_balance_by_last_transaction(company_id)
-            sync_logger.info('Баланс организации {}: {} руб.'.format(company.name, company.balance))
+            sync_task_logger.info('Баланс организации {}: {} руб.'.format(company.name, company.balance))

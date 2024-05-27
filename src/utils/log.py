@@ -4,19 +4,20 @@ from logging.handlers import RotatingFileHandler
 
 from termcolor import colored
 
+from src.config import LOG_DIR
+
 
 class ColoredLogger:
 
     def __init__(self, logfile_name: str, logger_name: str):
-        logfile_dir = os.path.join(os.getcwd(), 'log')
-        logfile_path = os.path.join(logfile_dir, logfile_name)
-        if not os.path.exists(logfile_dir):
-            os.makedirs(logfile_dir)
+        logfile_path = os.path.join(LOG_DIR, logfile_name)
+        if not os.path.exists(LOG_DIR):
+            os.makedirs(LOG_DIR)
 
         self.logger = logging.getLogger(logger_name)
         self.logger.setLevel(logging.INFO)
 
-        formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s", '%Y-%m-%d %H:%M:%S')
+        formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s", '%Y-%m-%d %H:%M:%S')
 
         handler = logging.StreamHandler()
         handler.setFormatter(formatter)

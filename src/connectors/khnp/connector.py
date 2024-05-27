@@ -5,9 +5,8 @@ from sqlalchemy import select as sa_select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from src.connectors.exceptions import sync_logger
 from src.connectors.khnp.config import SYSTEM_SHORT_NAME
-from src.connectors.khnp.exceptions import KHNPConnectorError
+from src.connectors.khnp.exceptions import KHNPConnectorError, khnp_connector_logger
 from src.connectors.khnp.parser import KHNPParser
 from src.database.models import User, CardSystem, Card, System, CardType, Transaction, OuterGoods, Company
 from src.repositories.base import BaseRepository
@@ -49,11 +48,11 @@ class KHNPConnector(BaseRepository):
 
         # Получаем наш баланс у поставщика услуг
         balance = self.parser.get_balance()
-        sync_logger.info('Наш баланс в системе {}: {} руб.'.format(system.full_name, balance))
+        khnp_connector_logger.info('Наш баланс в системе {}: {} руб.'.format(system.full_name, balance))
 
         # Обновляем запись в локальной БД
         await self.update_object(system, update_data={"balance": balance})
-        sync_logger.info('Обновлен баланс в локальной БД')
+        khnp_connector_logger.info('Обновлен баланс в локальной БД')
 
     async def get_local_cards(self) -> List[CardSystem]:
         # Получаем систему
@@ -92,7 +91,7 @@ class KHNPConnector(BaseRepository):
             belongs_to_driver_id=None,
         )
         new_card = await self.insert(Card, **fields)
-        sync_logger.info(f'Создана карта {new_card.card_number}')
+        khnp_connector_logger.info(f'Создана карта {new_card.card_number}')
         return new_card
 
     def get_provider_cards(self) -> List[Dict[str, Any]]:
@@ -127,7 +126,7 @@ class KHNPConnector(BaseRepository):
         # Записываем в БД время последней успешной синхронизации
         system = await self.get_system()
         await self.update_object(system, update_data={"cards_sync_dt": datetime.now()})
-        sync_logger.info('Синхронизация карт выполнена')
+        khnp_connector_logger.info('Синхронизация карт выполнена')
 
     async def get_provider_transactions(self, need_authorization: bool = True) -> Dict[str, Any]:
         if need_authorization:
@@ -339,20 +338,20 @@ class KHNPConnector(BaseRepository):
         counter = sum(list(map(
             lambda card_number: len(provider_transactions.get(card_number)), provider_transactions
         )))
-        sync_logger.info(f'Количество транзакций от поставщика услуг: {counter} шт')
+        khnp_connector_logger.info(f'Количество транзакций от поставщика услуг: {counter} шт')
         if not counter:
             return {}
 
         # Получаем список транзакций из локальной БД
-        sync_logger.info('Формирую список транзакций из локальной БД')
+        khnp_connector_logger.info('Формирую список транзакций из локальной БД')
         local_transactions = await self.get_local_transactions()
-        sync_logger.info(f'Количество транзакций из локальной БД: {len(local_transactions)} шт')
+        khnp_connector_logger.info(f'Количество транзакций из локальной БД: {len(local_transactions)} шт')
 
         # Сравниваем транзакции локальные с полученными от поставщика.
         # Идентичные транзакции исключаем из списка, полученного от системы.
         # Удаляем локальные транзакции из БД, которые не были найдены в списке,
         # полученном от системы.
-        sync_logger.info('Приступаю к процедуре сравнения локальных транзакций с полученными от поставщика')
+        khnp_connector_logger.info('Приступаю к процедуре сравнения локальных транзакций с полученными от поставщика')
         to_delete = []
         calculation_info = {}
         for local_transaction in local_transactions:
@@ -370,9 +369,9 @@ class KHNPConnector(BaseRepository):
                         )
 
         # Удаляем помеченные транзакции из БД
-        sync_logger.info(f'Удалить тразакции из локальной БД: {len(to_delete)} шт')
+        khnp_connector_logger.info(f'Удалить тразакции из локальной БД: {len(to_delete)} шт')
         if len(to_delete):
-            sync_logger.info('Удаляю помеченные локальные транзакции из БД')
+            khnp_connector_logger.info('Удаляю помеченные локальные транзакции из БД')
             for transaction in to_delete:
                 print('На удаление:', transaction.date_time.isoformat().replace('T', ' '), transaction.card,
                       transaction.company)
@@ -385,10 +384,10 @@ class KHNPConnector(BaseRepository):
         counter = sum(list(map(
             lambda card_number: len(provider_transactions.get(card_number)), provider_transactions
         )))
-        sync_logger.info(f'Новые тразакции от поставщика услуг: {counter} шт')
+        khnp_connector_logger.info(f'Новые тразакции от поставщика услуг: {counter} шт')
 
         if counter:
-            sync_logger.info('Начинаю обработку транзакции от поставщика услуг, которые не обнаружены в локальной БД')
+            khnp_connector_logger.info('Начинаю обработку транзакции от поставщика услуг, которые не обнаружены в локальной БД')
             await self.process_provider_transactions(provider_transactions, calculation_info)
 
         # Записываем в БД время последней успешной синхронизации
