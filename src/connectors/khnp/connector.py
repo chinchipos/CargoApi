@@ -260,8 +260,6 @@ class KHNPConnector(BaseRepository):
             company=card.company,
             _date_=provider_transaction['date_time'].date()
         ) if card.company else None
-        print('tariff:', tariff)
-        print('card.company:', card.company)
 
         # Объем топлива
         fuel_volume = provider_transaction['liters_ordered'] if debit else -provider_transaction['liters_ordered']
