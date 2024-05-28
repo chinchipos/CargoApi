@@ -131,7 +131,7 @@ class DBRepository(BaseRepository):
                 company_id=company_ids[car['company_id']],
             ) for car in cars
         ]
-        await self.bulk_insert_or_update(Car, dataset, 'reg_number')
+        await self.bulk_insert_or_update(Car, dataset)
 
     async def import_cards(self, cards: list[Dict[str, Any]]) -> None:
         # Тип карты по умолчанию для вновь импортируемых карт
