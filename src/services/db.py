@@ -128,6 +128,14 @@ class DBService:
             await self.repository.delete_all(models.Card)
             self.logger.info('  -> выполнено')
 
+            self.logger.info('Удаляю автомобили')
+            await self.repository.delete_all(models.Car)
+            self.logger.info('  -> выполнено')
+
+            self.logger.info('Удаляю организации')
+            await self.repository.delete_all(models.Company)
+            self.logger.info('  -> выполнено')
+
             self.logger.info('Импортирую системы')
             await self.repository.import_systems(data.systems)
 
