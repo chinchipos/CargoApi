@@ -6,7 +6,7 @@ from src.repositories.db import DBRepository
 from src.schemas.db import DBInitSchema, DBInitialSyncSchema, DBRegularSyncSchema
 from src.schemas.user import UserCreateSchema
 from src.utils import enums
-from src.utils.exceptions import BadRequestException
+from src.utils.exceptions import BadRequestException, ApiError
 from src.utils.password_policy import test_password_strength
 
 
@@ -113,45 +113,49 @@ class DBService:
         # Очищаем таблицы БД
         self.logger.info('Начинаю удаление данных из таблиц БД')
 
-        self.logger.info('Удаляю транзакции')
-        await self.repository.delete_all(models.Transaction)
-        self.logger.info('  -> выполнено')
+        try:
+            self.logger.info('Удаляю транзакции')
+            await self.repository.delete_all(models.Transaction)
+            self.logger.info('  -> выполнено')
 
-        self.logger.info('Удаляю товары/услуги')
-        await self.repository.delete_all(models.OuterGoods)
-        await self.repository.delete_all(models.InnerGoods)
-        self.logger.info('  -> выполнено')
+            self.logger.info('Удаляю товары/услуги')
+            await self.repository.delete_all(models.OuterGoods)
+            await self.repository.delete_all(models.InnerGoods)
+            self.logger.info('  -> выполнено')
 
-        self.logger.info('Удаляю топливные карты')
-        await self.repository.delete_all(models.CardSystem)
-        await self.repository.delete_all(models.Card)
-        self.logger.info('  -> выполнено')
+            self.logger.info('Удаляю топливные карты')
+            await self.repository.delete_all(models.CardSystem)
+            await self.repository.delete_all(models.Card)
+            self.logger.info('  -> выполнено')
 
-        self.logger.info('Импортирую системы')
-        await self.repository.import_systems(data.systems)
+            self.logger.info('Импортирую системы')
+            await self.repository.import_systems(data.systems)
 
-        self.logger.info('Импортирую тарифы')
-        await self.repository.import_tariffs(data.tariffs)
+            self.logger.info('Импортирую тарифы')
+            await self.repository.import_tariffs(data.tariffs)
 
-        self.logger.info('Импортирую организации')
-        await self.repository.import_companies(data.companies)
+            self.logger.info('Импортирую организации')
+            await self.repository.import_companies(data.companies)
 
-        self.logger.info('Импортирую автомобили')
-        await self.repository.import_cars(data.cars)
+            self.logger.info('Импортирую автомобили')
+            await self.repository.import_cars(data.cars)
 
-        self.logger.info('Импортирую топливные карты')
-        await self.repository.import_cards(data.cards)
-        await self.repository.import_card_systems(data.cards)
+            self.logger.info('Импортирую топливные карты')
+            await self.repository.import_cards(data.cards)
+            await self.repository.import_card_systems(data.cards)
 
-        self.logger.info('Импортирую товары/услуги')
-        await self.repository.import_inner_goods(data.goods)
-        await self.repository.import_outer_goods(data.goods)
+            self.logger.info('Импортирую товары/услуги')
+            await self.repository.import_inner_goods(data.goods)
+            await self.repository.import_outer_goods(data.goods)
 
-        self.logger.info('Импортирую транзакции')
-        await self.repository.import_transactions(data.transactions)
+            self.logger.info('Импортирую транзакции')
+            await self.repository.import_transactions(data.transactions)
 
-        self.logger.info('Пересчитываю балансы')
-        await self.calculate_balances()
+            self.logger.info('Пересчитываю балансы')
+            await self.calculate_balances()
+
+        except Exception as e:
+            raise ApiError(trace=True, message='Ошибка выполнения процедуры первичной синхронизации')
 
     async def regular_sync(self, data: DBRegularSyncSchema) -> str:
         # Проверка инициализационного токена
