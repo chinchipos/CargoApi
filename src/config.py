@@ -1,5 +1,6 @@
 from dotenv import load_dotenv
 import os
+from datetime import timedelta, timezone
 
 
 load_dotenv()
@@ -19,3 +20,5 @@ BUILTIN_ADMIN_FIRSTNAME = os.environ.get('BUILTIN_ADMIN_FIRSTNAME')
 
 SQLALCHEMY_ECHO = os.environ.get('SQLALCHEMY_ECHO') == 'True'
 LOG_DIR = os.environ.get('LOG_DIR')
+
+TZ = timezone(offset=timedelta(hours=3), name='МСК')

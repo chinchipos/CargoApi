@@ -1,10 +1,11 @@
 from datetime import datetime, date, timedelta
 from typing import Dict, Any, List
 
-from sqlalchemy import select as sa_select
+from sqlalchemy import select as sa_select, update as sa_update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
+from src.config import TZ
 from src.connectors.khnp.config import SYSTEM_SHORT_NAME
 from src.connectors.khnp.exceptions import KHNPConnectorError, khnp_connector_logger
 from src.connectors.khnp.parser import KHNPParser
@@ -51,7 +52,10 @@ class KHNPConnector(BaseRepository):
         khnp_connector_logger.info('Наш баланс в системе {}: {} руб.'.format(system.full_name, balance))
 
         # Обновляем запись в локальной БД
-        await self.update_object(system, update_data={"balance": balance})
+        await self.update_object(system, update_data={
+            "balance": balance,
+            "balance_sync_dt": datetime.now(tz=TZ)
+        })
         khnp_connector_logger.info('Обновлен баланс в локальной БД')
 
     async def get_local_cards(self) -> List[CardSystem]:
@@ -125,7 +129,7 @@ class KHNPConnector(BaseRepository):
 
         # Записываем в БД время последней успешной синхронизации
         system = await self.get_system()
-        await self.update_object(system, update_data={"cards_sync_dt": datetime.now()})
+        await self.update_object(system, update_data={"cards_sync_dt": datetime.now(tz=TZ)})
         khnp_connector_logger.info('Синхронизация карт выполнена')
 
     async def get_provider_transactions(self, need_authorization: bool = True) -> Dict[str, Any]:
@@ -332,6 +336,16 @@ class KHNPConnector(BaseRepository):
         # Сохраняем транзакции в БД
         await self.bulk_insert_or_update(Transaction, transactions_to_save)
 
+    async def renew_cards_date_last_use(self) -> None:
+        date_last_use_subquery = (
+            sa_select(func.max(Transaction.date_time))
+            .where(Transaction.card_id == Card.id)
+            .subquery()
+        )
+        stmt = sa_update(Card).values(date_last_use=date_last_use_subquery)
+        await self.session.execute(stmt)
+        await self.session.commit()
+
     async def load_transactions(self, need_authorization: bool = True) -> Dict[str, Any]:
         # Получаем список транзакций от поставщика услуг
         provider_transactions = await self.get_provider_transactions(need_authorization)
@@ -392,6 +406,9 @@ class KHNPConnector(BaseRepository):
 
         # Записываем в БД время последней успешной синхронизации
         system = await self.get_system()
-        await self.update_object(system, update_data={"transactions_sync_dt": datetime.now()})
+        await self.update_object(system, update_data={"transactions_sync_dt": datetime.now(tz=TZ)})
+
+        # Обновляем время последней транзакции для карт
+        await self.renew_cards_date_last_use()
 
         return calculation_info
