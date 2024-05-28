@@ -153,15 +153,15 @@ class DBRepository(BaseRepository):
         )
         company_ids = {item[0]: item[1] for item in company_ids}
         company_ids[0] = None
-
+        for k, v in company_ids.items():
+            print(k, '=', v)
         # Автомобиль. Сопоставление id записи на боевом сервере с id на новом сервере.
         car_ids = await self.select_all(
             sa_select(Car.master_db_id, Car.id).where(Car.master_db_id != None),
             scalars=False
         )
         car_ids = {item[0]: item[1] for item in car_ids}
-        for k, v in car_ids.items():
-            print(k, '=', v)
+
         dataset = [
             dict(
                 card_type_id=card_numbers_related_to_card_type_ids.get(card['card_num'], plastic_card_type.id),
