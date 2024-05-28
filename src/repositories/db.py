@@ -160,8 +160,8 @@ class DBRepository(BaseRepository):
             scalars=False
         )
         car_ids = {item[0]: item[1] for item in car_ids}
-        for item in car_ids:
-            print(item)
+        for k, v in car_ids.items():
+            print(k, '=', v)
         dataset = [
             dict(
                 card_type_id=card_numbers_related_to_card_type_ids.get(card['card_num'], plastic_card_type.id),
