@@ -18,7 +18,7 @@ from src.routing.transaction import router as transaction_routing, transaction_t
 from src.routing.goods import router as goods_routing, goods_tag_metadata
 from src.routing.user import router as user_routing, user_tag_metadata
 from src.schemas.user import NewUserReadSchema, UserCreateSchema
-from src.utils.exceptions import BadRequestException, ForbiddenException, DBException, DBDuplicateException
+from src.utils.exceptions import BadRequestException, ForbiddenException, DBException, DBDuplicateException, ApiError
 from src.utils.log import logger
 
 # from fastapi_cache import FastAPICache
@@ -124,6 +124,13 @@ def init_app(dsn: str, tests: bool = False):
 
     @app.exception_handler(DBDuplicateException)
     async def bad_request_exception_handler(request: Request, exc: BadRequestException):
+        return JSONResponse(
+            status_code=400,
+            content={"message": exc.message},
+        )
+
+    @app.exception_handler(ApiError)
+    async def api_exception_handler(request: Request, exc: BadRequestException):
         return JSONResponse(
             status_code=400,
             content={"message": exc.message},
