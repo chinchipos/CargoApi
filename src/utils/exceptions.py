@@ -1,3 +1,8 @@
+import traceback
+
+from src.utils.log import ColoredLogger
+
+
 class BadRequestException(Exception):
     def __init__(self, message: str):
         self.message = message
@@ -16,3 +21,20 @@ class DBException(Exception):
 class DBDuplicateException(Exception):
     def __init__(self):
         self.message = 'Нарушение целостности: попытка добавить идентичную запись.'
+
+
+api_logger = ColoredLogger(logfile_name='api.log', logger_name='API')
+
+
+class ApiError(Exception):
+
+    def __init__(self, trace: bool, message: str) -> None:
+        if trace:
+            trace_info = traceback.format_exc()
+            api_logger.error(message)
+            api_logger.error(trace_info)
+
+        else:
+            api_logger.error(message)
+
+        super().__init__(message)

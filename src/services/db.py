@@ -26,47 +26,52 @@ class DBService:
 
         # Очищаем таблицы БД
         self.logger.info('Начинаю удаление данных из таблиц БД')
-        await self.repository.delete_all(models.Log)
-        await self.repository.delete_all(models.LogType)
-        await self.repository.delete_all(models.Transaction)
-        await self.repository.delete_all(models.OuterGoods)
-        await self.repository.delete_all(models.InnerGoods)
-        await self.repository.delete_all(models.CardSystem)
-        await self.repository.delete_all(models.System)
-        await self.repository.delete_all(models.Card)
-        await self.repository.delete_all(models.CarDriver)
-        await self.repository.delete_all(models.Car)
-        await self.repository.delete_all(models.CardType)
-        await self.repository.delete_all(models.AdminCompany)
-        await self.repository.delete_all(models.User)
-        await self.repository.delete_all(models.RolePermition)
-        await self.repository.delete_all(models.Role)
-        await self.repository.delete_all(models.Permition)
-        await self.repository.delete_all(models.TariffHistory)
-        await self.repository.delete_all(models.Company)
-        await self.repository.delete_all(models.Tariff)
 
-        # Создание типов карт
-        await self.repository.init_card_types()
+        try:
+            await self.repository.delete_all(models.Log)
+            await self.repository.delete_all(models.LogType)
+            await self.repository.delete_all(models.Transaction)
+            await self.repository.delete_all(models.OuterGoods)
+            await self.repository.delete_all(models.InnerGoods)
+            await self.repository.delete_all(models.CardSystem)
+            await self.repository.delete_all(models.System)
+            await self.repository.delete_all(models.Card)
+            await self.repository.delete_all(models.CarDriver)
+            await self.repository.delete_all(models.Car)
+            await self.repository.delete_all(models.CardType)
+            await self.repository.delete_all(models.AdminCompany)
+            await self.repository.delete_all(models.User)
+            await self.repository.delete_all(models.RolePermition)
+            await self.repository.delete_all(models.Role)
+            await self.repository.delete_all(models.Permition)
+            await self.repository.delete_all(models.TariffHistory)
+            await self.repository.delete_all(models.Company)
+            await self.repository.delete_all(models.Tariff)
 
-        # Создание ролей
-        await self.repository.init_roles()
+            # Создание типов карт
+            await self.repository.init_card_types()
 
-        # Получаем роль суперадмина
-        role = await self.repository.get_cargo_superadmin_role()
+            # Создание ролей
+            await self.repository.init_roles()
 
-        # Создание суперадмина
-        user_schema = UserCreateSchema(
-            username = BUILTIN_ADMIN_NAME,
-            password = data.superuser_password,
-            first_name = BUILTIN_ADMIN_FIRSTNAME,
-            last_name = BUILTIN_ADMIN_LASTNAME,
-            email = BUILTIN_ADMIN_EMAIL,
-            phone = '',
-            is_active = True,
-            role_id = role.id
-        )
-        await create_user(user_schema)
+            # Получаем роль суперадмина
+            role = await self.repository.get_cargo_superadmin_role()
+
+            # Создание суперадмина
+            user_schema = UserCreateSchema(
+                username = BUILTIN_ADMIN_NAME,
+                password = data.superuser_password,
+                first_name = BUILTIN_ADMIN_FIRSTNAME,
+                last_name = BUILTIN_ADMIN_LASTNAME,
+                email = BUILTIN_ADMIN_EMAIL,
+                phone = '',
+                is_active = True,
+                role_id = role.id
+            )
+            await create_user(user_schema)
+
+        except Exception as e:
+            self.logger.error(str(e))
 
     async def calculate_company_balance(self, company: models.Company, transactions) -> None:
         if transactions:

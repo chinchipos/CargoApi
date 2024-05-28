@@ -8,8 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from src.database import models
 from src.database.db import get_session
 
-from src.utils.exceptions import DBException, DBDuplicateException, BadRequestException
-from src.utils.log import logger
+from src.utils.exceptions import DBException, DBDuplicateException, BadRequestException, api_logger
 
 import traceback
 
@@ -19,7 +18,7 @@ class BaseRepository:
     def __init__(self, session: get_session, user: models.User | None = None):
         self.session = session
         self.user = user
-        self.logger = logger
+        self.logger = api_logger
 
     async def select_helper(self, stmt, scalars=True) -> Any:
         try:
