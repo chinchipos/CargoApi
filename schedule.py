@@ -5,7 +5,6 @@ from src.connectors.exceptions import sync_task_logger
 from src.tasks.init import sessionmanager
 from src.tasks.service import clear_old_temporary_overdrafts
 from src.tasks.sync import run_sync
-from src.utils.log import ColoredLogger
 
 
 async def main():

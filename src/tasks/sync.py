@@ -47,8 +47,8 @@ async def run_sync(session: AsyncSession) -> None:
     except (KHNPConnectorError, KHNPParserError):
         sync_task_logger.info('Синхронизации с ННК (KHNP) завершилась с ошибкой')
 
-    except Exception:
-        print(traceback.format_exc())
+    except Exception as e:
+        sync_task_logger.error(str(e))
         sync_task_logger.info('Синхронизации с ННК (KHNP) завершилась с ошибкой')
 
     else:
