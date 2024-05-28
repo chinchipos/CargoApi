@@ -89,7 +89,7 @@ class DBRepository(BaseRepository):
                 min_balance_on_period=company['min_balance_period'],
             ) for company in companies
         ]
-        await self.bulk_insert_or_update(Company, dataset, 'inn')
+        await self.bulk_insert_or_update(Company, dataset)
 
     async def sync_companies(self, companies: list[Dict[str, Any]]) -> int:
         # Получаем список идентификаторов, указывающих на организации из БД основной площадки
