@@ -340,7 +340,7 @@ class KHNPConnector(BaseRepository):
         date_last_use_subquery = (
             sa_select(func.max(Transaction.date_time))
             .where(Transaction.card_id == Card.id)
-            .subquery()
+            .scalar_subquery()
         )
         stmt = sa_update(Card).values(date_last_use=date_last_use_subquery)
         await self.session.execute(stmt)
