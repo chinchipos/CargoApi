@@ -31,6 +31,7 @@ class ApiError(Exception):
     def __init__(self, trace: bool, message: str) -> None:
         if trace:
             trace_info = traceback.format_exc()
+            self.message = message
             api_logger.error(message)
             api_logger.error(trace_info)
 
