@@ -123,8 +123,7 @@ class Company(Base):
     # ИНН
     inn: Mapped[str] = mapped_column(
         sa.String(13),
-        unique=True,
-        nullable=False
+        nullable=True
     )
 
     # Контактные данные (имена, телефоны, email)
