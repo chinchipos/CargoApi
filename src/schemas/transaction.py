@@ -8,14 +8,15 @@ from src.schemas.company import CompanyReadMinimumSchema
 from src.schemas.goods import OuterGoodsReadSchema
 from src.schemas.system import SystemReadMinimumSchema
 from src.schemas.tariff import TariffMinimumReadSchema
+from src.schemas.validators import DateTimeNormalized
 
 
 class TransactionReadSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
-    date_time: datetime
-    date_time_load: datetime
+    date_time: DateTimeNormalized
+    date_time_load: DateTimeNormalized
     is_debit: bool
     system: Optional[SystemReadMinimumSchema] = None
     card: Optional[CardMinimumReadSchema] = None
