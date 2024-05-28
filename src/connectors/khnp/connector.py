@@ -265,7 +265,7 @@ class KHNPConnector(BaseRepository):
         ) if card.company else None
 
         # Объем топлива
-        fuel_volume = provider_transaction['liters_ordered'] if debit else -provider_transaction['liters_ordered']
+        fuel_volume = -provider_transaction['liters_ordered'] if debit else provider_transaction['liters_received']
 
         # Сумма транзакции
         transaction_sum = -provider_transaction['money_request'] if debit else provider_transaction['money_request']
