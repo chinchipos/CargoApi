@@ -112,7 +112,7 @@ class DBRepository(BaseRepository):
             ) for company in companies if company['id'] not in excluded_master_db_ids
         ]
         if dataset:
-            await self.bulk_insert_or_update(Company, dataset, 'inn')
+            await self.bulk_insert_or_update(Company, dataset)
 
         return len(dataset)
 
@@ -153,8 +153,7 @@ class DBRepository(BaseRepository):
         )
         company_ids = {item[0]: item[1] for item in company_ids}
         company_ids[0] = None
-        for k, v in company_ids.items():
-            print(k, '=', v)
+
         # Автомобиль. Сопоставление id записи на боевом сервере с id на новом сервере.
         car_ids = await self.select_all(
             sa_select(Car.master_db_id, Car.id).where(Car.master_db_id != None),
