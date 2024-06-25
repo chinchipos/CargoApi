@@ -136,7 +136,7 @@ class TestSystem:
             stmt = sa_select(System).where(System.full_name == 'Газпромнефть1')
             system = await repository.select_first(stmt)
 
-        response = await aclient.post(
+        response = await aclient.put(
             url=f"/system/{system.id}/edit",
             json={
                 "full_name": "Газпромнефть",
@@ -194,7 +194,7 @@ class TestSystem:
             stmt = sa_select(System).where(System.full_name == 'Лукойл')
             system = await repository.select_first(stmt)
 
-        response = await aclient.get(
+        response = await aclient.delete(
             url=f"/system/{system.id}/delete",
             headers=headers(token)
         )

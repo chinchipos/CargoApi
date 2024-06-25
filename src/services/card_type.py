@@ -2,7 +2,6 @@ from typing import List
 
 from src.database import models
 from src.repositories.card_type import CardTypeRepository
-from src.schemas.common import ModelIDSchema
 from src.schemas.card_type import CardTypeCreateSchema, CardTypeReadSchema, CardTypeEditSchema
 from src.utils.exceptions import BadRequestException
 

@@ -10,7 +10,7 @@ from src.schemas.company import CompanyReadSchema, CompanyEditSchema, CompanyBal
 from src.schemas.driver import DriverReadSchema
 from src.services.company import CompanyService
 from src.utils import enums
-from src.utils.descriptions.company import company_tag_description, edit_company_description, get_company_description, \
+from src.descriptions.company import company_tag_description, edit_company_description, get_company_description, \
     get_companies_description, get_company_drivers_description, bind_manager_to_company_description, \
     edit_balance_description
 from src.utils.exceptions import ForbiddenException
@@ -28,7 +28,7 @@ company_tag_metadata = {
     tags=["company"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = List[CompanyReadSchema],
-    name = 'Получение списка всех организаций',
+    summary = 'Получение списка всех организаций',
     description = get_companies_description
 )
 async def get_companies(
@@ -47,7 +47,7 @@ async def get_companies(
     tags=["company"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = List[DriverReadSchema],
-    name = 'Получение списка водителей всех организаций',
+    summary = 'Получение списка водителей всех организаций',
     description = get_company_drivers_description
 )
 async def get_companies_drivers(
@@ -66,7 +66,7 @@ async def get_companies_drivers(
     tags=["company"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = CompanyReadSchema,
-    name = 'Получение сведений о компании',
+    summary = 'Получение сведений о компании',
     description = get_company_description
 )
 async def get_company(
@@ -94,12 +94,12 @@ async def get_company(
     return company
 
 
-@router.post(
+@router.put(
     path="/company/{id}/edit",
     tags=["company"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = CompanyReadSchema,
-    name = 'Редактирование сведений об организации',
+    summary = 'Редактирование сведений об организации',
     description = edit_company_description
 )
 async def edit_company(
@@ -112,12 +112,12 @@ async def edit_company(
     return company
 
 
-@router.post(
+@router.put(
     path="/company/{id}/balance/edit",
     tags=["company"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SuccessSchema,
-    name = 'Редактирование баланса организации',
+    summary = 'Редактирование баланса организации',
     description = edit_balance_description
 )
 async def edit_balance(
@@ -135,7 +135,7 @@ async def edit_balance(
     tags=["company"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SuccessSchema,
-    name = 'Привязка менеджера к компании',
+    summary = 'Привязка менеджера к компании',
     description = bind_manager_to_company_description
 )
 async def bind_manager(
@@ -159,7 +159,7 @@ async def bind_manager(
     tags=["company"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = List[DriverReadSchema],
-    name = 'Получение списка водителей указанной организации',
+    summary = 'Получение списка водителей указанной организации',
     description = get_company_drivers_description
 )
 async def get_company_drivers(

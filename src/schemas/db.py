@@ -1,6 +1,6 @@
 from typing import List, Dict, Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class DBSyncSchema(BaseModel):
@@ -14,12 +14,21 @@ class DBSyncSchema(BaseModel):
 
 
 class DBInitSchema(BaseModel):
-    service_token: str
-    superuser_password: str
+    service_token: str = Field(
+        description="Сервисный токен (прописан в конфигурационном файле .env)",
+        examples=["8954fc0196724b9ea538ef5e7d2f6d45"]
+    )
+    superuser_password: str = Field(
+        description="Пароль создаваемого суперпользователя (логин - cargo)",
+        examples=["X0%ttR52zz_82"]
+    )
 
 
 class DBInitialSyncSchema(BaseModel):
-    service_token: str
+    service_token: str = Field(
+        description="Сервисный токен (прописан в конфигурационном файле .env)",
+        examples=["8954fc0196724b9ea538ef5e7d2f6d45"]
+    )
     systems: list[Dict[str, Any]]
     tariffs: list[Dict[str, Any]]
     companies: list[Dict[str, Any]]
@@ -32,4 +41,3 @@ class DBInitialSyncSchema(BaseModel):
 class DBRegularSyncSchema(BaseModel):
     service_token: str
     companies: list[Dict[str, Any]]
-

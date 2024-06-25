@@ -1,0 +1,1 @@
+pytest tests/ -rx --log-disable=CARGONOMICA-API

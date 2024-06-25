@@ -2,7 +2,6 @@ from typing import List
 
 from src.database import models
 from src.repositories.system import SystemRepository
-from src.schemas.common import ModelIDSchema
 from src.schemas.system import SystemCreateSchema, SystemReadSchema, SystemEditSchema
 from src.utils.exceptions import BadRequestException
 

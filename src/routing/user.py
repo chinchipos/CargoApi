@@ -1,7 +1,7 @@
 import uuid
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Body
 
 from src.database import models
 from src.depends import get_service_user
@@ -10,7 +10,7 @@ from src.schemas.user import UserReadSchema, UserCompanyReadSchema, UserCargoRea
     UserEditSchema, UserImpersonatedSchema
 from src.services.user import UserService
 from src.utils import enums
-from src.utils.descriptions.user import user_tag_description, get_me_description, get_companies_users_description, \
+from src.descriptions.user import user_tag_description, get_me_description, get_companies_users_description, \
     get_cargo_users_description, create_user_description, edit_user_description, delete_user_description
 from src.utils.exceptions import ForbiddenException
 from src.utils.schemas import MessageSchema
@@ -28,12 +28,18 @@ user_tag_metadata = {
     tags=["user"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = UserReadSchema,
-    name = 'Создание поставщика услуг',
+    summary = 'Создание пользователя',
     description = create_user_description
 )
 async def create(
     user: UserCreateSchema,
-    managed_companies: Optional[List[uuid.UUID]] = [],
+    managed_companies: Annotated[
+        List[uuid.UUID],
+        Body(
+            description="Администрируемые организации (для роли <Менеджер ПроАВТО>)",
+            examples=[["20f06bf0-ae28-4f32-b2ca-f57796103a71", "56d06bf0-ae28-4f32-b2ca-f57796103a45"]]
+        )
+    ] = [],
     service: UserService = Depends(get_service_user)
 ) -> models.User:
     # Создавать пользователей может только суперадмин.
@@ -50,7 +56,7 @@ async def create(
     tags=["user"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = UserReadSchema,
-    name = 'Получение себственного профиля',
+    summary = 'Получение себственного профиля',
     description = get_me_description
 )
 async def get_me(
@@ -65,7 +71,7 @@ async def get_me(
     tags=["user"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = List[UserCompanyReadSchema],
-    name = 'Получение списка пользователей (сотрудники организаций)',
+    summary = 'Получение списка пользователей (сотрудники организаций)',
     description = get_companies_users_description
 )
 async def get_companies_users(
@@ -89,7 +95,7 @@ async def get_companies_users(
     tags=["user"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = List[UserCargoReadSchema],
-    name = 'Получение списка пользователей (сотрудники ПроАВТО)',
+    summary = 'Получение списка пользователей (сотрудники ПроАВТО)',
     description = get_cargo_users_description
 )
 async def get_cargo_users(
@@ -103,12 +109,12 @@ async def get_cargo_users(
     return users
 
 
-@router.post(
+@router.put(
     path="/user/{id}/edit",
     tags=["user"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = UserEditSchema,
-    name = 'Редактирование пользователя',
+    summary = 'Редактирование пользователя',
     description = edit_user_description
 )
 async def edit(
@@ -127,12 +133,12 @@ async def edit(
     return user
 
 
-@router.get(
+@router.delete(
     path="/user/{id}/delete",
     tags=["user"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SuccessSchema,
-    name = 'Удаление пользователя',
+    summary = 'Удаление пользователя',
     description = delete_user_description
 )
 async def delete(
@@ -153,7 +159,7 @@ async def delete(
     tags=["user"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = UserImpersonatedSchema,
-    name = 'Вход под пользователем',
+    summary = 'Вход под пользователем',
     description = edit_user_description
 )
 async def edit(

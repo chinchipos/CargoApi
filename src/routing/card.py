@@ -8,7 +8,7 @@ from src.schemas.card import CardReadSchema, CardCreateSchema, CardEditSchema, B
 from src.schemas.common import SuccessSchema
 from src.services.card import CardService
 from src.utils import enums
-from src.utils.descriptions.card import delete_card_description, get_cards_description, edit_card_description, \
+from src.descriptions.card import delete_card_description, get_cards_description, edit_card_description, \
     create_card_description, card_tag_description, get_card_description, bulk_bind_description, \
     bulk_unbind_systems_description, bulk_unbind_company_description, bulk_block_description, bulk_activate_description
 from src.utils.exceptions import ForbiddenException
@@ -26,7 +26,7 @@ card_tag_metadata = {
     tags=["card"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = List[CardReadSchema],
-    name = 'Получение списка всех карт',
+    summary = 'Получение списка всех карт',
     description = get_cards_description
 )
 async def get_cards(
@@ -43,7 +43,7 @@ async def get_cards(
     tags=["card"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = CardReadSchema,
-    name = 'Создание карты',
+    summary = 'Создание карты',
     description = create_card_description
 )
 async def create(
@@ -60,12 +60,12 @@ async def create(
     return card
 
 
-@router.post(
+@router.put(
     path="/card/bulk/bind",
     tags=["card"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SuccessSchema,
-    name = 'Групповая привязка карт к организации и/или системам',
+    summary = 'Групповая привязка карт к организации и/или системам',
     description = bulk_bind_description
 )
 async def bulk_bind(
@@ -76,12 +76,12 @@ async def bulk_bind(
     return {'success': True}
 
 
-@router.post(
+@router.put(
     path="/card/bulk/unbind/company",
     tags=["card"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SuccessSchema,
-    name = 'Групповое открепление карт от текущей организации',
+    summary = 'Групповое открепление карт от текущей организации',
     description = bulk_unbind_company_description
 )
 async def bulk_unbind_company(
@@ -92,12 +92,12 @@ async def bulk_unbind_company(
     return {'success': True}
 
 
-@router.post(
+@router.put(
     path="/card/bulk/unbind/systems",
     tags=["card"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SuccessSchema,
-    name = 'Групповое открепление карт от всех систем',
+    summary = 'Групповое открепление карт от всех систем',
     description = bulk_unbind_systems_description
 )
 async def bulk_unbind_systems(
@@ -108,12 +108,12 @@ async def bulk_unbind_systems(
     return {'success': True}
 
 
-@router.post(
+@router.put(
     path="/card/bulk/activate",
     tags=["card"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SuccessSchema,
-    name = 'Групповая разблокировка карт',
+    summary = 'Групповая разблокировка карт',
     description = bulk_activate_description
 )
 async def bulk_activate(
@@ -124,12 +124,12 @@ async def bulk_activate(
     return {'success': True}
 
 
-@router.post(
+@router.put(
     path="/card/bulk/block",
     tags=["card"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SuccessSchema,
-    name = 'Групповая блокировка карт',
+    summary = 'Групповая блокировка карт',
     description = bulk_block_description
 )
 async def bulk_block(
@@ -145,7 +145,7 @@ async def bulk_block(
     tags=["card"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = CardReadSchema,
-    name = 'Получение сведений о карте',
+    summary = 'Получение сведений о карте',
     description = get_card_description
 )
 async def get_card(
@@ -174,12 +174,12 @@ async def get_card(
     return card_read_schema
 
 
-@router.post(
+@router.put(
     path="/card/{id}/edit",
     tags=["card"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = CardReadSchema,
-    name = 'Редактирование карты',
+    summary = 'Редактирование карты',
     description = edit_card_description
 )
 async def edit(
@@ -206,12 +206,12 @@ async def edit(
     return card
 
 
-@router.post(
+@router.delete(
     path="/card/{id}/delete",
     tags=["card"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SuccessSchema,
-    name = 'Удаление карты',
+    summary = 'Удаление карты',
     description = delete_card_description
 )
 async def delete(

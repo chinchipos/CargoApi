@@ -7,11 +7,12 @@ from typing import List, Dict, Any
 
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID
 
+from src.config import SCHEMA
 from src.utils import enums
 
 
 class Base(AsyncAttrs, MappedAsDataclass, DeclarativeBase):
-    metadata = MetaData(schema="cargonomica")
+    metadata = MetaData(schema=SCHEMA)
 
     def update_without_saving(self, data: Dict[str, Any]) -> None:
         for field, value in data.items():

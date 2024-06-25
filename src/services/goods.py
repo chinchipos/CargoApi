@@ -3,7 +3,6 @@ from typing import List
 from src.database import models
 from src.repositories.goods import GoodsRepository
 from src.schemas.goods import OuterGoodsReadSchema, InnerGoodsEditSchema
-from src.schemas.system import SystemReadMinimumSchema
 from src.utils.exceptions import BadRequestException
 
 

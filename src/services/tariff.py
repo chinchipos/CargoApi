@@ -2,7 +2,6 @@ from typing import List
 
 from src.database import models
 from src.repositories.tariff import TariffRepository
-from src.schemas.common import ModelIDSchema
 from src.schemas.tariff import TariffCreateSchema, TariffReadSchema, TariffEditSchema
 from src.utils.exceptions import BadRequestException
 

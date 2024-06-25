@@ -8,7 +8,7 @@ from src.schemas.card_type import CardTypeReadSchema, CardTypeCreateSchema, Card
 from src.schemas.common import SuccessSchema
 from src.services.card_type import CardTypeService
 from src.utils import enums
-from src.utils.descriptions.card_type import delete_card_type_description, get_card_types_description, \
+from src.descriptions.card_type import delete_card_type_description, get_card_types_description, \
     edit_card_type_description, create_card_type_description, card_type_tag_description
 from src.utils.exceptions import ForbiddenException
 from src.utils.schemas import MessageSchema
@@ -25,7 +25,7 @@ card_type_tag_metadata = {
     tags=["card_type"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = List[CardTypeReadSchema],
-    name = 'Получение списка типов карт',
+    summary = 'Получение списка типов карт',
     description = get_card_types_description
 )
 async def get_card_types(
@@ -41,7 +41,7 @@ async def get_card_types(
     tags=["card_type"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = CardTypeReadSchema,
-    name = 'Создание типа карт',
+    summary = 'Создание типа карт',
     description = create_card_type_description
 )
 async def create(
@@ -56,12 +56,12 @@ async def create(
     return card_type
 
 
-@router.post(
+@router.put(
     path="/card_type/{id}/edit",
     tags=["card_type"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = CardTypeReadSchema,
-    name = 'Редактирование типа карт',
+    summary = 'Редактирование типа карт',
     description = edit_card_type_description
 )
 async def edit(
@@ -78,12 +78,12 @@ async def edit(
     return card_type
 
 
-@router.post(
+@router.delete(
     path="/card_type/{id}/delete",
     tags=["card_type"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SuccessSchema,
-    name = 'Удаление типа карт',
+    summary = 'Удаление типа карт',
     description = delete_card_type_description
 )
 async def delete(

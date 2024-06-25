@@ -50,7 +50,7 @@ class TestSystem:
                 headers=headers(token)
             )
 
-            msg = "Не удалось создать нового пользователя"
+            msg = "Не удалось создать нового администратора компании"
             assert response.status_code == 200, msg
 
     # Создание нового менеджера организаций
@@ -84,5 +84,5 @@ class TestSystem:
                 headers=headers(token)
             )
 
-            msg = "Не удалось создать нового пользователя"
+            msg = "Не удалось создать нового менеджера организаций"
             assert response.status_code == 200, msg

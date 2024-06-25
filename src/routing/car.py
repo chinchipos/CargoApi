@@ -8,7 +8,7 @@ from src.schemas.car import CarReadSchema, CarCreateSchema, CarEditSchema
 from src.schemas.common import SuccessSchema
 from src.services.car import CarService
 from src.utils import enums
-from src.utils.descriptions.car import delete_car_description, get_cars_description, \
+from src.descriptions.car import delete_car_description, get_cars_description, \
     edit_car_description, create_car_description, car_tag_description
 from src.utils.exceptions import ForbiddenException
 from src.utils.schemas import MessageSchema
@@ -25,7 +25,7 @@ car_tag_metadata = {
     tags=["car"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = List[CarReadSchema],
-    name = 'Получение списка автомобилей',
+    summary = 'Получение списка автомобилей',
     description = get_cars_description
 )
 async def get_cars(
@@ -43,7 +43,7 @@ async def get_cars(
     tags=["car"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = CarReadSchema,
-    name = 'Создание записи об автомобиле',
+    summary = 'Создание записи об автомобиле',
     description = create_car_description
 )
 async def create(
@@ -55,12 +55,12 @@ async def create(
     return car
 
 
-@router.post(
+@router.put(
     path="/car/{id}/edit",
     tags=["car"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = CarReadSchema,
-    name = 'Редактирование автомобиля',
+    summary = 'Редактирование автомобиля',
     description = edit_car_description
 )
 async def edit(
@@ -75,12 +75,12 @@ async def edit(
     return car
 
 
-@router.post(
+@router.delete(
     path="/car/{id}/delete",
     tags=["car"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SuccessSchema,
-    name = 'Удаление автомобиля',
+    summary = 'Удаление автомобиля',
     description = delete_car_description
 )
 async def delete(

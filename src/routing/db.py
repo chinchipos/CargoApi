@@ -6,7 +6,7 @@ from src.depends import get_service_db
 from src.schemas.common import SuccessSchema
 from src.schemas.db import DBInitSchema, DBInitialSyncSchema, DBRegularSyncSchema
 from src.services.db import DBService
-from src.utils.descriptions.db import db_tag_description, db_regular_sync_description, db_initial_sync_description, \
+from src.descriptions.db import db_tag_description, db_regular_sync_description, db_initial_sync_description, \
     db_init_description
 from src.utils.schemas import MessageSchema
 
@@ -22,6 +22,7 @@ db_tag_metadata = {
     tags=["db"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SuccessSchema,
+    summary = 'Инициализация',
     description = db_init_description
 )
 async def init(
@@ -37,6 +38,7 @@ async def init(
     tags=["db"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SuccessSchema,
+    summary = 'Первичная синхронизация с мигрируемой БД',
     description = db_initial_sync_description
 )
 async def initial_sync(
@@ -52,6 +54,7 @@ async def initial_sync(
     tags=["db"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = MessageSchema,
+    summary = 'Регулярная синхронизация с мигрируемой БД',
     description = db_regular_sync_description
 )
 async def regular_sync(

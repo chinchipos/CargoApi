@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from src.depends import get_service_role
 from src.schemas.role import RoleReadSchema
 from src.services.role import RoleService
-from src.utils.descriptions.role import get_roles_description, role_tag_description, get_companies_roles_description, \
+from src.descriptions.role import get_roles_description, role_tag_description, get_companies_roles_description, \
     get_cargo_roles_description
 from src.utils.schemas import MessageSchema
 
@@ -21,7 +21,7 @@ role_tag_metadata = {
     tags=["role"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = List[RoleReadSchema],
-    name = 'Получение списка всех ролей',
+    summary = 'Получение списка всех ролей',
     description = get_roles_description
 )
 async def get_roles(
@@ -37,7 +37,7 @@ async def get_roles(
     tags=["role"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = List[RoleReadSchema],
-    name = 'Получение списка ролей сотрудников организаций',
+    summary = 'Получение списка ролей сотрудников организаций',
     description = get_companies_roles_description
 )
 async def get_companies_roles(
@@ -53,7 +53,7 @@ async def get_companies_roles(
     tags=["role"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = List[RoleReadSchema],
-    name = 'Получение списка ролей сотрудников ПроАВТО',
+    summary = 'Получение списка ролей сотрудников ПроАВТО',
     description = get_cargo_roles_description
 )
 async def get_cargo_roles(

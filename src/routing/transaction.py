@@ -6,7 +6,7 @@ from fastapi import Depends, APIRouter
 from src.depends import get_service_transaction
 from src.schemas.transaction import TransactionReadSchema
 from src.services.transaction import TransactionService
-from src.utils.descriptions.transaction import transaction_tag_description, get_transactions_description
+from src.descriptions.transaction import transaction_tag_description, get_transactions_description
 from src.utils.schemas import MessageSchema
 
 router = APIRouter()
@@ -21,7 +21,7 @@ transaction_tag_metadata = {
     tags=["transaction"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = List[TransactionReadSchema],
-    name = 'Получение списка транзакций',
+    summary = 'Получение списка транзакций',
     description = get_transactions_description
 )
 async def get_transactions(

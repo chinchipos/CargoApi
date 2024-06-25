@@ -50,7 +50,7 @@ def init_app(dsn: str, tests: bool = False):
     tags_metadata = [
         {
             "name": "auth",
-            "description": 'Операции аутентификации и смены пароля.',
+            "description": 'Аутентификация, авторизация, смена пароля.',
         },
         db_tag_metadata,
         user_tag_metadata,
@@ -72,7 +72,11 @@ def init_app(dsn: str, tests: bool = False):
         root_path="/api",
         docs_url="/doc",
         redoc_url=None,
-        openapi_url="/openapi.json"
+        openapi_url="/openapi.json",
+        swagger_ui_parameters={
+            "defaultModelsExpandDepth": -1,
+            "defaultModelExpandDepth": 4
+        }
     )
 
     @app.get("/")
@@ -95,11 +99,22 @@ def init_app(dsn: str, tests: bool = False):
         prefix="/auth/jwt",
         tags=["auth"],
     )
-    app.include_router(
-        fastapi_users.get_register_router(NewUserReadSchema, UserCreateSchema),
-        prefix="/auth",
-        tags=["auth"],
-    )
+
+    # app.include_router(
+    #     fastapi_users.get_register_router(NewUserReadSchema, UserCreateSchema),
+    #     prefix="/auth",
+    #     tags=["auth"],
+    # )
+
+    for route in app.routes:
+        if route.__dict__['path'] == '/auth/jwt/login':
+            route.__dict__['summary'] = 'Вход в систему'
+
+        if route.__dict__['path'] == '/auth/jwt/logout':
+            route.__dict__['summary'] = 'Выход из системы'
+
+        # if route.__dict__['path'] == '/auth/register':
+        #     route.__dict__['summary'] = 'Создание пользователя'
 
     @app.exception_handler(BadRequestException)
     async def bad_request_exception_handler(request: Request, exc: BadRequestException):

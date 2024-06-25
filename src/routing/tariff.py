@@ -8,7 +8,7 @@ from src.schemas.common import SuccessSchema
 from src.schemas.tariff import TariffReadSchema, TariffCreateSchema, TariffEditSchema
 from src.services.tariff import TariffService
 from src.utils import enums
-from src.utils.descriptions.tariff import delete_tariff_description, get_tariffs_description, edit_tariff_description, \
+from src.descriptions.tariff import delete_tariff_description, get_tariffs_description, edit_tariff_description, \
     create_tariff_description, tariff_tag_description
 from src.utils.exceptions import ForbiddenException
 from src.utils.schemas import MessageSchema
@@ -25,7 +25,7 @@ tariff_tag_metadata = {
     tags=["tariff"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = List[TariffReadSchema],
-    name = 'Получение списка тарифов',
+    summary = 'Получение списка тарифов',
     description = get_tariffs_description
 )
 async def get_tariffs(
@@ -45,7 +45,7 @@ async def get_tariffs(
     tags=["tariff"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = TariffReadSchema,
-    name = 'Создание тарифа',
+    summary = 'Создание тарифа',
     description = create_tariff_description
 )
 async def create(
@@ -60,12 +60,12 @@ async def create(
     return tariff
 
 
-@router.post(
+@router.put(
     path="/tariff/{id}/edit",
     tags=["tariff"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = TariffReadSchema,
-    name = 'Редактирование тарифа',
+    summary = 'Редактирование тарифа',
     description = edit_tariff_description
 )
 async def edit(
@@ -82,12 +82,12 @@ async def edit(
     return tariff
 
 
-@router.post(
+@router.delete(
     path="/tariff/{id}/delete",
     tags=["tariff"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SuccessSchema,
-    name = 'Удаление тарифа',
+    summary = 'Удаление тарифа',
     description = delete_tariff_description
 )
 async def delete(

@@ -2,7 +2,6 @@ from typing import List
 
 from src.database import models
 from src.repositories.car import CarRepository
-from src.schemas.common import ModelIDSchema
 from src.schemas.car import CarCreateSchema, CarReadSchema, CarEditSchema
 from src.utils import enums
 from src.utils.exceptions import BadRequestException, ForbiddenException
