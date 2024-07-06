@@ -42,6 +42,9 @@ class Base(AsyncAttrs, MappedAsDataclass, DeclarativeBase):
 
 class Tariff(Base):
     __tablename__ = "tariff"
+    __table_args__ = {
+        'comment': 'Тарифы'
+    }
 
     id: Mapped[str] = mapped_column(
         sa.Uuid(as_uuid=False),
@@ -50,25 +53,25 @@ class Tariff(Base):
         init=False
     )
 
-    # Идентификатор в боевой БД (для синхронизации)
     master_db_id: Mapped[int] = mapped_column(
         sa.Integer(),
         nullable=True,
-        init=False
+        init=False,
+        comment="Идентификатор в боевой БД (для синхронизации)"
     )
 
-    # Название
     name: Mapped[str] = mapped_column(
         sa.String(50),
         unique=True,
-        nullable=False
+        nullable=False,
+        comment="Название"
     )
 
-    # Комиссия, %
     fee_percent: Mapped[float] = mapped_column(
         sa.Numeric(5, 2, asdecimal=False),
         nullable=False,
-        server_default=sa.text("0")
+        server_default=sa.text("0"),
+        comment="Комиссия, %"
     )
 
     # Список компаний на этом тарифе
@@ -101,6 +104,9 @@ class Tariff(Base):
 
 class Company(Base):
     __tablename__ = "company"
+    __table_args__ = {
+        'comment': 'Организации'
+    }
 
     id: Mapped[str] = mapped_column(
         sa.Uuid(as_uuid=False),
@@ -109,84 +115,76 @@ class Company(Base):
         init=False
     )
 
-    # Идентификатор в боевой БД (для синхронизации)
     master_db_id: Mapped[int] = mapped_column(
         sa.Integer(),
         nullable=True,
-        init=False
+        init=False,
+        comment="Идентификатор в боевой БД (для синхронизации)"
     )
 
-    # Наименование организации
     name: Mapped[str] = mapped_column(
         sa.String(255),
-        nullable=False
+        nullable=False,
+        comment="Наименование организации"
     )
 
-    # ИНН
     inn: Mapped[str] = mapped_column(
         sa.String(13),
-        nullable=True
+        nullable=True,
+        comment="ИНН"
     )
 
-    # Контактные данные (имена, телефоны, email)
     contacts: Mapped[str] = mapped_column(
         sa.String(),
         nullable=False,
         server_default="",
-        init=False
+        init=False,
+        comment="Контактные данные (имена, телефоны, email)"
     )
 
-    # Лицевой счет
     personal_account: Mapped[int] = mapped_column(
         sa.String(20),
         unique=True,
-        nullable=False
+        nullable=False,
+        comment="Лицевой счет"
     )
 
-    # Дата создания/добавления записи в БД
     date_add: Mapped[date] = mapped_column(
         sa.Date,
         nullable=False,
         server_default=sa.text("NOW()"),
-        init=False
+        init=False,
+        comment="Дата создания/добавления записи в БД"
     )
 
-    # Текущий баланс
-    balance: Mapped[float] = mapped_column(
-        sa.Numeric(12, 2, asdecimal=False),
-        nullable=False,
-        server_default=sa.text("0"),
-        init=False
-    )
-
-    # Минимальный баланс
     min_balance: Mapped[float] = mapped_column(
         sa.Numeric(12, 2, asdecimal=False),
         nullable=False,
         server_default=sa.text("0"),
-        init=False
+        init=False,
+        comment="Постоянный овердрафт (минимальный баланс)"
     )
 
-    # Минимальный баланс на период
     min_balance_on_period: Mapped[float] = mapped_column(
         sa.Numeric(12, 2, asdecimal=False),
         nullable=False,
         server_default=sa.text("0"),
-        init=False
+        init=False,
+        comment="Временный овердрафт (минимальный баланс на период)"
     )
 
-    # Дата прекращения действия мин. баланса на период
     min_balance_period_end_date: Mapped[date] = mapped_column(
         sa.Date,
         nullable=True,
-        init=False
+        init=False,
+        comment="Дата прекращения действия временного овердрафта"
     )
 
-    # Тариф
     tariff_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.tariff.id"),
         nullable=True,
-        init=False
+        init=False,
+        comment="Тариф"
     )
 
     # Тариф
@@ -244,12 +242,23 @@ class Company(Base):
         init=False
     )
 
+    # Список договоров этой организации
+    contract: Mapped[List["Contract"]] = relationship(
+        back_populates="company",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
     def __repr__(self) -> str:
         return f"Company(Наименование: {self.name}, ИНН: {self.inn})"
 
 
-class TariffHistory(Base):
-    __tablename__ = "tariff_history"
+class Contract(Base):
+    __tablename__ = "contract"
+    __table_args__ = {
+        'comment': 'Договоры'
+    }
 
     id: Mapped[str] = mapped_column(
         sa.Uuid(as_uuid=False),
@@ -258,9 +267,70 @@ class TariffHistory(Base):
         init=False
     )
 
-    # Организация
     company_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.company.id")
+        sa.ForeignKey("cargonomica.company.id"),
+        nullable=False,
+        init=True,
+        comment="Организация"
+    )
+
+    # Организация
+    company: Mapped["Company"] = relationship(
+        back_populates="contract",
+        lazy="noload",
+        init=False
+    )
+
+    number: Mapped[str] = mapped_column(
+        sa.String(20),
+        unique=True,
+        nullable=False,
+        comment="Номер договора"
+    )
+
+    scheme: Mapped[str] = mapped_column(
+        sa.String(2),
+        unique=True,
+        nullable=False,
+        comment="Схема (агентская, перекупная, гибридная, ...)"
+    )
+
+    balance: Mapped[float] = mapped_column(
+        sa.Numeric(12, 2, asdecimal=False),
+        nullable=False,
+        server_default=sa.text("0"),
+        init=False,
+        comment="Текущий баланс организации в системе поспавщика услуг (актуален для агентской схемы)"
+    )
+
+    # Список карт, привязанных к этому договору
+    card_contract: Mapped[List["CardContract"]] = relationship(
+        back_populates="contract",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
+    def __repr__(self) -> str:
+        return f"Договор(Номер: {self.number}, Организация: {self.company.name if self.company else self.company_id})"
+
+
+class TariffHistory(Base):
+    __tablename__ = "tariff_history"
+    __table_args__ = {
+        'comment': 'История тарификации органицазий'
+    }
+
+    id: Mapped[str] = mapped_column(
+        sa.Uuid(as_uuid=False),
+        primary_key=True,
+        server_default=sa.text("uuid_generate_v4()"),
+        init=False
+    )
+
+    company_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.company.id"),
+        comment="Организация"
     )
 
     # Организация
@@ -269,9 +339,9 @@ class TariffHistory(Base):
         lazy="noload"
     )
 
-    # Тариф
     tariff_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.tariff.id")
+        sa.ForeignKey("cargonomica.tariff.id"),
+        comment="Тариф"
     )
 
     # Тариф
@@ -280,16 +350,16 @@ class TariffHistory(Base):
         lazy="noload"
     )
 
-    # Дата начала действия (тариф действует с 00:00:00 в указанную дату)
     start_date: Mapped[date] = mapped_column(
         sa.Date,
-        nullable=False
+        nullable=False,
+        comment="Дата начала действия (тариф действует с 00:00:00 в указанную дату)"
     )
 
-    # Дата прекращения действия (тариф прекращает действовать с 00:00:00 в указанную дату)
     end_date: Mapped[date] = mapped_column(
         sa.Date,
-        init=False
+        init=False,
+        comment="Дата прекращения действия (тариф прекращает действовать с 00:00:00 в указанную дату)"
     )
 
     def __repr__(self) -> str:
@@ -301,6 +371,9 @@ class TariffHistory(Base):
 
 class Permition(Base):
     __tablename__ = "permition"
+    __table_args__ = {
+        'comment': 'Права доступа'
+    }
 
     id: Mapped[str] = mapped_column(
         sa.Uuid(as_uuid=False),
@@ -309,17 +382,17 @@ class Permition(Base):
         init=False
     )
 
-    # Имя
     name: Mapped[str] = mapped_column(
         sa.String(50),
         unique=True,
-        nullable=False
+        nullable=False,
+        comment="Имя"
     )
 
-    # Описание
     description: Mapped[str] = mapped_column(
         sa.String(),
-        nullable=False
+        nullable=False,
+        comment="Описание"
     )
 
     # Список ролей, содержащих это право
@@ -336,6 +409,9 @@ class Permition(Base):
 
 class Role(Base):
     __tablename__ = "role"
+    __table_args__ = {
+        'comment': 'Роли'
+    }
 
     id: Mapped[str] = mapped_column(
         sa.Uuid(as_uuid=False),
@@ -344,24 +420,24 @@ class Role(Base):
         init=False
     )
 
-    # Условное обозначение роли
     name: Mapped[str] = mapped_column(
         sa.String(50),
         unique=True,
-        nullable=False
+        nullable=False,
+        comment="Условное обозначение роли"
     )
 
-    # Отображаемое наименование роли
     title: Mapped[str] = mapped_column(
         sa.String(50),
         unique=True,
-        nullable=False
+        nullable=False,
+        comment="Отображаемое наименование роли"
     )
 
-    # Описание роли
     description: Mapped[str] = mapped_column(
         sa.String(),
-        nullable=False
+        nullable=False,
+        comment="Описание роли"
     )
 
     # Список пользователей с этой ролью
@@ -397,7 +473,9 @@ class RolePermition(Base):
     __tablename__ = "role_permition"
     __table_args__ = (
         sa.UniqueConstraint("role_id", "permition_id"),
+        {'comment': 'Привязка роей к правам доступа'}
     )
+
 
     id: Mapped[str] = mapped_column(
         sa.Uuid(as_uuid=False),
@@ -406,10 +484,10 @@ class RolePermition(Base):
         init=False
     )
 
-    # Роль
     role_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.role.id"),
-        nullable=False
+        nullable=False,
+        comment="Роль"
     )
 
     # Роль
@@ -419,10 +497,10 @@ class RolePermition(Base):
         init=False
     )
 
-    # Право
     permition_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.permition.id"),
-        nullable=False
+        nullable=False,
+        comment="Право"
     )
 
     # Право
@@ -438,6 +516,9 @@ class RolePermition(Base):
 
 class User(SQLAlchemyBaseUserTableUUID, Base):
     __tablename__ = "user"
+    __table_args__ = {
+        'comment': 'Пользователи'
+    }
 
     id: Mapped[str] = mapped_column(
         sa.Uuid(as_uuid=False),
@@ -446,55 +527,55 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
         init=False
     )
 
-    # Имя учетной записи (логин)
     username: Mapped[str] = mapped_column(
         sa.String(50),
         unique=True,
-        nullable=False
+        nullable=False,
+        comment="Имя учетной записи (логин)"
     )
 
-    # Хеш пароля
     hashed_password: Mapped[str] = mapped_column(
         sa.String(255),
-        nullable=False
+        nullable=False,
+        comment="Хеш пароля"
     )
 
-    # Имя
     first_name: Mapped[str] = mapped_column(
         sa.String(50),
-        nullable=False
+        nullable=False,
+        comment="Имя"
     )
 
-    # Фамилия
     last_name: Mapped[str] = mapped_column(
         sa.String(50),
-        nullable=False
+        nullable=False,
+        comment="Фамилия"
     )
 
-    # Email
     email: Mapped[str] = mapped_column(
         sa.String(50),
-        unique=True
+        unique=True,
+        comment="Email"
     )
 
-    # Телефон
     phone: Mapped[str] = mapped_column(
         sa.String(12),
         nullable=False,
-        server_default=''
+        server_default='',
+        comment="Телефон"
     )
 
-    # Пользователь активен
     is_active: Mapped[bool] = mapped_column(
         sa.Boolean,
         nullable=False,
-        server_default=sa.sql.false()
+        server_default=sa.sql.false(),
+        comment="Пользователь активен"
     )
 
-    # Роль
     role_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.role.id"),
-        nullable=False
+        nullable=False,
+        comment="Роль"
     )
 
     # Роль
@@ -504,11 +585,11 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
         init=False
     )
 
-    # Организация
     company_id: Mapped[int] = mapped_column(
         sa.ForeignKey("cargonomica.company.id"),
         nullable=True,
-        default=None
+        default=None,
+        comment="Организация"
     )
 
     # Организация
@@ -518,20 +599,20 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
         init=False
     )
 
-    # Поле необходимо для связки с FastApiUsers
     is_superuser: Mapped[bool] = mapped_column(
         sa.Boolean,
         nullable=False,
         server_default=sa.sql.false(),
-        init=False
+        init=False,
+        comment="Поле необходимо для связки с FastApiUsers"
     )
 
-    # Поле необходимо для связки с FastApiUsers
     is_verified: Mapped[bool] = mapped_column(
         sa.Boolean,
         nullable=False,
         server_default=sa.sql.false(),
-        init=False
+        init=False,
+        comment="Поле необходимо для связки с FastApiUsers"
     )
 
     # Список организации, привязанных к этому менеджеру ПроАВТО
@@ -580,6 +661,9 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
 
 class AdminCompany(Base):
     __tablename__ = "admin_company"
+    __table_args__ = {
+        'comment': 'Привязка пользователей с ролью <Менеджер ПроАВТО> к администрируемым организациям'
+    }
 
     id: Mapped[str] = mapped_column(
         sa.Uuid(as_uuid=False),
@@ -588,11 +672,11 @@ class AdminCompany(Base):
         init=False
     )
 
-    # Пользователь
     user_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.user.id"),
         nullable=False,
-        init=True
+        init=True,
+        comment="Пользователь"
     )
 
     # Пользователь
@@ -602,11 +686,11 @@ class AdminCompany(Base):
         init = False
     )
 
-    # Организация
     company_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.company.id"),
         nullable = False,
-        init = True
+        init = True,
+        comment="Организация"
     )
 
     # Организация
@@ -622,6 +706,9 @@ class AdminCompany(Base):
 
 class CardType(Base):
     __tablename__ = "card_type"
+    __table_args__ = {
+        'comment': 'Типы карт'
+    }
 
     id: Mapped[str] = mapped_column(
         sa.Uuid(as_uuid=False),
@@ -630,11 +717,11 @@ class CardType(Base):
         init=False
     )
 
-    # Название типа
     name: Mapped[str] = mapped_column(
         sa.String(50),
         unique=True,
-        nullable=False
+        nullable=False,
+        comment="Название типа"
     )
 
     # Список карт этого типа
@@ -651,6 +738,9 @@ class CardType(Base):
 
 class Car(Base):
     __tablename__ = "car"
+    __table_args__ = {
+        'comment': 'Автомобили'
+    }
 
     id: Mapped[str] = mapped_column(
         sa.Uuid(as_uuid=False),
@@ -659,30 +749,30 @@ class Car(Base):
         init=False
     )
 
-    # Идентификатор в боевой БД (для синхронизации)
     master_db_id: Mapped[int] = mapped_column(
         sa.Integer(),
         nullable=True,
-        init=False
+        init=False,
+        comment="Идентификатор в боевой БД (для синхронизации)"
     )
 
-    # Марка/модель
     model: Mapped[str] = mapped_column(
         sa.String(50),
         nullable=False,
-        server_default=""
+        server_default="",
+        comment="Марка/модель"
     )
 
-    # Государственный регистрационный номер
     reg_number: Mapped[str] = mapped_column(
         sa.String(20),
-        nullable=False
+        nullable=False,
+        comment="Государственный регистрационный номер"
     )
 
-    # Организация
     company_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.company.id"),
-        nullable=False
+        nullable=False,
+        comment="Организация"
     )
 
     # Организация
@@ -713,6 +803,9 @@ class Car(Base):
 
 class CarDriver(Base):
     __tablename__ = "car_driver"
+    __table_args__ = {
+        'comment': 'Водители'
+    }
 
     id: Mapped[str] = mapped_column(
         sa.Uuid(as_uuid=False),
@@ -721,10 +814,10 @@ class CarDriver(Base):
         init=False
     )
 
-    # Автомобиль
     car_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.car.id"),
-        nullable=False
+        nullable=False,
+        comment="Автомобиль"
     )
 
     # Автомобиль
@@ -733,10 +826,10 @@ class CarDriver(Base):
         lazy="noload"
     )
 
-    # Водитель
     driver_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.user.id"),
-        nullable=False
+        nullable=False,
+        comment="Водитель"
     )
 
     # Водитель
@@ -751,6 +844,9 @@ class CarDriver(Base):
 
 class Card(Base):
     __tablename__ = "card"
+    __table_args__ = {
+        'comment': 'Карты'
+    }
 
     id: Mapped[str] = mapped_column(
         sa.Uuid(as_uuid=False),
@@ -759,16 +855,16 @@ class Card(Base):
         init=False
     )
 
-    # Номер карты
     card_number: Mapped[str] = mapped_column(
         sa.String(20),
         unique=True,
-        nullable=False
+        nullable=False,
+        comment="Номер карты"
     )
 
-    # Тип карты
     card_type_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.card_type.id")
+        sa.ForeignKey("cargonomica.card_type.id"),
+        comment="Тип карты"
     )
 
     # Тип карты
@@ -778,17 +874,17 @@ class Card(Base):
         init=False
     )
 
-    # Карта активна
     is_active: Mapped[bool] = mapped_column(
         sa.Boolean,
         nullable=False,
-        server_default=sa.sql.false()
+        server_default=sa.sql.false(),
+        comment="Карта активна"
     )
 
-    # Организация, с которой ассоциирована карта
     company_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.company.id"),
-        nullable=True
+        nullable=True,
+        comment="Организация, с которой ассоциирована карта"
     )
 
     # Организация, с которой ассоциирована карта
@@ -798,10 +894,10 @@ class Card(Base):
         init=False
     )
 
-    # Автомобиль, с которым ассоциирована карта
     belongs_to_car_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.car.id"),
-        nullable=True
+        nullable=True,
+        comment="Автомобиль, с которым ассоциирована карта"
     )
 
     # Автомобиль, с которым ассоциирована карта
@@ -811,10 +907,10 @@ class Card(Base):
         init=False
     )
 
-    # Водитель, с которым ассоциирована карта
     belongs_to_driver_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.user.id"),
-        nullable=True
+        nullable=True,
+        comment="Водитель, с которым ассоциирована карта"
     )
 
     # Водитель, с которым ассоциирована карта
@@ -824,23 +920,31 @@ class Card(Base):
         init=False
     )
 
-    # Дата последнего использования
     date_last_use: Mapped[date] = mapped_column(
         sa.Date,
         nullable=True,
-        init=False
+        init=False,
+        comment="Дата последнего использования"
     )
 
-    # Признак ручной блокировки
     manual_lock: Mapped[bool] = mapped_column(
         sa.Boolean,
         nullable=False,
         server_default=sa.sql.false(),
-        init=False
+        init=False,
+        comment="Признак ручной блокировки"
     )
 
     # Список систем, к которым привязана эта карта
     card_system: Mapped[List["CardSystem"]] = relationship(
+        back_populates="card",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
+    # Список договоров, к которым привязана эта карта
+    card_contract: Mapped[List["CardContract"]] = relationship(
         back_populates="card",
         cascade="all, delete-orphan",
         lazy="noload",
@@ -861,6 +965,9 @@ class Card(Base):
 
 class System(Base):
     __tablename__ = "system"
+    __table_args__ = {
+        'comment': 'Поставщики услуг'
+    }
 
     id: Mapped[str] = mapped_column(
         sa.Uuid(as_uuid=False),
@@ -869,61 +976,61 @@ class System(Base):
         init=False
     )
 
-    # Идентификатор в боевой БД (для синхронизации)
     master_db_id: Mapped[int] = mapped_column(
         sa.Integer(),
         nullable=True,
-        init=False
+        init=False,
+        comment="Идентификатор в боевой БД (для синхронизации)"
     )
 
-    # Полное наименование организации
     full_name: Mapped[str] = mapped_column(
         sa.String(255),
         nullable=False,
-        unique=True
+        unique=True,
+        comment="Полное наименование организации"
     )
 
-    # Сокращенное наименование организации
     short_name: Mapped[str] = mapped_column(
         sa.String(30),
         nullable=False,
-        unique=True
+        unique=True,
+        comment="Сокращенное наименование организации"
     )
 
-    # Текущий баланс
     balance: Mapped[float] = mapped_column(
         sa.Numeric(12, 2, asdecimal=False),
         nullable=False,
         server_default=sa.text("0"),
-        init=False
+        init=False,
+        comment="Наш текущий баланс в системе поспавщика услуг (актуален для перекупной схемы)"
     )
 
-    # Период, за который запрашиваются транзакции при синхронизации
     transaction_days: Mapped[int] = mapped_column(
         sa.SmallInteger(),
         nullable=False,
-        server_default=sa.text("50")
+        server_default=sa.text("50"),
+        comment="Период, за который запрашиваются транзакции при синхронизации"
     )
 
-    # Дата последнего успешного сеанса загрузки транзакций
     transactions_sync_dt: Mapped[datetime] = mapped_column(
         sa.DateTime,
         nullable=True,
-        init=False
+        init=False,
+        comment="Дата последней успешной синхронизаци транзакций"
     )
 
-    # Дата последнего успешного сеанса загрузки карт
     cards_sync_dt: Mapped[datetime] = mapped_column(
         sa.DateTime,
         nullable=True,
-        init=False
+        init=False,
+        comment="Дата последней успешной синхронизации карт"
     )
 
-    # Дата последнего успешного сеанса загрузки баланса
     balance_sync_dt: Mapped[datetime] = mapped_column(
         sa.DateTime,
         nullable=True,
-        init=False
+        init=False,
+        comment="Дата последней успешной синхронизации баланса"
     )
 
     # Список карт, привязанных к этой системе
@@ -956,6 +1063,9 @@ class System(Base):
 
 class CardSystem(Base):
     __tablename__ = "card_system"
+    __table_args__ = {
+        'comment': 'Привязка карт к поставщикам услуг (помечено на удаление)'
+    }
 
     id: Mapped[str] = mapped_column(
         sa.Uuid(as_uuid=False),
@@ -964,10 +1074,10 @@ class CardSystem(Base):
         init=False
     )
 
-    # Карта
     card_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.card.id"),
-        nullable=False
+        nullable=False,
+        comment="Карта"
     )
 
     # Карта
@@ -976,10 +1086,10 @@ class CardSystem(Base):
         lazy="noload"
     )
 
-    # Система
     system_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.system.id"),
-        nullable=False
+        nullable=False,
+        comment="Система"
     )
 
     # Система
@@ -988,12 +1098,12 @@ class CardSystem(Base):
         lazy="noload"
     )
 
-    def __repr__(self) -> str:
-        return f"CardSystem(Карта: {self.card_id}, Система: {self.system_id})"
 
-
-class InnerGoods(Base):
-    __tablename__ = "inner_goods"
+class CardContract(Base):
+    __tablename__ = "card_contract"
+    __table_args__ = {
+        'comment': 'Привязка карт к договорам'
+    }
 
     id: Mapped[str] = mapped_column(
         sa.Uuid(as_uuid=False),
@@ -1002,11 +1112,52 @@ class InnerGoods(Base):
         init=False
     )
 
-    # Наименование
+    card_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.card.id"),
+        nullable=False,
+        comment="Карта"
+    )
+
+    # Карта
+    card: Mapped["Card"] = relationship(
+        back_populates="card_contract",
+        lazy="noload"
+    )
+
+    contract_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.contract.id"),
+        nullable=False,
+        comment="Договор"
+    )
+
+    # Договор
+    contract: Mapped["Contract"] = relationship(
+        back_populates="card_contract",
+        lazy="noload"
+    )
+
+    def __repr__(self) -> str:
+        return f"CardSystem(Карта: {self.card_id}, Договор: {self.contract if self.contract else self.contract_id})"
+
+
+class InnerGoods(Base):
+    __tablename__ = "inner_goods"
+    __table_args__ = {
+        'comment': 'Товары/услуги в нашей системе'
+    }
+
+    id: Mapped[str] = mapped_column(
+        sa.Uuid(as_uuid=False),
+        primary_key=True,
+        server_default=sa.text("uuid_generate_v4()"),
+        init=False
+    )
+
     name: Mapped[str] = mapped_column(
         sa.String(50),
         nullable=False,
-        unique=True
+        unique=True,
+        comment="Наименование в нашей системе"
     )
 
     # Список внешних товаров и услуг, привязанных к этой номенклатуре внутренних товаров/услуг
@@ -1025,6 +1176,7 @@ class OuterGoods(Base):
     __tablename__ = "outer_goods"
     __table_args__ = (
         sa.UniqueConstraint("name", "system_id"),
+        {'comment': 'Товары/услуги в системе поставщика услуг'}
     )
 
     id: Mapped[str] = mapped_column(
@@ -1034,16 +1186,16 @@ class OuterGoods(Base):
         init=False
     )
 
-    # Наименование
     name: Mapped[str] = mapped_column(
         sa.String(50),
-        nullable=False
+        nullable=False,
+        comment="Наименование в системе поставщика услуг"
     )
 
-    # Система
     system_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.system.id"),
-        nullable=False
+        nullable=False,
+        comment="Система"
     )
 
     # Система
@@ -1052,12 +1204,11 @@ class OuterGoods(Base):
         lazy="noload"
     )
 
-    # Внутренняя номенклатура товаров/услуг, с которой ассоциирована данная номенклатура
-    # внешних товаров/услуг
     inner_goods_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.inner_goods.id"),
         nullable=True,
-        init=False
+        init=False,
+        comment="Внутренняя номенклатура товара/услуги"
     )
 
     # Внутренняя номенклатура товаров/услуг, с которой ассоциирована данная номенклатура
@@ -1082,6 +1233,9 @@ class OuterGoods(Base):
 
 class Transaction(Base):
     __tablename__ = "transaction"
+    __table_args__ = {
+        'comment': 'Транзакции'
+    }
 
     id: Mapped[str] = mapped_column(
         sa.Uuid(as_uuid=False),
@@ -1090,47 +1244,47 @@ class Transaction(Base):
         init=False
     )
 
-    # Идентификатор в боевой БД (для синхронизации)
     master_db_id: Mapped[str] = mapped_column(
         sa.String(255),
         nullable=False,
         server_default="",
-        init=False
+        init=False,
+        comment="Идентификатор в боевой БД (для синхронизации)"
     )
 
-    # Внешний идентификатор (идентификатор в системе поставщика услуг)
     external_id: Mapped[str] = mapped_column(
         sa.String(255),
         nullable=False,
         server_default="",
-        init=False
+        init=False,
+        comment="Внешний идентификатор (идентификатор в системе поставщика услуг)"
     )
 
-    # Время транзакции
     date_time: Mapped[datetime] = mapped_column(
         sa.DateTime,
         nullable=False,
-        server_default=sa.text("NOW()")
+        server_default=sa.text("NOW()"),
+        comment="Время совершения транзакции"
     )
 
-    # Время прогрузки в БД
     date_time_load: Mapped[datetime] = mapped_column(
         sa.DateTime,
         nullable=False,
         server_default=sa.text("NOW()"),
-        init=False
+        init=False,
+        comment="Время прогрузки в БД"
     )
 
-    # Направление транзакции: покупка или возврат
     is_debit: Mapped[bool] = mapped_column(
         sa.Boolean,
-        nullable=False
+        nullable=False,
+        comment="Направление транзакции: покупка или возврат"
     )
 
-    # Система
     system_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.system.id"),
         nullable=True,
+        comment="Система"
     )
 
     # Система
@@ -1139,10 +1293,10 @@ class Transaction(Base):
         lazy="noload"
     )
 
-    # Карта
     card_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.card.id"),
         nullable=True,
+        comment="Карта"
     )
 
     # Карта
@@ -1151,10 +1305,10 @@ class Transaction(Base):
         lazy="noload"
     )
 
-    # Организация
     company_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.company.id"),
-        nullable=True  # Возможна ситуация когда карта не присвоена клиенту, но ей уже пользуются
+        nullable=True,  # Возможна ситуация когда карта не присвоена клиенту, но ей уже пользуются
+        comment = "Организация"
     )
 
     # Организация
@@ -1163,25 +1317,26 @@ class Transaction(Base):
         lazy="noload"
     )
 
-    # АЗС
     azs_code: Mapped[str] = mapped_column(
         sa.String(255),
         nullable=False,
         server_default="",
-        init=False
+        init=False,
+        comment="Код АЗС"
     )
 
     azs_address: Mapped[str] = mapped_column(
         sa.String(255),
         nullable=False,
         server_default="",
-        init=False
+        init=False,
+        comment="Адрес АЗС"
     )
 
-    # Товар/услуга
     outer_goods_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.outer_goods.id"),
         nullable=True,
+        comment="Товар/услуга"
     )
 
     # Товар/услуга
@@ -1190,42 +1345,42 @@ class Transaction(Base):
         lazy="noload"
     )
 
-    # Литры
     fuel_volume: Mapped[float] = mapped_column(
         sa.Float(),
         nullable=False,
         server_default=sa.text("0"),
-        init=False
+        init=False,
+        comment="Литры"
     )
 
-    # Цена
     price: Mapped[float] = mapped_column(
         sa.Numeric(12, 2, asdecimal=False),
         nullable=False,
         server_default=sa.text("0"),
-        init=False
+        init=False,
+        comment="Цена"
     )
 
-    # Сумма по транзакции
     transaction_sum: Mapped[float] = mapped_column(
         sa.Numeric(12, 2, asdecimal=False),
         nullable=False,
         server_default=sa.text("0"),
-        init=False
+        init=False,
+        comment="Сумма по транзакции"
     )
 
-    # Скидка
     discount_sum: Mapped[float] = mapped_column(
         sa.Numeric(12, 2, asdecimal=False),
         nullable=False,
         server_default=sa.text("0"),
-        init=False
+        init=False,
+        comment="Скидка"
     )
 
-    # Тариф
     tariff_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.tariff.id"),
         nullable=True,
+        comment="Тариф"
     )
 
     # Тариф
@@ -1234,51 +1389,51 @@ class Transaction(Base):
         lazy="noload"
     )
 
-    # Сумма комиссионного вознаграждения по тарифу
     fee_percent: Mapped[float] = mapped_column(
         sa.Numeric(12, 2, asdecimal=False),
         nullable=False,
         server_default=sa.text("0"),
-        init=False
+        init=False,
+        comment="Сумма комиссионного вознаграждения по тарифу"
     )
 
-    # Сумма комиссионного вознаграждения по тарифу
     fee_sum: Mapped[float] = mapped_column(
         sa.Numeric(12, 2, asdecimal=False),
         nullable=False,
         server_default=sa.text("0"),
-        init=False
+        init=False,
+        comment="Сумма комиссионного вознаграждения по тарифу"
     )
 
-    # Итоговая сумма для применения к балансу организации
     total_sum: Mapped[float] = mapped_column(
         sa.Numeric(12, 2, asdecimal=False),
         nullable=False,
         server_default=sa.text("0"),
-        init=False
+        init=False,
+        comment="Итоговая сумма для применения к балансу организации"
     )
 
-    # Баланс карты после выполнения транзакции
     card_balance: Mapped[float] = mapped_column(
         sa.Numeric(12, 2, asdecimal=False),
         nullable=False,
         server_default=sa.text("0"),
-        init=False
+        init=False,
+        comment="Баланс карты после выполнения транзакции"
     )
 
-    # Баланс организации после выполнения транзакции
-    company_balance: Mapped[float] = mapped_column(
+    contract_balance: Mapped[float] = mapped_column(
         sa.Numeric(12, 2, asdecimal=False),
         nullable=False,
         server_default=sa.text("0"),
-        init=False
+        init=False,
+        comment="Баланс организации после выполнения транзакции"
     )
 
-    # Комментарии
     comments: Mapped[str] = mapped_column(
         sa.String(),
         nullable=False,
-        server_default=""
+        server_default="",
+        comment="Комментарии"
     )
 
     def __repr__(self) -> str:
@@ -1291,6 +1446,9 @@ class Transaction(Base):
 
 class LogType(Base):
     __tablename__ = "log_type"
+    __table_args__ = {
+        'comment': 'Типы логов'
+    }
 
     id: Mapped[str] = mapped_column(
         sa.Uuid(as_uuid=False),
@@ -1299,11 +1457,11 @@ class LogType(Base):
         init=False
     )
 
-    # Название типа
     name: Mapped[str] = mapped_column(
         sa.String(50),
         nullable=False,
-        unique=True
+        unique=True,
+        comment="Название типа"
     )
 
     # Список логов этого типа
@@ -1320,6 +1478,9 @@ class LogType(Base):
 
 class Log(Base):
     __tablename__ = "log"
+    __table_args__ = {
+        'comment': 'Логирование'
+    }
 
     id: Mapped[str] = mapped_column(
         sa.Uuid(as_uuid=False),
@@ -1328,18 +1489,18 @@ class Log(Base):
         init=False
     )
 
-    # Время
     date_time: Mapped[datetime] = mapped_column(
         sa.DateTime,
         nullable=False,
         server_default=sa.text("NOW()"),
-        init=False
+        init=False,
+        comment="Время"
     )
 
-    # Тип лога
     log_type_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.log_type.id"),
-        nullable=False
+        nullable=False,
+        comment="Тип лога"
     )
 
     # Тип лога
@@ -1349,42 +1510,42 @@ class Log(Base):
         init=False
     )
 
-    # Сообщение
     message: Mapped[str] = mapped_column(
         sa.String(),
-        nullable=False
+        nullable=False,
+        comment="Сообщение"
     )
 
-    # Подробности
     details: Mapped[str] = mapped_column(
         sa.String(),
         nullable=False,
         server_default='',
-        init=False
+        init=False,
+        comment="Подробности"
     )
 
-    # Имя пользователя
     username: Mapped[str] = mapped_column(
         sa.String(50),
         nullable=False,
         server_default='',
-        init=False
+        init=False,
+        comment="Имя пользователя"
     )
 
-    # Предыдущее состояние
     previous_state: Mapped[str] = mapped_column(
         sa.String(),
         nullable=False,
         server_default='',
-        init=False
+        init=False,
+        comment="Предыдущее состояние"
     )
 
-    # Новое состояние
     new_state: Mapped[str] = mapped_column(
         sa.String(),
         nullable=False,
         server_default='',
-        init=False
+        init=False,
+        comment="Новое состояние"
     )
 
     def __repr__(self) -> str:

@@ -39,7 +39,7 @@ async def get_systems(
     systems = await service.get_systems()
     return systems
 
-
+"""
 @router.post(
     path="/system/create",
     tags=["system"],
@@ -58,7 +58,7 @@ async def create(
 
     system = await service.create(data)
     return system
-
+"""
 
 @router.put(
     path="/system/{id}/edit",
@@ -81,7 +81,7 @@ async def edit(
     system = await service.edit(id, data)
     return system
 
-
+"""
 @router.delete(
     path="/system/{id}/delete",
     tags=["system"],
@@ -101,3 +101,4 @@ async def delete(
 
     await service.delete(id)
     return {'success': True}
+"""
