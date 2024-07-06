@@ -5,7 +5,7 @@ from psycopg import AsyncConnection
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession, AsyncEngine
 from sqlalchemy.sql.ddl import CreateSchema
 
-from src.config import PRODUCTION, SQLALCHEMY_ECHO, SCHEMA
+from src.config import SQLALCHEMY_ECHO, SCHEMA
 from src.database.models import Base
 
 
@@ -69,7 +69,6 @@ class DatabaseSessionManager:
     async def create_all(self):
         async with self._engine.begin() as conn:
             await conn.execute(CreateSchema(SCHEMA, if_not_exists=True))
-            # await conn.commit()
             await conn.run_sync(Base.metadata.create_all)
 
     async def drop_all(self):

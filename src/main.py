@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 
 from src import config
 from src.auth.auth import auth_backend, fastapi_users
+from src.config import PROD_URI
 from src.database.db import sessionmanager
 from src.routing.car import router as car_routing, car_tag_metadata
 from src.routing.card import router as card_routing, card_tag_metadata
@@ -17,7 +18,6 @@ from src.routing.tariff import router as tariff_routing, tariff_tag_metadata
 from src.routing.transaction import router as transaction_routing, transaction_tag_metadata
 from src.routing.goods import router as goods_routing, goods_tag_metadata
 from src.routing.user import router as user_routing, user_tag_metadata
-from src.schemas.user import NewUserReadSchema, UserCreateSchema
 from src.utils.exceptions import BadRequestException, ForbiddenException, DBException, DBDuplicateException, ApiError
 from src.utils.log import logger
 
@@ -25,14 +25,6 @@ from src.utils.log import logger
 # from fastapi_cache.backends.redis import RedisBackend
 
 # from redis import asyncio as aioredis
-
-PROD_URI = "postgresql+psycopg://{}:{}@{}:{}/{}".format(
-    config.DB_USER,
-    config.DB_PASSWORD,
-    config.DB_FQDN_HOST,
-    config.DB_PORT,
-    config.DB_NAME
-)
 
 
 def init_app(dsn: str, tests: bool = False):

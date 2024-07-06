@@ -12,6 +12,7 @@ from src.utils import enums
 
 
 class Base(AsyncAttrs, MappedAsDataclass, DeclarativeBase):
+
     metadata = MetaData(schema=SCHEMA)
 
     def update_without_saving(self, data: Dict[str, Any]) -> None:
@@ -887,24 +888,6 @@ class System(Base):
         sa.String(30),
         nullable=False,
         unique=True
-    )
-
-    # Логин
-    login: Mapped[str] = mapped_column(
-        sa.String(50),
-        server_default=''
-    )
-
-    # Пароль
-    password: Mapped[str] = mapped_column(
-        sa.String(255),
-        server_default=''
-    )
-
-    # Номер договора
-    contract_num: Mapped[str] = mapped_column(
-        sa.String(50),
-        server_default=''
     )
 
     # Текущий баланс

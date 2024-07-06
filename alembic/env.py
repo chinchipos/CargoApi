@@ -8,30 +8,25 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
-from src.config import DB_FQDN_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
-from src.database.models import Base
+from src.database import models
+from src.config import PROD_URI
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
-
-section = config.config_ini_section
-config.set_section_option(section, 'DB_FQDN_HOST', DB_FQDN_HOST)
-config.set_section_option(section, 'DB_PORT', DB_PORT)
-config.set_section_option(section, 'DB_NAME', DB_NAME)
-config.set_section_option(section, 'DB_USER', DB_USER)
-config.set_section_option(section, 'DB_PASSWORD', DB_PASSWORD)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+config.set_main_option("sqlalchemy.url", PROD_URI + "?sslmode=verify-full&target_session_attrs=read-write")
+
 # add your model's MetaData object here
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-target_metadata = Base.metadata
+target_metadata = models.Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -58,7 +53,8 @@ def run_migrations_offline() -> None:
         dialect_opts={"paramstyle": "named"},
         target_metadata=target_metadata,
         literal_binds=True,
-        include_schemas=True
+        include_schemas=True,
+        compare_server_default=True
     )
 
     with context.begin_transaction():
@@ -66,7 +62,14 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        dialect_name="postgrsql",
+        dialect_opts={"paramstyle": "named"},
+        include_schemas=True,
+        compare_server_default=True
+    )
 
     with context.begin_transaction():
         context.run_migrations()
@@ -88,7 +91,6 @@ async def run_async_migrations() -> None:
         await connection.run_sync(do_run_migrations)
 
     await connectable.dispose()
-
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""

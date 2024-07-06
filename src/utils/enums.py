@@ -50,7 +50,6 @@ class LogType(StrEnum):
     COMMON = 'COMMON'
 
 
-
 class Finance(StrEnum):
 
     DEBIT = "DEBIT"
@@ -63,3 +62,8 @@ class Finance(StrEnum):
             if member.value == value:
                 return member
         return None
+
+
+class HttpMethod(StrEnum):
+    GET = "GET"
+    POST = "POST"
