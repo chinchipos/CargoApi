@@ -71,23 +71,23 @@ class DBService:
         )
         await create_user(user_schema)
 
-    async def calculate_company_balance(self, company: models.Company, transactions) -> None:
+    async def calculate_balance(self, balance: models.Balance, transactions) -> None:
         if transactions:
             # Формируем историю баланса
             previous_transaction = transactions[0]
-            previous_transaction.company_balance = company.balance
+            previous_transaction.contract_balance = balance.balance
             i = 1
             length = len(transactions)
             dataset = [{
                 'id': transactions[0].id,
-                'company_balance': transactions[0].company_balance,
+                'company_balance': transactions[0].contract_balance,
             }]
             while i < length:
-                transactions[i].company_balance = previous_transaction.company_balance - previous_transaction.total_sum
+                transactions[i].contract_balance = previous_transaction.contract_balance - previous_transaction.total_sum
                 previous_transaction = transactions[i]
                 dataset.append({
                     'id': transactions[i].id,
-                    'company_balance': transactions[i].company_balance,
+                    'company_balance': transactions[i].contract_balance,
                 })
                 i += 1
 
@@ -95,19 +95,19 @@ class DBService:
             await self.repository.bulk_update(models.Transaction, dataset)
 
     async def calculate_balances(self) -> None:
-        # Получаем список организаций
-        companies = await self.repository.get_companies()
+        # Получаем балансы организаций
+        balances = await self.repository.get_balances()
 
-        # По каждой организации получаем список транзакций, текущий баланс применяем к самой
+        # По каждому балансу получаем список транзакций, текущий баланс применяем к самой
         # свежей транзакции. В обратном порядке следования транзакций формируем историю баланса.
-        for company in companies:
+        for balance in balances:
             # Получаем транзакции этой организации
-            transactions = await self.repository.get_company_transactions(company)
+            transactions = await self.repository.get_balance_transactions(balance)
 
             # Вычисляем балансы
-            await self.calculate_company_balance(company, transactions)
+            await self.calculate_balance(balance, transactions)
 
-    async def initial_sync(self, data: DBInitialSyncSchema) -> None:
+    async def nnk_initial_sync(self, data: DBInitialSyncSchema) -> None:
         # Проверка инициализационного токена
         if data.service_token != SERVICE_TOKEN:
             raise BadRequestException('Некорректный токен')
@@ -163,7 +163,7 @@ class DBService:
             await self.repository.delete_all(models.Company)
             self.logger.info('  -> выполнено')
 
-            await self.repository.nnk_initial_import(data)
+            await self.repository.nnk_initial_sync(data)
 
             self.logger.info('Пересчитываю балансы')
             await self.calculate_balances()

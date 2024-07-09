@@ -165,22 +165,6 @@ class Company(Base):
         init=False
     )
 
-    # Список карт привязанных к этой организации
-    cards: Mapped[List["Card"]] = relationship(
-        back_populates="company",
-        cascade="all, delete-orphan",
-        lazy="noload",
-        init=False
-    )
-
-    # Список транзакций привязанных к этой организации
-    transactions: Mapped[List["Transaction"]] = relationship(
-        back_populates="company",
-        cascade="all, delete-orphan",
-        lazy="noload",
-        init=False
-    )
-
     # Список пользователей, привязанных к этой организации
     users: Mapped[List["User"]] = relationship(
         back_populates="company",
@@ -357,6 +341,14 @@ class Contract(Base):
 
     # История тарифов этого договора
     tariff_history: Mapped[List["TariffHistory"]] = relationship(
+        back_populates="contract",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
+    # Список транзакций привязанных к этой организации
+    transactions: Mapped[List["Transaction"]] = relationship(
         back_populates="contract",
         cascade="all, delete-orphan",
         lazy="noload",
@@ -932,19 +924,6 @@ class Card(Base):
         comment="Карта активна"
     )
 
-    company_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.company.id"),
-        nullable=True,
-        comment="Организация, с которой ассоциирована карта"
-    )
-
-    # Организация, с которой ассоциирована карта
-    company: Mapped["Company"] = relationship(
-        back_populates="cards",
-        lazy="noload",
-        init=False
-    )
-
     belongs_to_car_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.car.id"),
         nullable=True,
@@ -1324,14 +1303,14 @@ class Transaction(Base):
         lazy="noload"
     )
 
-    company_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.company.id"),
+    contract_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.contract.id"),
         nullable=True,  # Возможна ситуация когда карта не присвоена клиенту, но ей уже пользуются
-        comment = "Организация"
+        comment = "Договор"
     )
 
-    # Организация
-    company: Mapped["Company"] = relationship(
+    # Договор
+    contract: Mapped["Contract"] = relationship(
         back_populates="transactions",
         lazy="noload"
     )

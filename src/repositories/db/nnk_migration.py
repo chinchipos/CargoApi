@@ -273,12 +273,15 @@ class NNKMigration(BaseRepository):
         )
         card_numbers_related_to_card_ids = {item[0]: item[1] for item in card_numbers_related_to_card_ids}
 
-        # Организация. Сопоставление id записи на боевом сервере с id на новом сервере.
-        company_ids = await self.select_all(
-            sa_select(models.Company.master_db_id, models.Company.id).where(models.Company.master_db_id != None),
+        # Договор. Сопоставление id организации на мигрируемом сервере с id договора на новом
+        contract_ids = await self.select_all(
+            sa_select(models.Company.master_db_id, models.Contract.id)
+            .where(models.Company.master_db_id != None)
+            .where(models.Balance.company_id == models.Company.id)
+            .where(models.Contract.balance_id == models.Balance.id),
             scalars=False
         )
-        company_ids = {item[0]: item[1] for item in company_ids}
+        contract_ids = {item[0]: item[1] for item in contract_ids}
 
         # Коды товаров/услуг в привязке к id
         goods = await self.select_all(
@@ -298,7 +301,7 @@ class NNKMigration(BaseRepository):
                 system_id=system_ids[transaction['system_id']] if transaction['system_id'] else None,
                 card_id=card_numbers_related_to_card_ids[str(transaction['card_num'])] if transaction['card_num']
                 else None,
-                company_id=company_ids[transaction['company_id']] if transaction['company_id'] else None,
+                contract_id=contract_ids[transaction['company_id']] if transaction['company_id'] else None,
                 azs_code=transaction['azs'],
                 azs_address=transaction['address'],
                 outer_goods_id=goods_ids[transaction['gds']] if transaction['gds'] in goods_ids else None,
@@ -307,7 +310,7 @@ class NNKMigration(BaseRepository):
                 transaction_sum=transaction['sum'],
                 fee_sum=transaction['sum_service'],
                 total_sum=transaction['total'],
-                company_balance=0,
+                company_balance=0,  # После импорта будет выполнен пересчет балансов, поле примет новые значения
                 comments=transaction['comment'],
             ) for transaction in transactions
         ]

@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, List
 
 from src.database import models
 from src.repositories.base import BaseRepository
@@ -41,7 +41,7 @@ class DBRepository(BaseRepository):
         except Exception:
             raise DBException()
 
-    async def nnk_initial_import(self, data: DBInitialSyncSchema) -> None:
+    async def nnk_initial_sync(self, data: DBInitialSyncSchema) -> None:
         nnk = NNKMigration(self.session, self.user)
 
         self.logger.info('Импортирую системы')
@@ -82,15 +82,16 @@ class DBRepository(BaseRepository):
         except Exception:
             raise DBException()
 
-    async def get_companies(self) -> Any:
-        stmt = sa_select(models.Company)
+    async def get_balances(self) -> List[models.Balance]:
+        stmt = sa_select(models.Balance)
         dataset = await self.select_all(stmt)
         return dataset
 
-    async def get_company_transactions(self, company: models.Company) -> Any:
+    async def get_balance_transactions(self, balance: models.Balance) -> List[models.Transaction]:
         stmt = (
             sa_select(models.Transaction)
-            .where(models.Transaction.company_id == company.id)
+            .where(models.Contract.balance_id == balance.id)
+            .where(models.Transaction.contract_id == models.Contract.id)
             .order_by(desc(models.Transaction.date_time))
         )
         dataset = await self.select_all(stmt)

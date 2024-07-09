@@ -45,7 +45,7 @@ async def initial_sync(
     data: DBInitialSyncSchema,
     db_service: DBService = Depends(get_service_db)
 ) -> dict[str, Any]:
-    await db_service.initial_sync(data)
+    await db_service.nnk_initial_sync(data)
     return {'success': True}
 
 
