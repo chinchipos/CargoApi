@@ -211,7 +211,7 @@ class NNKMigration(BaseRepository):
             for system_id in rel_system_ids:
                 if system_id:
                     cs_relations.append({"company_id": company_id, "system_id": system_id})
-
+        print(cs_relations)
         dataset = [
             dict(
                 tariff_id=get_tariff_id(relation['company_id']),
