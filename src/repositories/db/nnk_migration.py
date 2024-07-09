@@ -218,7 +218,7 @@ class NNKMigration(BaseRepository):
             dict(
                 card_id=card_numbers_related_to_card_ids[str(card['card_num'])],
                 contract_id=contract_ids[card['company_id']]
-            ) for card in cards
+            ) for card in cards if card['company_id']
         ]
         await self.bulk_insert_or_update(models.CardContract, dataset)
 
