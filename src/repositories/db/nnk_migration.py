@@ -141,7 +141,13 @@ class NNKMigration(BaseRepository):
         ]
         await self.bulk_insert_or_update(models.Card, dataset, 'card_number')
 
-    async def import_contracts(self, cards: list[Dict[str, Any]], companies: list[Dict[str, Any]]) -> None:
+    async def import_contracts(
+        self,
+        cards:
+        list[Dict[str, Any]],
+        companies: list[Dict[str, Any]],
+        transactions: list[Dict[str, Any]]
+    ) -> None:
         # Номера карт в привязке к id
         card_numbers_related_to_card_ids = await self.select_all(
             sa_select(models.Card.card_number, models.Card.id),
@@ -193,13 +199,25 @@ class NNKMigration(BaseRepository):
                     return tariff_id
 
         # Создаем записи в таблице contract
+        company_system_relations = {}
+        for transaction in transactions:
+            if transaction['company_id'] in company_system_relations:
+                company_system_relations[transaction['company_id']].add(transaction['system_id'])
+            else:
+                company_system_relations[transaction['company_id']] = {transaction['system_id']}
+
+        cs_relations = []
+        for company_id, system_ids in company_system_relations:
+            for system_id in system_ids:
+                cs_relations.append({"company_id": company_id, "system_id": system_id})
+
         dataset = [
             dict(
-                tariff_id=get_tariff_id(card['company_id']),
-                balance_id=balance_ids[card['company_id']],
-                number=personal_accounts[card['company_id']],
-                system_id=system_ids[card['system_id']],
-            ) for card in cards if card['company_id']
+                tariff_id=get_tariff_id(relation['company_id']),
+                balance_id=balance_ids[relation['company_id']],
+                number=personal_accounts[relation['company_id']],
+                system_id=system_ids[relation['system_id']],
+            ) for relation in cs_relations
         ]
         await self.bulk_insert_or_update(models.Contract, dataset)
 
