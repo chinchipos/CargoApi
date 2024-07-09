@@ -151,6 +151,10 @@ class DBService:
             await self.repository.delete_all(models.Car)
             self.logger.info('  -> выполнено')
 
+            self.logger.info('Удаляю связь Менеджеров ПроАВТО с организациями')
+            await self.repository.delete_all(models.AdminCompany)
+            self.logger.info('  -> выполнено')
+
             self.logger.info('Удаляю организации')
             await self.repository.delete_all(models.Company)
             self.logger.info('  -> выполнено')
