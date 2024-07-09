@@ -199,7 +199,7 @@ class NNKMigration(BaseRepository):
                 balance_id=balance_ids[card['company_id']],
                 number=personal_accounts[card['company_id']],
                 system_id=system_ids[card['system_id']],
-            ) for card in cards
+            ) for card in cards if card['company_id']
         ]
         await self.bulk_insert_or_update(models.Contract, dataset)
 
