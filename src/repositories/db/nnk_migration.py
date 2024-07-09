@@ -216,7 +216,7 @@ class NNKMigration(BaseRepository):
             dict(
                 tariff_id=get_tariff_id(relation['company_id']),
                 balance_id=balance_ids[relation['company_id']],
-                number=personal_accounts[relation['company_id']],
+                number=personal_accounts[relation['company_id']] + str(random.randint(1, 9999999)),
                 system_id=system_ids[relation['system_id']],
             ) for relation in cs_relations
         ]
