@@ -209,8 +209,9 @@ class NNKMigration(BaseRepository):
         cs_relations = []
         for company_id, system_ids in company_system_relations.items():
             for system_id in system_ids:
-                print(system_id, type(system_id))
-                cs_relations.append({"company_id": company_id, "system_id": system_id})
+                if system_id:
+                    print(system_id, type(system_id))
+                    cs_relations.append({"company_id": company_id, "system_id": system_id})
 
         dataset = [
             dict(
