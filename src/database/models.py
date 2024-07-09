@@ -1085,14 +1085,6 @@ class System(Base):
         init=False
     )
 
-    # Список транзакций, привязанных к этой системе
-    transactions: Mapped[List["Transaction"]] = relationship(
-        back_populates="system",
-        cascade="all, delete-orphan",
-        lazy="noload",
-        init=False
-    )
-
     def __repr__(self) -> str:
         return f"System({self.full_name})"
 
@@ -1277,18 +1269,6 @@ class Transaction(Base):
         sa.Boolean,
         nullable=False,
         comment="Направление транзакции: покупка или возврат"
-    )
-
-    system_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.system.id"),
-        nullable=True,
-        comment="Система"
-    )
-
-    # Система
-    system: Mapped["System"] = relationship(
-        back_populates="transactions",
-        lazy="noload"
     )
 
     card_id: Mapped[str] = mapped_column(

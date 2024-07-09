@@ -259,13 +259,6 @@ class NNKMigration(BaseRepository):
         await self.bulk_insert_or_update(models.OuterGoods, dataset)
 
     async def import_transactions(self, transactions: list[Dict[str, Any]]) -> None:
-        # Система. Сопоставление id записи на боевом сервере с id на новом сервере.
-        system_ids = await self.select_all(
-            sa_select(models.System.master_db_id, models.System.id).where(models.System.master_db_id != None),
-            scalars=False
-        )
-        system_ids = {item[0]: item[1] for item in system_ids}
-
         # Номера карт в привязке к id
         card_numbers_related_to_card_ids = await self.select_all(
             sa_select(models.Card.card_number, models.Card.id),
@@ -282,6 +275,7 @@ class NNKMigration(BaseRepository):
             scalars=False
         )
         contract_ids = {item[0]: item[1] for item in contract_ids}
+        print('contract_ids:', contract_ids)
 
         # Коды товаров/услуг в привязке к id
         goods = await self.select_all(
@@ -298,7 +292,6 @@ class NNKMigration(BaseRepository):
                 date_time=datetime.fromisoformat(transaction['date']),
                 date_time_load=datetime.fromisoformat(transaction['date_load']),
                 is_debit=True if transaction['sum'] < 0 else False,
-                system_id=system_ids[transaction['system_id']] if transaction['system_id'] else None,
                 card_id=card_numbers_related_to_card_ids[str(transaction['card_num'])] if transaction['card_num']
                 else None,
                 contract_id=contract_ids[transaction['company_id']] if transaction['company_id'] else None,
