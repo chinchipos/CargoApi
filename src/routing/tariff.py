@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 
 from src.depends import get_service_tariff
 from src.schemas.common import SuccessSchema
-from src.schemas.tariff import TariffReadSchema, TariffCreateSchema, TariffEditSchema
+from src.schemas.tariff import TariffReadSchema, TariffCreateSchema, TariffBaseSchema
 from src.services.tariff import TariffService
 from src.utils import enums
 from src.descriptions.tariff import delete_tariff_description, get_tariffs_description, edit_tariff_description, \
@@ -70,7 +70,7 @@ async def create(
 )
 async def edit(
     id: uuid.UUID,
-    data: TariffEditSchema,
+    data: TariffBaseSchema,
     service: TariffService = Depends(get_service_tariff)
 ) -> TariffReadSchema:
     id = str(id)

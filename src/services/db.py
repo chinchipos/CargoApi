@@ -2,7 +2,7 @@ from src.auth.manager import create_user
 from src.config import SERVICE_TOKEN, BUILTIN_ADMIN_NAME, BUILTIN_ADMIN_EMAIL, BUILTIN_ADMIN_FIRSTNAME, \
     BUILTIN_ADMIN_LASTNAME
 from src.database import models
-from src.repositories.db import DBRepository
+from src.repositories.db.db import DBRepository
 from src.schemas.db import DBInitSchema, DBInitialSyncSchema, DBRegularSyncSchema
 from src.schemas.user import UserCreateSchema
 from src.utils import enums
@@ -32,7 +32,9 @@ class DBService:
         await self.repository.delete_all(models.Transaction)
         await self.repository.delete_all(models.OuterGoods)
         await self.repository.delete_all(models.InnerGoods)
-        await self.repository.delete_all(models.CardSystem)
+        await self.repository.delete_all(models.CardContract)
+        await self.repository.delete_all(models.Contract)
+        await self.repository.delete_all(models.Balance)
         await self.repository.delete_all(models.System)
         await self.repository.delete_all(models.Card)
         await self.repository.delete_all(models.CarDriver)
@@ -114,6 +116,7 @@ class DBService:
         self.logger.info('Начинаю удаление данных из таблиц БД')
 
         try:
+
             self.logger.info('Удаляю транзакции')
             await self.repository.delete_all(models.Transaction)
             self.logger.info('  -> выполнено')
@@ -124,8 +127,24 @@ class DBService:
             self.logger.info('  -> выполнено')
 
             self.logger.info('Удаляю топливные карты')
-            await self.repository.delete_all(models.CardSystem)
+            await self.repository.delete_all(models.CardContract)
             await self.repository.delete_all(models.Card)
+            self.logger.info('  -> выполнено')
+
+            self.logger.info('Удаляю историю тарифов')
+            await self.repository.delete_all(models.TariffHistory)
+            self.logger.info('  -> выполнено')
+
+            self.logger.info('Удаляю договоры')
+            await self.repository.delete_all(models.Contract)
+            self.logger.info('  -> выполнено')
+
+            self.logger.info('Удаляю балансы')
+            await self.repository.delete_all(models.Balance)
+            self.logger.info('  -> выполнено')
+
+            self.logger.info('Удаляю водителей')
+            await self.repository.delete_all(models.CarDriver)
             self.logger.info('  -> выполнено')
 
             self.logger.info('Удаляю автомобили')
@@ -136,28 +155,7 @@ class DBService:
             await self.repository.delete_all(models.Company)
             self.logger.info('  -> выполнено')
 
-            self.logger.info('Импортирую системы')
-            await self.repository.import_systems(data.systems)
-
-            self.logger.info('Импортирую тарифы')
-            await self.repository.import_tariffs(data.tariffs)
-
-            self.logger.info('Импортирую организации')
-            await self.repository.import_companies(data.companies)
-
-            self.logger.info('Импортирую автомобили')
-            await self.repository.import_cars(data.cars)
-
-            self.logger.info('Импортирую топливные карты')
-            await self.repository.import_cards(data.cards)
-            await self.repository.import_card_systems(data.cards)
-
-            self.logger.info('Импортирую товары/услуги')
-            await self.repository.import_inner_goods(data.goods)
-            await self.repository.import_outer_goods(data.goods)
-
-            self.logger.info('Импортирую транзакции')
-            await self.repository.import_transactions(data.transactions)
+            await self.repository.nnk_initial_import(data)
 
             self.logger.info('Пересчитываю балансы')
             await self.calculate_balances()

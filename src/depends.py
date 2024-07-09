@@ -9,7 +9,7 @@ from src.repositories.car import CarRepository
 from src.repositories.card import CardRepository
 from src.repositories.card_type import CardTypeRepository
 from src.repositories.company import CompanyRepository
-from src.repositories.db import DBRepository
+from src.repositories.db.db import DBRepository
 from src.repositories.goods import GoodsRepository
 from src.repositories.role import RoleRepository
 from src.repositories.system import SystemRepository

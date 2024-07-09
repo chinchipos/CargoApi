@@ -4,7 +4,7 @@ from src.database import models
 from src.repositories.company import CompanyRepository
 from src.repositories.transaction import TransactionRepository
 from src.repositories.user import UserRepository
-from src.schemas.company import CompanyEditSchema, CompanyReadSchema, CompanyReadMinimumSchema, CompanyBalanceEditSchema
+from src.schemas.company import CompanyEditSchema, CompanyReadSchema, CompanyReadMinimumSchema
 from src.utils import enums
 from src.utils.exceptions import BadRequestException, ForbiddenException
 
@@ -31,13 +31,18 @@ class CompanyService:
             raise ForbiddenException()
 
         # Получаем организацию из БД
-        company_obj = await self.repository.session.get(models.Company, company_id)
-        if not company_obj:
+        company = await self.repository.session.get(models.Company, company_id)
+        print('tariff_id 1', company.tariff_id)
+        print('tariff 1', company.tariff)
+        if not company:
             raise BadRequestException('Запись не найдена')
 
         # Обновляем данные, сохраняем в БД
         update_data = company_edit_schema.model_dump(exclude_unset=True)
-        await self.repository.update_object(company_obj, update_data)
+        if not update_data:
+            raise BadRequestException('Отсутствуют данные для обновления')
+
+        await self.repository.update_object(company, update_data)
 
         # Формируем ответ
         company = await self.repository.get_company(company_id)
@@ -56,7 +61,6 @@ class CompanyService:
     async def get_company(self, company_id: str) -> Any:
         # Получаем организацию
         company = await self.repository.get_company(company_id)
-
         # Отдаем пользователю только ту информацию, которая соответствует его роли
         major_roles = [enums.Role.CARGO_SUPER_ADMIN.name, enums.Role.CARGO_MANAGER.name, enums.Role.COMPANY_ADMIN.name]
         if self.repository.user.role.name in major_roles:
@@ -83,6 +87,7 @@ class CompanyService:
         drivers = await self.repository.get_drivers(company_id)
         return drivers
 
+    """
     async def edit_company_balance(self, company_id: str, edit_balance_schema: CompanyBalanceEditSchema) -> None:
         # Проверка прав доступа.
         # У суперадмина ПроАВТО полные права.
@@ -102,3 +107,4 @@ class CompanyService:
         transaction_repository = TransactionRepository(self.repository.session, self.repository.user)
         debit = True if edit_balance_schema.direction == enums.Finance.DEBIT.name else False
         await transaction_repository.create_corrective_transaction(company_id, debit, edit_balance_schema.delta_sum)
+    """

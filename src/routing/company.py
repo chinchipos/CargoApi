@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 from src.database import models
 from src.depends import get_service_company
 from src.schemas.common import SuccessSchema
-from src.schemas.company import CompanyReadSchema, CompanyEditSchema, CompanyBalanceEditSchema
+from src.schemas.company import CompanyReadSchema, CompanyEditSchema
 from src.schemas.driver import DriverReadSchema
 from src.services.company import CompanyService
 from src.utils import enums
@@ -111,7 +111,7 @@ async def edit_company(
     company = await service.edit(id, data)
     return company
 
-
+"""
 @router.put(
     path="/company/{id}/balance/edit",
     tags=["company"],
@@ -128,6 +128,7 @@ async def edit_balance(
     id = str(id)
     await service.edit_company_balance(id, data)
     return {'success': True}
+"""
 
 
 @router.get(

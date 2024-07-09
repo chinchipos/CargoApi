@@ -1,3 +1,5 @@
+import alembic_postgresql_enum
+
 import asyncio
 import sys
 from logging.config import fileConfig

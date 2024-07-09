@@ -151,6 +151,11 @@ class BaseRepository:
             self.session.add(obj)
             await self.session.flush()
             await self.session.commit()
+            # Удалим объект из сессии, так как в кэше хранятся связанные объекты и при обновлении информации
+            # об объекте из БД связанные объекты не будут обновлены, вместо этого будут взяты из кэша.
+            self.session.expire(obj)
+            # self.session.expire_all()
+            # https://stackoverflow.com/questions/12108913/how-to-avoid-caching-in-sqlalchemy
 
         except IntegrityError:
             self.logger.error(traceback.format_exc())
@@ -164,7 +169,6 @@ class BaseRepository:
         try:
             obj.update_without_saving(update_data)
             await self.save_object(obj)
-            # await self.session.refresh(obj)
 
         except IntegrityError:
             self.logger.error(traceback.format_exc())

@@ -1,7 +1,7 @@
 from typing import List
 
 from sqlalchemy import select as sa_select, func as sa_func
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm import joinedload, selectinload, raiseload, lazyload, subqueryload
 
 from src.database import models
 from src.repositories.base import BaseRepository
@@ -17,11 +17,10 @@ class CompanyRepository(BaseRepository):
             sa_select(models.Company)
             .options(
                 joinedload(models.Company.tariff),
+                selectinload(models.Company.contracts),
                 joinedload(models.Company.users).joinedload(models.User.role)
             )
-            .filter_by(id=company_id)
-            .order_by(models.Company.name)
-            .limit(1)
+            .where(models.Company.id == company_id)
         )
         dataset = await self.session.scalars(stmt)
         company = dataset.first()

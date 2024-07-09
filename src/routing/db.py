@@ -34,11 +34,11 @@ async def init(
 
 
 @router.post(
-    path="/db/sync/initial",
+    path="/db/sync/nnk/initial",
     tags=["db"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = SuccessSchema,
-    summary = 'Первичная синхронизация с мигрируемой БД',
+    summary = 'Первичная синхронизация с мигрируемой БД ННК',
     description = db_initial_sync_description
 )
 async def initial_sync(
@@ -50,11 +50,11 @@ async def initial_sync(
 
 
 @router.post(
-    path="/db/sync/regular",
+    path="/db/sync/nnk/regular",
     tags=["db"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = MessageSchema,
-    summary = 'Регулярная синхронизация с мигрируемой БД',
+    summary = 'Регулярная синхронизация с мигрируемой БД ННК',
     description = db_regular_sync_description
 )
 async def regular_sync(

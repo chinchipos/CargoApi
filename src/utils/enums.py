@@ -67,3 +67,8 @@ class Finance(StrEnum):
 class HttpMethod(StrEnum):
     GET = "GET"
     POST = "POST"
+
+
+class ContractScheme(Enum):
+    AGENCY = "Агентская"
+    OVERBOUGHT = "Перекупная"

@@ -1,47 +1,16 @@
-import random
-from datetime import datetime
 from typing import Dict, Any
 
-from src.database import models
-from src.database.models import System, Tariff, Company, Car, CardType, Card, CardSystem, InnerGoods, OuterGoods, \
-    Transaction
+import random
+from datetime import datetime
+
 from src.repositories.base import BaseRepository
-from src.utils.exceptions import DBException
+from src.database import models
 from src.utils import enums
 
-from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy import select as sa_select, desc
+from sqlalchemy import select as sa_select
 
 
-class DBRepository(BaseRepository):
-
-    async def init_roles(self) -> None:
-        dataset = [
-            {
-                'name': role.name,
-                'title': role.value['title'],
-                'description': role.value['description']
-            } for role in enums.Role
-        ]
-        stmt = pg_insert(models.Role).on_conflict_do_nothing()
-        try:
-            async with self.session.begin():
-                await self.session.execute(stmt, dataset)
-                await self.session.commit()
-        except Exception:
-            raise DBException()
-
-    async def init_card_types(self) -> None:
-        dataset = [
-            {'name': 'Пластиковая карта'},
-            {'name': 'Виртуальная карта'}
-        ]
-        stmt = pg_insert(models.CardType).on_conflict_do_nothing()
-        try:
-            await self.session.execute(stmt, dataset)
-            await self.session.commit()
-        except Exception:
-            raise DBException()
+class NNKMigration(BaseRepository):
 
     async def import_systems(self, systems: list[Dict[str, Any]]) -> None:
         dataset = [
@@ -49,12 +18,10 @@ class DBRepository(BaseRepository):
                 master_db_id=system['id'],
                 full_name=system['full_name'],
                 short_name=system['short_name'],
-                login=system['login'],
-                password=system['password'],
                 transaction_days=system['transaction_days'],
             ) for system in systems
         ]
-        await self.bulk_insert_or_update(System, dataset, 'full_name')
+        await self.bulk_insert_or_update(models.System, dataset, 'full_name')
 
     async def import_tariffs(self, tariffs: list[Dict[str, Any]]) -> None:
         dataset = [
@@ -64,24 +31,34 @@ class DBRepository(BaseRepository):
                 fee_percent=tariff['service_online'],
             ) for tariff in tariffs
         ]
-        await self.bulk_insert_or_update(Tariff, dataset, 'name')
+        await self.bulk_insert_or_update(models.Tariff, dataset, 'name')
 
     async def import_companies(self, companies: list[Dict[str, Any]]) -> None:
-        # Тариф. Сопоставление id записи на боевом сервере с наименованием тарифа на новом сервере.
-        tariff_ids = await self.select_all(
-            sa_select(Tariff.master_db_id, Tariff.id).where(Tariff.master_db_id != None),
-            scalars=False
-        )
-        rate_ids_related_to_tariff_ids = {item[0]: item[1] for item in tariff_ids}
-
+        # Создаем записи в таблице company
         dataset = [
             dict(
                 master_db_id=company['id'],
                 name=company['name'],
                 date_add=company['date_add'],
-                tariff_id=rate_ids_related_to_tariff_ids[company['rate_id']],
                 personal_account=('000000' + str(random.randint(1, 9999999)))[-7:],
-                inn=company['inn'],
+                inn=company['inn']
+            ) for company in companies
+        ]
+        await self.bulk_insert_or_update(models.Company, dataset)
+
+    async def import_balances(self, companies: list[Dict[str, Any]]) -> None:
+        # Организация. Сопоставление id записи на боевом сервере с id на новом сервере.
+        company_ids = await self.select_all(
+            sa_select(models.Company.master_db_id, models.Company.id).where(models.Company.master_db_id != None),
+            scalars=False
+        )
+        company_ids = {item[0]: item[1] for item in company_ids}
+
+        # Создаем записи в таблице balance
+        dataset = [
+            dict(
+                company_id=company_ids[company['id']],
+                scheme=enums.ContractScheme.OVERBOUGHT.name,
                 balance=company['amount'],
                 min_balance=company['min_balance'],
                 min_balance_period_end_date=None if company['min_balance_date_to'] == '0000-00-00 00:00:00' else
@@ -89,11 +66,11 @@ class DBRepository(BaseRepository):
                 min_balance_on_period=company['min_balance_period'],
             ) for company in companies
         ]
-        await self.bulk_insert_or_update(Company, dataset)
+        await self.bulk_insert_or_update(models.Balance, dataset)
 
     async def sync_companies(self, companies: list[Dict[str, Any]]) -> int:
         # Получаем список идентификаторов, указывающих на организации из БД основной площадки
-        stmt = sa_select(Company.master_db_id)
+        stmt = sa_select(models.Company.master_db_id)
         dataset = await self.select_all(stmt, scalars=False)
         excluded_master_db_ids = [row[0] for row in dataset]
         dataset = [
@@ -112,14 +89,14 @@ class DBRepository(BaseRepository):
             ) for company in companies if company['id'] not in excluded_master_db_ids
         ]
         if dataset:
-            await self.bulk_insert_or_update(Company, dataset)
+            await self.bulk_insert_or_update(models.Company, dataset)
 
         return len(dataset)
 
     async def import_cars(self, cars: list[Dict[str, Any]]) -> None:
         # Организация. Сопоставление id записи на боевом сервере с id на новом сервере.
         company_ids = await self.select_all(
-            sa_select(Company.master_db_id, Company.id).where(Company.master_db_id != None),
+            sa_select(models.Company.master_db_id, models.Company.id).where(models.Company.master_db_id != None),
             scalars=False
         )
         company_ids = {item[0]: item[1] for item in company_ids}
@@ -131,32 +108,24 @@ class DBRepository(BaseRepository):
                 company_id=company_ids[car['company_id']],
             ) for car in cars
         ]
-        await self.bulk_insert_or_update(Car, dataset)
+        await self.bulk_insert_or_update(models.Car, dataset)
 
     async def import_cards(self, cards: list[Dict[str, Any]]) -> None:
         # Тип карты по умолчанию для вновь импортируемых карт
-        plastic_card_type = await self.insert_or_update(CardType, 'name', name="Пластиковая карта")
+        plastic_card_type = await self.insert_or_update(models.CardType, 'name', name="Пластиковая карта")
 
         # Номера карт в привязке к типам (для существующих карт)
         card_numbers_related_to_card_type_ids = await self.select_all(
-            sa_select(Card.card_number, Card.card_type_id),
+            sa_select(models.Card.card_number, models.Card.card_type_id),
             scalars=False
         )
         card_numbers_related_to_card_type_ids = {
             item[0]: item[1] for item in card_numbers_related_to_card_type_ids
         }
 
-        # Организация. Сопоставление id записи на боевом сервере с id на новом сервере.
-        company_ids = await self.select_all(
-            sa_select(Company.master_db_id, Company.id).where(Company.master_db_id != None),
-            scalars=False
-        )
-        company_ids = {item[0]: item[1] for item in company_ids}
-        company_ids[0] = None
-
         # Автомобиль. Сопоставление id записи на боевом сервере с id на новом сервере.
         car_ids = await self.select_all(
-            sa_select(Car.master_db_id, Car.id).where(Car.master_db_id != None),
+            sa_select(models.Car.master_db_id, models.Car.id).where(models.Car.master_db_id != None),
             scalars=False
         )
         car_ids = {item[0]: item[1] for item in car_ids}
@@ -165,40 +134,97 @@ class DBRepository(BaseRepository):
             dict(
                 card_type_id=card_numbers_related_to_card_type_ids.get(card['card_num'], plastic_card_type.id),
                 card_number=card['card_num'],
-                company_id=company_ids[card['company_id']],
                 belongs_to_car_id=car_ids[card['car_id']] if card['car_id'] else None,
                 is_active=card['state'],
                 manual_lock=card['manual_lock'],
             ) for card in cards
         ]
-        await self.bulk_insert_or_update(Card, dataset, 'card_number')
+        await self.bulk_insert_or_update(models.Card, dataset, 'card_number')
 
-    async def import_card_systems(self, cards: list[Dict[str, Any]]) -> None:
+    async def import_contracts(self, cards: list[Dict[str, Any]], companies: list[Dict[str, Any]]) -> None:
         # Номера карт в привязке к id
         card_numbers_related_to_card_ids = await self.select_all(
-            sa_select(Card.card_number, Card.id),
+            sa_select(models.Card.card_number, models.Card.id),
             scalars=False
         )
         card_numbers_related_to_card_ids = {item[0]: item[1] for item in card_numbers_related_to_card_ids}
 
-        # Система. Сопоставление id записи на боевом сервере с id на новом сервере.
+        # Система. Сопоставление id записи на мигрируемом сервере с id на новом
         system_ids = await self.select_all(
-            sa_select(System.master_db_id, System.id).where(System.master_db_id != None),
+            sa_select(models.System.master_db_id, models.System.id).where(models.System.master_db_id != None),
             scalars=False
         )
         system_ids = {item[0]: item[1] for item in system_ids}
 
+        # Баланс. Сопоставление id организации на мигрируемом сервере с id баланса на новом
+        balance_ids = await self.select_all(
+            sa_select(models.Company.master_db_id, models.Balance.id)
+            .where(models.Company.master_db_id != None)
+            .where(models.Company.id == models.Balance.company_id),
+            scalars=False
+        )
+        balance_ids = {item[0]: item[1] for item in balance_ids}
+
+        # Лицевой счет. Сопоставление id организации на мигрируемом сервере с её ЛС на новом
+        personal_accounts = await self.select_all(
+            sa_select(models.Company.master_db_id, models.Company.personal_account),
+            scalars=False
+        )
+        personal_accounts = {item[0]: item[1] for item in personal_accounts}
+
+        # Тариф. Сопоставление id записи на мигрируемом сервере с наименованием тарифа на новом
+        tariff_ids = await self.select_all(
+            sa_select(models.Tariff.master_db_id, models.Tariff.id).where(models.Tariff.master_db_id != None),
+            scalars=False
+        )
+        rate_ids_related_to_tariff_ids = {item[0]: item[1] for item in tariff_ids}
+
+        # Функция получения id тарифа для организации, которой принадлежит карта
+        def get_tariff_id(master_db_id: Dict[str, Any]) -> int | None:
+            # Проверяем id организации на мигрируемом сервере
+            if not master_db_id:
+                return None
+
+            for company in companies:
+                # Ищем запись об организации на мигрируемом сервере
+                if company['id'] == master_db_id:
+                    # Получаем id тарифа на новом сервере
+                    tariff_id = rate_ids_related_to_tariff_ids[company['rate_id']]
+                    return tariff_id
+
+        # Создаем записи в таблице contract
         dataset = [
             dict(
-                card_id=card_numbers_related_to_card_ids[str(card['card_num'])],
+                tariff_id=get_tariff_id(card['company_id']),
+                balance_id=balance_ids[card['company_id']],
+                number=personal_accounts[card['company_id']],
                 system_id=system_ids[card['system_id']],
             ) for card in cards
         ]
-        await self.bulk_insert_or_update(CardSystem, dataset)
+        await self.bulk_insert_or_update(models.Contract, dataset)
+
+        # Договор. Сопоставление id организации на мигрируемом сервере с id договора на новом
+        contract_ids = await self.select_all(
+            sa_select(models.Company.master_db_id, models.Contract.id)
+            .where(models.Company.master_db_id != None)
+            .where(models.Balance.company_id == models.Company.id)
+            .where(models.Contract.balance_id == models.Balance.id),
+            scalars=False
+        )
+        contract_ids = {item[0]: item[1] for item in contract_ids}
+
+        # Создаем записи в таблице card_contract
+        dataset = [
+            dict(
+                card_id=card_numbers_related_to_card_ids[str(card['card_num'])],
+                contract_id=contract_ids[card['company_id']]
+            ) for card in cards
+        ]
+        await self.bulk_insert_or_update(models.CardContract, dataset)
 
     async def import_inner_goods(self, goods: list[Dict[str, Any]]) -> None:
         dataset = [{'name': good['inner_goods']} for good in goods if good['inner_goods']]
-        await self.bulk_insert_or_update(InnerGoods, dataset)
+        await self.bulk_insert_or_update(models.InnerGoods, dataset)
 
     async def import_outer_goods(self, goods: list[Dict[str, Any]]) -> None:
         # Пример входной строки goods:
@@ -210,14 +236,14 @@ class DBRepository(BaseRepository):
 
         # Система. Сопоставление id записи на боевом сервере с id на новом сервере.
         system_ids = await self.select_all(
-            sa_select(System.master_db_id, System.id).where(System.master_db_id != None),
+            sa_select(models.System.master_db_id, models.System.id).where(models.System.master_db_id != None),
             scalars=False
         )
         system_ids = {item[0]: item[1] for item in system_ids}
 
         # Наименования товаров в привязке к id
         inner_goods_ids = await self.select_all(
-            sa_select(InnerGoods.name, InnerGoods.id),
+            sa_select(models.InnerGoods.name, models.InnerGoods.id),
             scalars=False
         )
         inner_goods_ids = {item[0]: item[1] for item in inner_goods_ids}
@@ -230,33 +256,34 @@ class DBRepository(BaseRepository):
             ) for good in goods if good['system_id'] in system_ids
         ]
 
-        await self.bulk_insert_or_update(OuterGoods, dataset)
+        await self.bulk_insert_or_update(models.OuterGoods, dataset)
 
     async def import_transactions(self, transactions: list[Dict[str, Any]]) -> None:
         # Система. Сопоставление id записи на боевом сервере с id на новом сервере.
         system_ids = await self.select_all(
-            sa_select(System.master_db_id, System.id).where(System.master_db_id != None),
+            sa_select(models.System.master_db_id, models.System.id).where(models.System.master_db_id != None),
             scalars=False
         )
         system_ids = {item[0]: item[1] for item in system_ids}
 
         # Номера карт в привязке к id
         card_numbers_related_to_card_ids = await self.select_all(
-            sa_select(Card.card_number, Card.id),
+            sa_select(models.Card.card_number, models.Card.id),
             scalars=False
         )
         card_numbers_related_to_card_ids = {item[0]: item[1] for item in card_numbers_related_to_card_ids}
 
         # Организация. Сопоставление id записи на боевом сервере с id на новом сервере.
         company_ids = await self.select_all(
-            sa_select(Company.master_db_id, Company.id).where(Company.master_db_id != None),
+            sa_select(models.Company.master_db_id, models.Company.id).where(models.Company.master_db_id != None),
             scalars=False
         )
         company_ids = {item[0]: item[1] for item in company_ids}
 
         # Коды товаров/услуг в привязке к id
         goods = await self.select_all(
-            sa_select(InnerGoods.name, OuterGoods.id).where(OuterGoods.inner_goods_id == InnerGoods.id),
+            sa_select(models.InnerGoods.name, models.OuterGoods.id)
+            .where(models.OuterGoods.inner_goods_id == models.InnerGoods.id),
             scalars=False
         )
         goods_ids = {item[0]: item[1] for item in goods}
@@ -269,7 +296,8 @@ class DBRepository(BaseRepository):
                 date_time_load=datetime.fromisoformat(transaction['date_load']),
                 is_debit=True if transaction['sum'] < 0 else False,
                 system_id=system_ids[transaction['system_id']] if transaction['system_id'] else None,
-                card_id=card_numbers_related_to_card_ids[str(transaction['card_num'])] if transaction['card_num'] else None,
+                card_id=card_numbers_related_to_card_ids[str(transaction['card_num'])] if transaction['card_num']
+                else None,
                 company_id=company_ids[transaction['company_id']] if transaction['company_id'] else None,
                 azs_code=transaction['azs'],
                 azs_address=transaction['address'],
@@ -284,28 +312,4 @@ class DBRepository(BaseRepository):
             ) for transaction in transactions
         ]
 
-        await self.bulk_insert_or_update(Transaction, dataset)
-
-    async def get_cargo_superadmin_role(self) -> models.Role:
-        try:
-            stmt = sa_select(models.Role).where(models.Role.name == enums.Role.CARGO_SUPER_ADMIN.name).limit(1)
-            dataset = await self.session.scalars(stmt)
-            role = dataset.first()
-            return role
-
-        except Exception:
-            raise DBException()
-
-    async def get_companies(self) -> Any:
-        stmt = sa_select(Company)
-        dataset = await self.select_all(stmt)
-        return dataset
-
-    async def get_company_transactions(self, company: Company) -> Any:
-        stmt = (
-            sa_select(Transaction)
-            .where(Transaction.company_id == company.id)
-            .order_by(desc(Transaction.date_time))
-        )
-        dataset = await self.select_all(stmt)
-        return dataset
+        await self.bulk_insert_or_update(models.Transaction, dataset)

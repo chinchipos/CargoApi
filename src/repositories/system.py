@@ -5,7 +5,7 @@ from sqlalchemy import select as sa_select, func as sa_func
 
 from src.database import models
 from src.repositories.base import BaseRepository
-from src.schemas.system import SystemCreateSchema
+# from src.schemas.system import SystemCreateSchema
 
 
 class SystemRepository(BaseRepository):
@@ -14,11 +14,13 @@ class SystemRepository(BaseRepository):
         system = await self.session.get(models.System, system_id)
         return system
 
+    """
     async def create(self, create_schema: SystemCreateSchema) -> models.System:
         new_system = models.System(**create_schema.model_dump())
         await self.save_object(new_system)
         new_system = await self.get_system(new_system.id)
         return new_system
+    """
 
     async def get_systems(self) -> List[models.System]:
         stmt = (
