@@ -203,12 +203,9 @@ class NNKMigration(BaseRepository):
         # Для остальных систем выполняем привязку с указанием даты прекращения действия.
 
         # ННК
-        systems = await self.select_all(sa_select(models.System))
-        for s in systems:
-            print('YYYYYYYYYYYYYYYYYYYYYYYYY')
-            print(s)
-
-        nnk_system = await self.select_first(sa_select(models.System).where(models.System.full_name == "ННК"))
+        nnk_system = await self.select_first(sa_select(models.System).where(
+            models.System.full_name == "АО «ННК-Хабаровскнефтепродукт»")
+        )
         dataset = [
             dict(
                 tariff_id=self.tariff_ids[company['tariff_id']],
