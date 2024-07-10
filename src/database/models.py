@@ -756,7 +756,7 @@ class Car(Base):
     )
 
     reg_number: Mapped[str] = mapped_column(
-        sa.String(20),
+        sa.String(255),
         nullable=False,
         comment="Государственный регистрационный номер"
     )
