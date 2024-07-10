@@ -206,7 +206,7 @@ class NNKMigration(BaseRepository):
         nnk_system = await self.select_first(sa_select(models.System).where(models.System.full_name == "ННК"))
         dataset = [
             dict(
-                tariff_id=self.tariff_ids[str(company['id'])],
+                tariff_id=self.tariff_ids[company['tariff_id']],
                 balance_id=self.balance_ids[company['id']],
                 system_id=nnk_system.id,
                 start_date=date.fromisoformat(company['date_add']),
@@ -222,7 +222,7 @@ class NNKMigration(BaseRepository):
             if system.id != nnk_system.id:
                 dataset = [
                     dict(
-                        tariff_id=self.tariff_ids[str(company['id'])],
+                        tariff_id=self.tariff_ids[company['tariff_id']],
                         balance_id=self.balance_ids[company['id']],
                         system_id=system.id,
                         start_date=date.fromisoformat(company['date_add']),
