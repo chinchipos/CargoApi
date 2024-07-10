@@ -74,14 +74,6 @@ class Tariff(Base):
         comment="Комиссия, %"
     )
 
-    # Список договоров, к которым применяется этот тариф
-    contracts: Mapped[List["Contract"]] = relationship(
-        back_populates="tariff",
-        cascade="all, delete-orphan",
-        lazy="noload",
-        init=False
-    )
-
     # Список транзакций по этому тарифу
     transactions: Mapped[List["Transaction"]] = relationship(
         back_populates="tariff",
@@ -260,7 +252,23 @@ class Balance(Base):
     )
 
     # Список договоров, привязанных к этому балансу
-    contracts: Mapped[List["Contract"]] = relationship(
+    card_bindings: Mapped[List["CardBinding"]] = relationship(
+        back_populates="balance",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
+    # История тарифов этого баланса
+    tariff_history: Mapped[List["TariffHistory"]] = relationship(
+        back_populates="balance",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
+    # Список транзакций, привязанных к этому балансу
+    transactions: Mapped[List["Transaction"]] = relationship(
         back_populates="balance",
         cascade="all, delete-orphan",
         lazy="noload",
@@ -271,98 +279,13 @@ class Balance(Base):
         return f"Баланс({self.balance}, Схема: {self.scheme})"
 
 
-class Contract(Base):
-    __tablename__ = "contract"
-    __table_args__ = {
-        'comment': 'Договоры'
-    }
-
-    id: Mapped[str] = mapped_column(
-        sa.Uuid(as_uuid=False),
-        primary_key=True,
-        server_default=sa.text("uuid_generate_v4()"),
-        init=False
-    )
-
-    number: Mapped[str] = mapped_column(
-        sa.String(20),
-        unique=True,
-        nullable=False,
-        comment="Номер договора"
-    )
-
-    tariff_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.tariff.id"),
-        nullable=True,
-        init=False,
-        comment="Тариф"
-    )
-
-    # Тариф
-    tariff: Mapped["Tariff"] = relationship(
-        back_populates="contracts",
-        lazy="noload",
-        init=False
-    )
-
-    balance_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.balance.id"),
-        nullable=True,
-        init=False,
-        comment="Баланс"
-    )
-
-    # Тариф
-    balance: Mapped["Balance"] = relationship(
-        back_populates="contracts",
-        lazy="noload",
-        init=False
-    )
-
-    system_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.system.id"),
-        nullable=False,
-        comment="Система"
-    )
-
-    # Система
-    system: Mapped["System"] = relationship(
-        back_populates="contracts",
-        lazy="noload"
-    )
-
-    # Список карт, привязанных к этому договору
-    card_contract: Mapped[List["CardContract"]] = relationship(
-        back_populates="contract",
-        cascade="all, delete-orphan",
-        lazy="noload",
-        init=False
-    )
-
-    # История тарифов этого договора
-    tariff_history: Mapped[List["TariffHistory"]] = relationship(
-        back_populates="contract",
-        cascade="all, delete-orphan",
-        lazy="noload",
-        init=False
-    )
-
-    # Список транзакций привязанных к этой организации
-    transactions: Mapped[List["Transaction"]] = relationship(
-        back_populates="contract",
-        cascade="all, delete-orphan",
-        lazy="noload",
-        init=False
-    )
-
-    def __repr__(self) -> str:
-        return f"Договор(Номер: {self.number})"
-
-
 class TariffHistory(Base):
     __tablename__ = "tariff_history"
     __table_args__ = {
-        'comment': 'История тарификации органицазий'
+        'comment': (
+            "Сведения из таблицы позволяют указать какой тариф применялся ранее и применяется сейчас "
+            "при отражении операций с конкретным поставщиком услуг на соответствующем  балансе."
+        )
     }
 
     id: Mapped[str] = mapped_column(
@@ -372,17 +295,7 @@ class TariffHistory(Base):
         init=False
     )
 
-    contract_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.contract.id"),
-        comment="Договор"
-    )
-
-    # Организация
-    contract: Mapped["Contract"] = relationship(
-        back_populates="tariff_history",
-        lazy="noload"
-    )
-
+    # Тариф
     tariff_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.tariff.id"),
         comment="Тариф"
@@ -394,16 +307,52 @@ class TariffHistory(Base):
         lazy="noload"
     )
 
+    # Баланс
+    balance_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.balance.id"),
+        comment="Баланс"
+    )
+
+    # Баланс
+    balance: Mapped["Balance"] = relationship(
+        back_populates="tariff_history",
+        lazy="noload"
+    )
+
+    # Поставщиик услуг
+    system_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.system.id"),
+        nullable=False,
+        comment="Поставщиик услуг"
+    )
+
+    # Поставщиик услуг
+    system: Mapped["System"] = relationship(
+        back_populates="tariff_history",
+        lazy="noload"
+    )
+
+    # Дата начала действия (тариф действует с 00:00:00 в указанную дату)
     start_date: Mapped[date] = mapped_column(
         sa.Date,
         nullable=False,
         comment="Дата начала действия (тариф действует с 00:00:00 в указанную дату)"
     )
 
+    # Дата прекращения действия (тариф прекращает действовать с 00:00:00 в указанную дату)
     end_date: Mapped[date] = mapped_column(
         sa.Date,
+        nullable=True,
         init=False,
         comment="Дата прекращения действия (тариф прекращает действовать с 00:00:00 в указанную дату)"
+    )
+
+    # Признак актуальности записи на текущий момент
+    current: Mapped[bool] = mapped_column(
+        sa.Boolean,
+        nullable=False,
+        server_default=sa.sql.true(),
+        comment="Признак актуальности записи на текущий момент"
     )
 
     def __repr__(self) -> str:
@@ -965,8 +914,8 @@ class Card(Base):
         comment="Признак ручной блокировки"
     )
 
-    # Список договоров, к которым привязана эта карта
-    card_contract: Mapped[List["CardContract"]] = relationship(
+    # Список связей этой карты
+    card_bindings: Mapped[List["CardBinding"]] = relationship(
         back_populates="card",
         cascade="all, delete-orphan",
         lazy="noload",
@@ -1070,14 +1019,30 @@ class System(Base):
     )
 
     # Список договоров, привязанных к этой системе
-    contracts: Mapped[List["Contract"]] = relationship(
+    card_bindings: Mapped[List["CardBinding"]] = relationship(
         back_populates="system",
         cascade="all, delete-orphan",
         lazy="noload",
         init=False
     )
 
-    # Список товаров и услуг, привязанных к этой системе
+    # Список договоров, привязанных к этой системе
+    tariff_history: Mapped[List["TariffHistory"]] = relationship(
+        back_populates="system",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
+    # Список транзакций, привязанных к этому поставщику услуг
+    transactions: Mapped[List["Transaction"]] = relationship(
+        back_populates="system",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
+    # Список товаров и услуг, привязанных к этому поставщику услуг
     outer_goods: Mapped[List["OuterGoods"]] = relationship(
         back_populates="system",
         cascade="all, delete-orphan",
@@ -1089,10 +1054,13 @@ class System(Base):
         return f"System({self.full_name})"
 
 
-class CardContract(Base):
-    __tablename__ = "card_contract"
+class CardBinding(Base):
+    __tablename__ = "card_binding"
     __table_args__ = {
-        'comment': 'Привязка карт к договорам'
+        'comment': (
+            "Сведения из таблицы позволяют указать к какому поставщику услуг привязана карта и какому клиенту "
+            "она в данный момент принадлежит (привязка через баланс)."
+        )
     }
 
     id: Mapped[str] = mapped_column(
@@ -1102,6 +1070,7 @@ class CardContract(Base):
         init=False
     )
 
+    # Карта
     card_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.card.id"),
         nullable=False,
@@ -1110,24 +1079,40 @@ class CardContract(Base):
 
     # Карта
     card: Mapped["Card"] = relationship(
-        back_populates="card_contract",
+        back_populates="card_bindings",
         lazy="noload"
     )
 
-    contract_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.contract.id"),
+    # Поставщиик услуг
+    system_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.system.id"),
         nullable=False,
-        comment="Договор"
+        comment="Поставщиик услуг"
     )
 
-    # Договор
-    contract: Mapped["Contract"] = relationship(
-        back_populates="card_contract",
+    # Поставщиик услуг
+    system: Mapped["System"] = relationship(
+        back_populates="card_bindings",
         lazy="noload"
+    )
+
+    # Баланс
+    balance_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.balance.id"),
+        nullable=True,
+        init=False,
+        comment="Баланс"
+    )
+
+    # Баланс
+    balance: Mapped["Balance"] = relationship(
+        back_populates="card_bindings",
+        lazy="noload",
+        init=False
     )
 
     def __repr__(self) -> str:
-        return f"CardSystem(Карта: {self.card_id}, Договор: {self.contract if self.contract else self.contract_id})"
+        return f"CardSystem(Карта: {self.card.card_number if self.card else self.card_id})"
 
 
 class InnerGoods(Base):
@@ -1271,6 +1256,7 @@ class Transaction(Base):
         comment="Направление транзакции: покупка или возврат"
     )
 
+    # Карта
     card_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.card.id"),
         nullable=True,
@@ -1283,14 +1269,28 @@ class Transaction(Base):
         lazy="noload"
     )
 
-    contract_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.contract.id"),
-        nullable=True,  # Возможна ситуация когда карта не присвоена клиенту, но ей уже пользуются
-        comment = "Договор"
+    # Баланс
+    balance_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.balance.id"),
+        nullable=True,
+        comment="Карта"
     )
 
-    # Договор
-    contract: Mapped["Contract"] = relationship(
+    # Баланс
+    balance: Mapped["Balance"] = relationship(
+        back_populates="transactions",
+        lazy="noload"
+    )
+
+    # Поставщик услуг
+    system_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.system.id"),
+        nullable=True,
+        comment="Поставщик услуг"
+    )
+
+    # Баланс
+    system: Mapped["System"] = relationship(
         back_populates="transactions",
         lazy="noload"
     )
@@ -1399,7 +1399,7 @@ class Transaction(Base):
         comment="Баланс карты после выполнения транзакции"
     )
 
-    contract_balance: Mapped[float] = mapped_column(
+    company_balance: Mapped[float] = mapped_column(
         sa.Numeric(12, 2, asdecimal=False),
         nullable=False,
         server_default=sa.text("0"),

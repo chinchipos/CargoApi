@@ -29,7 +29,7 @@ async def init(
     data: DBInitSchema,
     db_service: DBService = Depends(get_service_db)
 ) -> dict[str, Any]:
-    await db_service.init(data)
+    await db_service.db_init(data)
     return {'success': True}
 
 

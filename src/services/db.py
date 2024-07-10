@@ -1,13 +1,16 @@
 from src.auth.manager import create_user
-from src.config import SERVICE_TOKEN, BUILTIN_ADMIN_NAME, BUILTIN_ADMIN_EMAIL, BUILTIN_ADMIN_FIRSTNAME, \
-    BUILTIN_ADMIN_LASTNAME
+from src.config import SERVICE_TOKEN, BUILTIN_ADMIN_NAME, BUILTIN_ADMIN_FIRSTNAME, BUILTIN_ADMIN_LASTNAME, \
+    BUILTIN_ADMIN_EMAIL
 from src.database import models
+from src.database.models import Base
 from src.repositories.db.db import DBRepository
 from src.schemas.db import DBInitSchema, DBInitialSyncSchema, DBRegularSyncSchema
 from src.schemas.user import UserCreateSchema
 from src.utils import enums
 from src.utils.exceptions import BadRequestException, ApiError
 from src.utils.password_policy import test_password_strength
+
+from sqlalchemy import delete as sa_delete
 
 
 class DBService:
@@ -16,7 +19,34 @@ class DBService:
         self.repository = repository
         self.logger = repository.logger
 
-    async def init(self, data: DBInitSchema) -> None:
+    async def clear_tables(self):
+        self.logger.info('Начинаю удаление данных из таблиц БД')
+        metadata = Base.metadata
+        counter = 1
+        success = True
+        while True:
+            print('-----------------------')
+            print('Цикл:', counter)
+            for table_name, table in metadata.tables.items():
+                try:
+                    stmt = sa_delete(table)
+                    await self.repository.session.execute(stmt)
+                    await self.repository.session.commit()
+                except Exception as e:
+                    await self.repository.session.rollback()
+                    print('Не удалось удалить данные из таблицы', table_name)
+                    print(e)
+                    success = False
+                    continue
+                else:
+                    print('Успешно удалены данные из таблицы', table_name)
+
+            counter += 1
+            if success or counter == 5:
+                break
+
+    async def db_init(self, data: DBInitSchema) -> None:
+
         # Проверка инициализационного токена
         if data.service_token != SERVICE_TOKEN:
             raise BadRequestException('Некорректный токен')
@@ -25,30 +55,8 @@ class DBService:
         test_password_strength(enums.Role.CARGO_SUPER_ADMIN.name, data.superuser_password)
 
         # Очищаем таблицы БД
-        self.logger.info('Начинаю удаление данных из таблиц БД')
-
-        await self.repository.delete_all(models.Log)
-        await self.repository.delete_all(models.LogType)
-        await self.repository.delete_all(models.Transaction)
-        await self.repository.delete_all(models.OuterGoods)
-        await self.repository.delete_all(models.InnerGoods)
-        await self.repository.delete_all(models.CardContract)
-        await self.repository.delete_all(models.Contract)
-        await self.repository.delete_all(models.Balance)
-        await self.repository.delete_all(models.System)
-        await self.repository.delete_all(models.Card)
-        await self.repository.delete_all(models.CarDriver)
-        await self.repository.delete_all(models.Car)
-        await self.repository.delete_all(models.CardType)
-        await self.repository.delete_all(models.AdminCompany)
-        await self.repository.delete_all(models.User)
-        await self.repository.delete_all(models.RolePermition)
-        await self.repository.delete_all(models.Role)
-        await self.repository.delete_all(models.Permition)
-        await self.repository.delete_all(models.TariffHistory)
-        await self.repository.delete_all(models.Company)
-        await self.repository.delete_all(models.Tariff)
-
+        await self.clear_tables()
+        
         # Создание типов карт
         await self.repository.init_card_types()
 
@@ -112,63 +120,13 @@ class DBService:
         if data.service_token != SERVICE_TOKEN:
             raise BadRequestException('Некорректный токен')
 
-        # Очищаем таблицы БД
-        self.logger.info('Начинаю удаление данных из таблиц БД')
-
         try:
-
-            self.logger.info('Удаляю транзакции')
-            await self.repository.delete_all(models.Transaction)
-            self.logger.info('  -> выполнено')
-
-            self.logger.info('Удаляю товары/услуги')
-            await self.repository.delete_all(models.OuterGoods)
-            await self.repository.delete_all(models.InnerGoods)
-            self.logger.info('  -> выполнено')
-
-            self.logger.info('Удаляю топливные карты')
-            await self.repository.delete_all(models.CardContract)
-            await self.repository.delete_all(models.Card)
-            self.logger.info('  -> выполнено')
-
-            self.logger.info('Удаляю историю тарифов')
-            await self.repository.delete_all(models.TariffHistory)
-            self.logger.info('  -> выполнено')
-
-            self.logger.info('Удаляю договоры')
-            await self.repository.delete_all(models.Contract)
-            self.logger.info('  -> выполнено')
-
-            self.logger.info('Удаляю балансы')
-            await self.repository.delete_all(models.Balance)
-            self.logger.info('  -> выполнено')
-
-            self.logger.info('Удаляю водителей')
-            await self.repository.delete_all(models.CarDriver)
-            self.logger.info('  -> выполнено')
-
-            self.logger.info('Удаляю автомобили')
-            await self.repository.delete_all(models.Car)
-            self.logger.info('  -> выполнено')
-
-            self.logger.info('Удаляю связь Менеджеров ПроАВТО с организациями')
-            await self.repository.delete_all(models.AdminCompany)
-            self.logger.info('  -> выполнено')
-
-            self.logger.info('Удаляю пользователей и менеджеров (кроме встроенного суперадмина ПроАВТО)')
-            await self.repository.delete_all(models.AdminCompany)
-            self.logger.info('  -> выполнено')
-
-            self.logger.info('Удаляю организации')
-            await self.repository.delete_all(models.Company)
-            self.logger.info('  -> выполнено')
-
             await self.repository.nnk_initial_sync(data)
 
             self.logger.info('Пересчитываю балансы')
             await self.calculate_balances()
 
-        except Exception as e:
+        except Exception:
             raise ApiError(trace=True, message='Ошибка выполнения процедуры первичной синхронизации')
 
     async def regular_sync(self, data: DBRegularSyncSchema) -> str:

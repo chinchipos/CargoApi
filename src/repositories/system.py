@@ -23,12 +23,21 @@ class SystemRepository(BaseRepository):
     """
 
     async def get_systems(self) -> List[models.System]:
+        """
         stmt = (
             sa_select(models.System, sa_func.count(models.CardSystem.id).label('cards_amount'))
             .select_from(models.CardSystem)
             .outerjoin(models.System.card_system)
             .group_by(models.System)
             .order_by(models.System.full_name)
+        )
+        """
+        stmt = (
+            sa_select(models.System, sa_func.count(models.CardContract.id).label('cards_amount'))
+            .select_from(models.CardContract)
+            .outerjoin(models.Contract.card_contract)
+            .outerjoin(models.Contract.system)
+            .group_by(models.System)
         )
         dataset = await self.select_all(stmt, scalars=False)
         systems = list(map(lambda data: data[0].annotate({'cards_amount': data[1]}), dataset))
