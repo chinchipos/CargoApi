@@ -147,15 +147,6 @@ class DBService:
             await self.calculate_balances()
 
         except Exception:
-            # Очищаем таблицы БД
-            await self.clear_tables()
-
-            # Заполняем таблицы начальными данными
-            await self.init_tables()
-
-            # Создание суперадмина
-            await self.create_superadmin(data.superuser_password)
-
             raise ApiError(trace=True, message='Ошибка выполнения процедуры первичной синхронизации')
 
     async def regular_sync(self, data: DBRegularSyncSchema) -> str:
