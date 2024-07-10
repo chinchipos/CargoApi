@@ -275,7 +275,7 @@ class NNKMigration(BaseRepository):
                 card_id=self.card_ids[str(transaction['card_num'])] if transaction['card_num']
                 else None,
                 balance_id=self.balance_ids[transaction['company_id']] if transaction['company_id'] else None,
-                system_id=self.system_ids[transaction['company_id']] if transaction['company_id'] else None,
+                system_id=self.system_ids[transaction['system_id']] if transaction['system_id'] else None,
                 azs_code=transaction['azs'],
                 azs_address=transaction['address'],
                 outer_goods_id=self.goods_ids[transaction['gds']] if transaction['gds'] in self.goods_ids else None,
