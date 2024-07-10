@@ -141,7 +141,7 @@ class DBService:
                 await self.calculate_balances()
 
         except Exception:
-            self.repository.session.rollback()
+            await self.repository.session.rollback()
             raise ApiError(trace=True, message='Ошибка выполнения процедуры первичной синхронизации')
 
     async def regular_sync(self, data: DBRegularSyncSchema) -> str:
