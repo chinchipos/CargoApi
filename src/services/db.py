@@ -19,7 +19,11 @@ class DBService:
         self.repository = repository
         self.logger = repository.logger
 
-    async def clear_tables(self):
+    def check_token(self, token: str) -> None:
+        if token != SERVICE_TOKEN:
+            raise BadRequestException('Некорректный токен')
+
+    async def clear_tables(self) -> None:
         self.logger.info('Начинаю удаление данных из таблиц БД')
         metadata = Base.metadata
         counter = 1
@@ -44,12 +48,37 @@ class DBService:
             counter += 1
             if success or counter == 5:
                 break
+            else:
+                success = True
+
+    async def create_superadmin(self, password: str) -> None:
+        # Получаем роль суперадмина
+        role = await self.repository.get_cargo_superadmin_role()
+
+        # Создание суперадмина
+        user_schema = UserCreateSchema(
+            username=BUILTIN_ADMIN_NAME,
+            password=password,
+            first_name=BUILTIN_ADMIN_FIRSTNAME,
+            last_name=BUILTIN_ADMIN_LASTNAME,
+            email=BUILTIN_ADMIN_EMAIL,
+            phone='',
+            is_active=True,
+            role_id=role.id
+        )
+        await create_user(user_schema)
+
+    async def init_tables(self) -> None:
+        # Создание типов карт
+        await self.repository.init_card_types()
+
+        # Создание ролей
+        await self.repository.init_roles()
 
     async def db_init(self, data: DBInitSchema) -> None:
 
         # Проверка инициализационного токена
-        if data.service_token != SERVICE_TOKEN:
-            raise BadRequestException('Некорректный токен')
+        self.check_token(data.service_token)
 
         # Проверка сложности пароля
         test_password_strength(enums.Role.CARGO_SUPER_ADMIN.name, data.superuser_password)
@@ -57,27 +86,11 @@ class DBService:
         # Очищаем таблицы БД
         await self.clear_tables()
         
-        # Создание типов карт
-        await self.repository.init_card_types()
-
-        # Создание ролей
-        await self.repository.init_roles()
-
-        # Получаем роль суперадмина
-        role = await self.repository.get_cargo_superadmin_role()
+        # Заполняем таблицы начальными данными
+        await self.init_tables()
 
         # Создание суперадмина
-        user_schema = UserCreateSchema(
-            username = BUILTIN_ADMIN_NAME,
-            password = data.superuser_password,
-            first_name = BUILTIN_ADMIN_FIRSTNAME,
-            last_name = BUILTIN_ADMIN_LASTNAME,
-            email = BUILTIN_ADMIN_EMAIL,
-            phone = '',
-            is_active = True,
-            role_id = role.id
-        )
-        await create_user(user_schema)
+        await self.create_superadmin(data.superuser_password)
 
     async def calculate_balance(self, balance: models.Balance, transactions) -> None:
         if transactions:
@@ -121,12 +134,14 @@ class DBService:
             raise BadRequestException('Некорректный токен')
 
         try:
-            await self.repository.nnk_initial_sync(data)
+            async with self.repository.session.begin():
+                await self.repository.nnk_initial_sync(data)
 
-            self.logger.info('Пересчитываю балансы')
-            await self.calculate_balances()
+                self.logger.info('Пересчитываю балансы')
+                await self.calculate_balances()
 
         except Exception:
+            self.repository.session.rollback()
             raise ApiError(trace=True, message='Ошибка выполнения процедуры первичной синхронизации')
 
     async def regular_sync(self, data: DBRegularSyncSchema) -> str:

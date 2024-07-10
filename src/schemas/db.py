@@ -20,7 +20,7 @@ class DBInitSchema(BaseModel):
     )
     superuser_password: str = Field(
         description="Пароль создаваемого суперпользователя (логин - cargo)",
-        examples=["X0%ttR52zz_82"]
+        examples=["X0ttR52zz_82"]
     )
 
 
