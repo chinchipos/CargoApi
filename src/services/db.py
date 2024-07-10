@@ -145,6 +145,7 @@ class DBService:
 
             self.logger.info('Пересчитываю балансы')
             await self.calculate_balances()
+            self.logger.info('Завершено успешно')
 
         except Exception:
             raise ApiError(trace=True, message='Ошибка выполнения процедуры первичной синхронизации')
