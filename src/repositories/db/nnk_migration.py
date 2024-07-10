@@ -211,7 +211,7 @@ class NNKMigration(BaseRepository):
                 tariff_id=self.tariff_ids[company['tariff_id']],
                 balance_id=self.balance_ids[company['id']],
                 system_id=nnk_system.id,
-                start_date=date.fromisoformat(company['date_add']),
+                start_date=datetime.fromisoformat(company['date_add']).date(),
                 end_date=None,
                 current=True,
             ) for company in companies
@@ -227,7 +227,7 @@ class NNKMigration(BaseRepository):
                         tariff_id=self.tariff_ids[company['tariff_id']],
                         balance_id=self.balance_ids[company['id']],
                         system_id=system.id,
-                        start_date=date.fromisoformat(company['date_add']),
+                        start_date=datetime.fromisoformat(company['date_add']).date(),
                         end_date=date.today(),
                         current=False,
                     ) for company in companies
