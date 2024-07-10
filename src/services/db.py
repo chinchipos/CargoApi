@@ -134,14 +134,12 @@ class DBService:
             raise BadRequestException('Некорректный токен')
 
         try:
-            async with self.repository.session.begin():
-                await self.repository.nnk_initial_sync(data)
+            await self.repository.nnk_initial_sync(data)
 
-                self.logger.info('Пересчитываю балансы')
-                await self.calculate_balances()
+            self.logger.info('Пересчитываю балансы')
+            await self.calculate_balances()
 
         except Exception:
-            await self.repository.session.rollback()
             raise ApiError(trace=True, message='Ошибка выполнения процедуры первичной синхронизации')
 
     async def regular_sync(self, data: DBRegularSyncSchema) -> str:
