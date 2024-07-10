@@ -216,7 +216,7 @@ class NNKMigration(BaseRepository):
                 current=True,
             ) for company in companies
         ]
-        await self.bulk_insert_or_update(models.CardBinding, dataset)
+        await self.bulk_insert_or_update(models.TariffHistory, dataset)
 
         # Остальные системы
         systems = await self.select_all(sa_select(models.System))
@@ -232,7 +232,7 @@ class NNKMigration(BaseRepository):
                         current=False,
                     ) for company in companies
                 ]
-                await self.bulk_insert_or_update(models.CardBinding, dataset)
+                await self.bulk_insert_or_update(models.TariffHistory, dataset)
 
     async def import_inner_goods(self, goods: list[Dict[str, Any]]) -> None:
         dataset = [{'name': good['inner_goods']} for good in goods if good['inner_goods']]
