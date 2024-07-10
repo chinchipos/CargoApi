@@ -28,10 +28,15 @@ class DBService:
         metadata = Base.metadata
         counter = 1
         success = True
+        table_names = list(metadata.tables.keys())
+        tables = dict(metadata.tables)
         while True:
             print('-----------------------')
             print('Цикл:', counter)
-            for table_name, table in metadata.tables.items():
+            i = 0
+            while i < len(table_names):
+                table_name = table_names[i]
+                table = tables[table_name]
                 try:
                     stmt = sa_delete(table)
                     await self.repository.session.execute(stmt)
@@ -41,9 +46,11 @@ class DBService:
                     print('Не удалось удалить данные из таблицы', table_name)
                     print(e)
                     success = False
+                    i += 1
                     continue
                 else:
                     print('Успешно удалены данные из таблицы', table_name)
+                    table_names.remove(table_name)
 
             counter += 1
             if success or counter == 5:
