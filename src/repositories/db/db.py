@@ -61,9 +61,8 @@ class DBRepository(BaseRepository):
 
         self.logger.info('Импортирую топливные карты')
         await nnk.import_cards(data.cards)
-
-        self.logger.info('Импортирую договоры')
-        await nnk.import_contracts(data.cards, data.companies, data.transactions)
+        await nnk.import_card_bindings(data.cards)
+        await nnk.import_tariffs_history(data.companies)
 
         self.logger.info('Импортирую товары/услуги')
         await nnk.import_inner_goods(data.goods)
