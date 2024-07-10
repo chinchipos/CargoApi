@@ -203,7 +203,7 @@ class NNKMigration(BaseRepository):
         # Для остальных систем выполняем привязку с указанием даты прекращения действия.
 
         # ННК
-        systems = await self.select_first(sa_select(models.System))
+        systems = await self.select_all(sa_select(models.System))
         for s in systems:
             print('YYYYYYYYYYYYYYYYYYYYYYYYY')
             print(s)
@@ -222,7 +222,7 @@ class NNKMigration(BaseRepository):
         await self.bulk_insert_or_update(models.CardBinding, dataset)
 
         # Остальные системы
-        systems = await self.select_first(sa_select(models.System))
+        systems = await self.select_all(sa_select(models.System))
         for system in systems:
             if system.id != nnk_system.id:
                 dataset = [
