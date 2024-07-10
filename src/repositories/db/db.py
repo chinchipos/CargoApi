@@ -89,8 +89,7 @@ class DBRepository(BaseRepository):
     async def get_balance_transactions(self, balance: models.Balance) -> List[models.Transaction]:
         stmt = (
             sa_select(models.Transaction)
-            .where(models.Contract.balance_id == balance.id)
-            .where(models.Transaction.contract_id == models.Contract.id)
+            .where(models.Balance.id == balance.id)
             .order_by(desc(models.Transaction.date_time))
         )
         dataset = await self.select_all(stmt)
