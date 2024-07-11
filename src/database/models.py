@@ -273,6 +273,7 @@ class Balance(Base):
     cards: Mapped[List["Card"]] = relationship(
         back_populates="balances",
         secondary="cargonomica.card_binding",
+        viewonly=True,
         lazy="noload",
         init=False
     )
@@ -281,6 +282,7 @@ class Balance(Base):
     systems: Mapped[List["System"]] = relationship(
         back_populates="balances",
         secondary="cargonomica.card_binding",
+        viewonly=True,
         lazy="noload",
         init=False
     )
@@ -892,6 +894,7 @@ class Card(Base):
     balances: Mapped[List["Balance"]] = relationship(
         back_populates="cards",
         secondary="cargonomica.card_binding",
+        viewonly=True,
         lazy="noload",
         init=False
     )
@@ -900,6 +903,7 @@ class Card(Base):
     systems: Mapped[List["System"]] = relationship(
         back_populates="cards",
         secondary="cargonomica.card_binding",
+        viewonly=True,
         lazy="noload",
         init=False
     )
@@ -1005,6 +1009,7 @@ class System(Base):
     balances: Mapped[List["Balance"]] = relationship(
         back_populates="systems",
         secondary="cargonomica.card_binding",
+        viewonly=True,
         lazy="noload",
         init=False
     )
@@ -1013,6 +1018,7 @@ class System(Base):
     cards: Mapped[List["Card"]] = relationship(
         back_populates="systems",
         secondary="cargonomica.card_binding",
+        viewonly=True,
         lazy="noload",
         init=False
     )
