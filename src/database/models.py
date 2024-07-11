@@ -826,7 +826,7 @@ class Card(Base):
     # Организация
     company_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.company.id"),
-        nullable=False,
+        nullable=True,
         init=True,
         comment="Организация"
     )
