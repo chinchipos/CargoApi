@@ -19,15 +19,21 @@ class TariffRepository(BaseRepository):
         return new_tariff
 
     async def get_tariffs(self) -> List[models.Tariff]:
+        """
         stmt = (
             sa_select(models.Tariff, sa_func.count(models.Company.id).label('companies_amount'))
             .select_from(models.Company)
-            .outerjoin(models.Tariff.companies)
             .group_by(models.Tariff)
             .order_by(models.Tariff.name)
         )
         dataset = await self.select_all(stmt, scalars=False)
         tariffs = list(map(lambda data: data[0].annotate({'companies_amount': data[1]}), dataset))
+        """
+        stmt = (
+            sa_select(models.Tariff)
+            .order_by(models.Tariff.name)
+        )
+        tariffs = await self.select_all(stmt)
         return tariffs
 
     async def get_companies_amount(self, tariff_id: str) -> int:

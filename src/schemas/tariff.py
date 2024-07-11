@@ -35,9 +35,4 @@ class TariffMinimumReadSchema(TariffBaseSchema):
 
 
 class TariffReadSchema(TariffMinimumReadSchema, TariffCreateSchema):
-
-    companies_amount: Annotated[
-        int, Field(
-            description="Количество организаций с этим тарифом",
-            examples=[27])
-    ]
+    ...

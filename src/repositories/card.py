@@ -2,7 +2,7 @@ import traceback
 from typing import List
 
 from sqlalchemy import select as sa_select, delete as sa_delete, func as sa_func
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from src.database import models
 from src.repositories.base import BaseRepository
@@ -40,13 +40,14 @@ class CardRepository(BaseRepository):
         stmt = (
             sa_select(models.Card)
             .options(
-                joinedload(models.Card.card_system).joinedload(models.CardSystem.system),
                 joinedload(models.Card.card_type),
                 joinedload(models.Card.company),
                 joinedload(models.Card.belongs_to_car),
-                joinedload(models.Card.belongs_to_driver)
+                joinedload(models.Card.belongs_to_driver),
+                selectinload(models.Card.systems)
             )
         )
+        print(stmt)
         if card_numbers:
             stmt = stmt.where(models.Card.card_number.in_(card_numbers))
 

@@ -53,7 +53,7 @@ class DBService:
                     table_names.remove(table_name)
 
             counter += 1
-            if success or counter == 5:
+            if success or counter > 5:
                 break
             else:
                 success = True

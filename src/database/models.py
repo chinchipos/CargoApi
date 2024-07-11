@@ -1,9 +1,9 @@
 import sqlalchemy as sa
-from sqlalchemy import MetaData, inspect
+from sqlalchemy import MetaData, inspect, UniqueConstraint
 from sqlalchemy.orm import MappedAsDataclass, DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.ext.asyncio import AsyncAttrs
 from datetime import date, datetime
-from typing import List, Dict, Any, Annotated
+from typing import List, Dict, Any, Annotated, Tuple
 
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID
 
@@ -28,11 +28,11 @@ class Base(AsyncAttrs, MappedAsDataclass, DeclarativeBase):
 
     repr_cols = tuple()
 
-    def __repr__(self):
+    def repr(self, repr_cols: Tuple) -> str:
         # self.date_time.isoformat().replace('T', ' ')
         cols = []
         for idx, col in enumerate(self.__table__.columns.keys()):
-            if col in self.repr_cols:
+            if col in repr_cols:
                 cols.append(f"{col}={getattr(self, col)}")
 
         return f"<{self.__class__.__name__} {', '.join(cols)}>"
@@ -98,7 +98,7 @@ class Tariff(Base):
     )
 
     # История применения этого тарифа к организациям
-    tariff_history: Mapped[List["TariffHistory"]] = relationship(
+    balance_system_tariff: Mapped[List["BalanceSystemTariff"]] = relationship(
         back_populates="tariff",
         cascade="all, delete-orphan",
         lazy="noload",
@@ -281,14 +281,14 @@ class Balance(Base):
     # Список поставщиков услуг, привязанных к этому балансу
     systems: Mapped[List["System"]] = relationship(
         back_populates="balances",
-        secondary="cargonomica.card_binding",
+        secondary="cargonomica.balance_system_tariff",
         viewonly=True,
         lazy="noload",
         init=False
     )
 
-    # История тарифов этого баланса
-    tariff_history: Mapped[List["TariffHistory"]] = relationship(
+    # Тарифы систем этого баланса
+    balance_system_tariff: Mapped[List["BalanceSystemTariff"]] = relationship(
         back_populates="balance",
         cascade="all, delete-orphan",
         lazy="noload",
@@ -305,26 +305,20 @@ class Balance(Base):
 
     repr_cols = ("balance", "scheme")
 
+    def __repr__(self) -> str:
+        return self.repr(self.repr_cols)
 
-class TariffHistory(Base):
-    __tablename__ = "tariff_history"
-    __table_args__ = {
-        'comment': (
-            "Сведения из таблицы позволяют указать какой тариф применялся ранее и применяется сейчас "
-            "при отражении операций с конкретным поставщиком услуг на соответствующем  балансе."
-        )
-    }
 
-    # Тариф
-    tariff_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.tariff.id"),
-        comment="Тариф"
-    )
-
-    # Тариф
-    tariff: Mapped["Tariff"] = relationship(
-        back_populates="tariff_history",
-        lazy="noload"
+class BalanceSystemTariff(Base):
+    __tablename__ = "balance_system_tariff"
+    __table_args__ = (
+        UniqueConstraint("balance_id", "system_id", "tariff_id", name="unique_balance_sys_tariff"),
+        {
+            'comment': (
+                "Сведения из таблицы позволяют указать какой тариф применялся ранее и применяется сейчас "
+                "при отражении операций с конкретным поставщиком услуг на соответствующем  балансе."
+            )
+        }
     )
 
     # Баланс
@@ -335,7 +329,7 @@ class TariffHistory(Base):
 
     # Баланс
     balance: Mapped["Balance"] = relationship(
-        back_populates="tariff_history",
+        back_populates="balance_system_tariff",
         lazy="noload"
     )
 
@@ -348,34 +342,21 @@ class TariffHistory(Base):
 
     # Поставщиик услуг
     system: Mapped["System"] = relationship(
-        back_populates="tariff_history",
+        back_populates="balance_system_tariff",
         lazy="noload"
     )
 
-    # Дата начала действия (тариф действует с 00:00:00 в указанную дату)
-    start_date: Mapped[date] = mapped_column(
-        sa.Date,
-        nullable=False,
-        comment="Дата начала действия (тариф действует с 00:00:00 в указанную дату)"
+    # Тариф
+    tariff_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.tariff.id"),
+        comment="Тариф"
     )
 
-    # Дата прекращения действия (тариф прекращает действовать с 00:00:00 в указанную дату)
-    end_date: Mapped[date] = mapped_column(
-        sa.Date,
-        nullable=True,
-        init=False,
-        comment="Дата прекращения действия (тариф прекращает действовать с 00:00:00 в указанную дату)"
+    # Тариф
+    tariff: Mapped["Tariff"] = relationship(
+        back_populates="balance_system_tariff",
+        lazy="noload"
     )
-
-    # Признак актуальности записи на текущий момент
-    current: Mapped[bool] = mapped_column(
-        sa.Boolean,
-        nullable=False,
-        server_default=sa.sql.true(),
-        comment="Признак актуальности записи на текущий момент"
-    )
-
-    repr_cols = ("start_date", "end_date")
 
 
 class Permition(Base):
@@ -1008,7 +989,7 @@ class System(Base):
     # Список балансов, связанных с этой системой
     balances: Mapped[List["Balance"]] = relationship(
         back_populates="systems",
-        secondary="cargonomica.card_binding",
+        secondary="cargonomica.balance_system_tariff",
         viewonly=True,
         lazy="noload",
         init=False
@@ -1024,7 +1005,7 @@ class System(Base):
     )
 
     # Список договоров, привязанных к этой системе
-    tariff_history: Mapped[List["TariffHistory"]] = relationship(
+    balance_system_tariff: Mapped[List["BalanceSystemTariff"]] = relationship(
         back_populates="system",
         cascade="all, delete-orphan",
         lazy="noload",
@@ -1049,15 +1030,21 @@ class System(Base):
 
     repr_cols = ("full_name",)
 
+    def __repr__(self) -> str:
+        return self.repr(self.repr_cols)
+
 
 class CardBinding(Base):
     __tablename__ = "card_binding"
-    __table_args__ = {
-        'comment': (
-            "Сведения из таблицы позволяют указать к какому поставщику услуг привязана карта и какому клиенту "
-            "она в данный момент принадлежит (привязка через баланс)."
-        )
-    }
+    __table_args__ = (
+        UniqueConstraint("card_id", "system_id", "balance_id", name="unique_card_balance_sys"),
+        {
+            'comment': (
+                "Сведения из таблицы позволяют указать к какому поставщику услуг привязана карта и какому клиенту "
+                "она в данный момент принадлежит (привязка через баланс)."
+            )
+        }
+    )
 
     # Карта
     card_id: Mapped[str] = mapped_column(

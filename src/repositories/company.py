@@ -16,13 +16,26 @@ class CompanyRepository(BaseRepository):
         stmt = (
             sa_select(models.Company)
             .options(
-                selectinload(models.Company.balances).selectinload(models.Balance.systems),
+                (
+                    selectinload(models.Company.balances)
+                    .selectinload(models.Balance.tariffs_history)
+                    .joinedload(models.TariffHistory.system, models.TariffHistory.tariff)
+                ),
                 selectinload(models.Company.users).joinedload(models.User.role)
             )
             .where(models.Company.id == company_id)
+            .join(models.TariffHistory, models.TariffHistory.balance_id == models.Balance.id)
+            .where(models.TariffHistory.is_active)
         )
         dataset = await self.session.scalars(stmt)
-        company = dataset.first()
+        company = dataset.all()
+        print(len(company))
+        for balance in company.balances:
+            for tariff_history in balance.tariffs_history:
+                print('------------------------------')
+                print(balance, tariff_history)
+                print('System:', tariff_history.system)
+                print('Tariff:', tariff_history.tariff)
 
         # Добавляем сведения о количестве карт
         # stmt = sa_select(sa_func.count(models.Card.id)).filter_by(company_id=company_id)

@@ -23,13 +23,13 @@ class TransactionRepository(BaseRepository):
                 joinedload(models.Transaction.system),
                 joinedload(models.Transaction.card).joinedload(models.Card.belongs_to_car),
                 joinedload(models.Transaction.card).joinedload(models.Card.belongs_to_driver),
-                joinedload(models.Transaction.company),
+                joinedload(models.Transaction.balance),
                 joinedload(models.Transaction.outer_goods).joinedload(models.OuterGoods.inner_goods),
                 joinedload(models.Transaction.tariff)
             )
             .where(models.Transaction.date_time >= start_date)
             .where(models.Transaction.date_time < end_date)
-            .order_by(desc(models.Transaction.date_time))
+            .order_by(models.Transaction.date_time.desc())
         )
 
         if self.user.role.name == enums.Role.CARGO_SUPER_ADMIN.name:

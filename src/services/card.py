@@ -119,9 +119,9 @@ class CardService:
         card_read_schema = CardReadSchema.model_validate(card_obj)
         return card_read_schema
 
-    async def get_cards(self) -> List[CardReadSchema]:
+    async def get_cards(self) -> List[models.Card]:
         cards = await self.repository.get_cards()
-
+        """
         def get_card_schema(card_obj: models.Card) -> CardReadSchema:
             card_data = card_obj.dumps()
             card_data['systems'] = [cs.system for cs in card_obj.card_system]
@@ -129,6 +129,7 @@ class CardService:
             return card_read_schema
 
         cards = list(map(get_card_schema, cards))
+        """
         return cards
 
     async def delete(self, card_id: str) -> None:
