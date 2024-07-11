@@ -1,11 +1,10 @@
-from datetime import datetime
 from typing import List
 
-from sqlalchemy import select as sa_select, func as sa_func
+from sqlalchemy import select as sa_select, func as sa_func, null
+from sqlalchemy.orm import aliased, selectinload
 
 from src.database import models
 from src.repositories.base import BaseRepository
-# from src.schemas.system import SystemCreateSchema
 
 
 class SystemRepository(BaseRepository):
@@ -23,24 +22,49 @@ class SystemRepository(BaseRepository):
     """
 
     async def get_systems(self) -> List[models.System]:
-        """
-        stmt = (
-            sa_select(models.System, sa_func.count(models.CardSystem.id).label('cards_amount'))
-            .select_from(models.CardSystem)
-            .outerjoin(models.System.card_system)
-            .group_by(models.System)
-            .order_by(models.System.full_name)
+        subq_cards_total = (
+            sa_select(
+                models.System.id,
+                sa_func.count(models.CardBinding.id).label('cards_amount_total'),
+            )
+            .select_from(models.CardBinding)
+            .group_by(models.System.id)
+            .subquery("helper_cards_total")
         )
-        """
-        stmt = (
-            sa_select(models.System, sa_func.count(models.CardContract.id).label('cards_amount'))
-            .select_from(models.CardContract)
-            .outerjoin(models.Contract.card_contract)
-            .outerjoin(models.Contract.system)
-            .group_by(models.System)
+
+        subq_cards_in_use = (
+            sa_select(
+                models.System.id,
+                sa_func.count(models.CardBinding.id).label('cards_amount_in_use'),
+            )
+            .select_from(models.CardBinding)
+            .where(models.CardBinding.balance_id.is_not(null()))
+            .group_by(models.System.id)
+            .subquery("helper_cards_in_use")
         )
+
+        stmt = (
+            sa_select(
+                models.System,
+                subq_cards_total.c.cards_amount_total,
+                subq_cards_in_use.c.cards_amount_in_use
+            )
+            .join(subq_cards_total, subq_cards_total.c.id == models.System.id)
+            .join(subq_cards_in_use, subq_cards_in_use.c.id == models.System.id)
+            .options(
+                selectinload(models.System.cards)
+            )
+        )
+
         dataset = await self.select_all(stmt, scalars=False)
-        systems = list(map(lambda data: data[0].annotate({'cards_amount': data[1]}), dataset))
+
+        def annotate_amounts(data):
+            data[0].annotate({'cards_amount_total': data[1]})
+            data[0].annotate({'cards_amount_in_use': data[2]})
+            data[0].annotate({'cards_amount_free': data[1] - data[2]})
+            return data[0]
+
+        systems = list(map(annotate_amounts, dataset))
         return systems
 
     async def get_cards_amount(self, system_id: str) -> int:

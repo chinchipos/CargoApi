@@ -177,6 +177,7 @@ class NNKMigration(BaseRepository):
         dataset = [
             dict(
                 card_type_id=card_numbers_related_to_card_type_ids.get(card['card_num'], plastic_card_type.id),
+                company_id=self.company_ids[card['company_id']],
                 card_number=card['card_num'],
                 belongs_to_car_id=car_ids[card['car_id']] if card['car_id'] else None,
                 is_active=card['state'],

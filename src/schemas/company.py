@@ -3,7 +3,7 @@ from typing import List, Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.schemas.balance import BalanceReadSchema
+from src.schemas.balance import BalanceReadSchema, BalanceReadMinimumSchema
 from src.schemas.base import BaseSchema
 from src.schemas.role import RoleReadSchema
 
@@ -80,14 +80,14 @@ class CompanyReadSchema(CompanyReadMinimumSchema):
     ] = None
 
     users: Annotated[
-        List[CompanyUserSchema] | None,
+        List[CompanyUserSchema],
         Field(description="Список пользователей этой организации")
-    ] = None
+    ] = []
 
     balances: Annotated[
-        List[BalanceReadSchema] | None,
+        List[BalanceReadSchema],
         Field(description="Список балансов этой организации")
-    ] = None
+    ] = []
 
 
 """

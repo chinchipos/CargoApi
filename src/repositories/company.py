@@ -16,9 +16,8 @@ class CompanyRepository(BaseRepository):
         stmt = (
             sa_select(models.Company)
             .options(
-                joinedload(models.Company.tariff),
-                selectinload(models.Company.contracts),
-                joinedload(models.Company.users).joinedload(models.User.role)
+                selectinload(models.Company.balances).selectinload(models.Balance.systems),
+                selectinload(models.Company.users).joinedload(models.User.role)
             )
             .where(models.Company.id == company_id)
         )
@@ -26,14 +25,15 @@ class CompanyRepository(BaseRepository):
         company = dataset.first()
 
         # Добавляем сведения о количестве карт
-        stmt = sa_select(sa_func.count(models.Card.id)).filter_by(company_id=company_id)
-        amount = await self.select_single_field(stmt)
-        company.annotate({'cards_amount': amount})
+        # stmt = sa_select(sa_func.count(models.Card.id)).filter_by(company_id=company_id)
+        # amount = await self.select_single_field(stmt)
+        # company.annotate({'cards_amount': amount})
 
         return company
 
     async def get_companies(self) -> List[models.Company]:
         # Получаем полные сведения об организациях
+        """
         stmt = (
             sa_select(models.Company, sa_func.count(models.Card.id).label('cards_amount'))
             .select_from(models.Card)
@@ -45,7 +45,14 @@ class CompanyRepository(BaseRepository):
                 selectinload(models.Company.users).joinedload(models.User.role)
             )
         )
-
+        """
+        stmt = (
+            sa_select(models.Company)
+            .options(
+                selectinload(models.Company.balances).selectinload(models.Balance.systems),
+                selectinload(models.Company.users).joinedload(models.User.role)
+            )
+        )
         company_roles = [enums.Role.COMPANY_ADMIN.name, enums.Role.COMPANY_LOGIST.name, enums.Role.COMPANY_DRIVER]
         if self.user.role.name == enums.Role.CARGO_MANAGER.name:
             stmt = stmt.where(models.Company.id.in_(self.user.company_ids_subquery()))
@@ -53,8 +60,9 @@ class CompanyRepository(BaseRepository):
         elif self.user.role.name in company_roles:
             stmt = stmt.where(models.Company.id == self.user.company_id)
 
-        dataset = await self.select_all(stmt, scalars=False)
-        companies = list(map(lambda data: data[0].annotate({'cards_amount': data[1]}), dataset))
+        companies = await self.select_all(stmt, scalars=True)
+        #companies = list(map(lambda data: data[0].annotate({'cards_amount': data[1]}), dataset))
+        # companies = list(map(lambda data: data[0].annotate({'cards_amount': 0}), dataset))
 
         return companies
 

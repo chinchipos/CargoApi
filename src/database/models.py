@@ -3,17 +3,39 @@ from sqlalchemy import MetaData, inspect
 from sqlalchemy.orm import MappedAsDataclass, DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.ext.asyncio import AsyncAttrs
 from datetime import date, datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Annotated
 
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID
 
 from src.config import SCHEMA
 from src.utils import enums
 
+pk = Annotated[
+    str,
+    mapped_column(
+        sa.Uuid(as_uuid=False),
+        primary_key=True,
+        server_default=sa.text("uuid_generate_v4()"),
+        init=False
+    )
+]
+
 
 class Base(AsyncAttrs, MappedAsDataclass, DeclarativeBase):
-
     metadata = MetaData(schema=SCHEMA)
+
+    id: Mapped[pk]
+
+    repr_cols = tuple()
+
+    def __repr__(self):
+        # self.date_time.isoformat().replace('T', ' ')
+        cols = []
+        for idx, col in enumerate(self.__table__.columns.keys()):
+            if col in self.repr_cols:
+                cols.append(f"{col}={getattr(self, col)}")
+
+        return f"<{self.__class__.__name__} {', '.join(cols)}>"
 
     def update_without_saving(self, data: Dict[str, Any]) -> None:
         for field, value in data.items():
@@ -45,13 +67,6 @@ class Tariff(Base):
     __table_args__ = {
         'comment': 'Тарифы'
     }
-
-    id: Mapped[str] = mapped_column(
-        sa.Uuid(as_uuid=False),
-        primary_key=True,
-        server_default=sa.text("uuid_generate_v4()"),
-        init=False
-    )
 
     master_db_id: Mapped[int] = mapped_column(
         sa.Integer(),
@@ -90,8 +105,7 @@ class Tariff(Base):
         init=False
     )
 
-    def __repr__(self) -> str:
-        return f"Tariff({self.name})"
+    repr_cols = ("name",)
 
 
 class Company(Base):
@@ -99,13 +113,6 @@ class Company(Base):
     __table_args__ = {
         'comment': 'Организации'
     }
-
-    id: Mapped[str] = mapped_column(
-        sa.Uuid(as_uuid=False),
-        primary_key=True,
-        server_default=sa.text("uuid_generate_v4()"),
-        init=False
-    )
 
     master_db_id: Mapped[int] = mapped_column(
         sa.Integer(),
@@ -173,6 +180,14 @@ class Company(Base):
         init=False
     )
 
+    # Список карт этой организации
+    cards: Mapped[List["Card"]] = relationship(
+        back_populates="company",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
     # Список балансов этой организации
     balances: Mapped[List["Balance"]] = relationship(
         back_populates="company",
@@ -181,8 +196,7 @@ class Company(Base):
         init=False
     )
 
-    def __repr__(self) -> str:
-        return f"Company(Наименование: {self.name}, ИНН: {self.inn})"
+    repr_cols = ("name", "inn")
 
 
 class Balance(Base):
@@ -195,13 +209,7 @@ class Balance(Base):
         )
     }
 
-    id: Mapped[str] = mapped_column(
-        sa.Uuid(as_uuid=False),
-        primary_key=True,
-        server_default=sa.text("uuid_generate_v4()"),
-        init=False
-    )
-
+    # Организация
     company_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.company.id"),
         nullable=False,
@@ -251,10 +259,28 @@ class Balance(Base):
         comment="Дата прекращения действия временного овердрафта"
     )
 
+    """
     # Список договоров, привязанных к этому балансу
     card_bindings: Mapped[List["CardBinding"]] = relationship(
         back_populates="balance",
         cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+    """
+
+    # Список карт, привязанных к этому балансу
+    cards: Mapped[List["Card"]] = relationship(
+        back_populates="balances",
+        secondary="cargonomica.card_binding",
+        lazy="noload",
+        init=False
+    )
+
+    # Список поставщиков услуг, привязанных к этому балансу
+    systems: Mapped[List["System"]] = relationship(
+        back_populates="balances",
+        secondary="cargonomica.card_binding",
         lazy="noload",
         init=False
     )
@@ -275,8 +301,7 @@ class Balance(Base):
         init=False
     )
 
-    def __repr__(self) -> str:
-        return f"Баланс({self.balance}, Схема: {self.scheme})"
+    repr_cols = ("balance", "scheme")
 
 
 class TariffHistory(Base):
@@ -287,13 +312,6 @@ class TariffHistory(Base):
             "при отражении операций с конкретным поставщиком услуг на соответствующем  балансе."
         )
     }
-
-    id: Mapped[str] = mapped_column(
-        sa.Uuid(as_uuid=False),
-        primary_key=True,
-        server_default=sa.text("uuid_generate_v4()"),
-        init=False
-    )
 
     # Тариф
     tariff_id: Mapped[str] = mapped_column(
@@ -355,11 +373,7 @@ class TariffHistory(Base):
         comment="Признак актуальности записи на текущий момент"
     )
 
-    def __repr__(self) -> str:
-        return "TariffHistory(с {} по {})".format(
-            self.start_date.isoformat(),
-            self.end_date.isoformat() if self.end_date else 'настоящее время'
-        )
+    repr_cols = ("start_date", "end_date")
 
 
 class Permition(Base):
@@ -367,13 +381,6 @@ class Permition(Base):
     __table_args__ = {
         'comment': 'Права доступа'
     }
-
-    id: Mapped[str] = mapped_column(
-        sa.Uuid(as_uuid=False),
-        primary_key=True,
-        server_default=sa.text("uuid_generate_v4()"),
-        init=False
-    )
 
     name: Mapped[str] = mapped_column(
         sa.String(50),
@@ -396,8 +403,7 @@ class Permition(Base):
         init=False
     )
 
-    def __repr__(self) -> str:
-        return f"Permition({self.name})"
+    repr_cols = ("name",)
 
 
 class Role(Base):
@@ -405,13 +411,6 @@ class Role(Base):
     __table_args__ = {
         'comment': 'Роли'
     }
-
-    id: Mapped[str] = mapped_column(
-        sa.Uuid(as_uuid=False),
-        primary_key=True,
-        server_default=sa.text("uuid_generate_v4()"),
-        init=False
-    )
 
     name: Mapped[str] = mapped_column(
         sa.String(50),
@@ -449,8 +448,7 @@ class Role(Base):
         init=False
     )
 
-    def __repr__(self) -> str:
-        return f"Role({self.title})"
+    repr_cols = ("title",)
 
     def has_permition(self, permition: enums.Permition) -> bool:
         if not self.role_permition:
@@ -467,13 +465,6 @@ class RolePermition(Base):
     __table_args__ = (
         sa.UniqueConstraint("role_id", "permition_id"),
         {'comment': 'Привязка роей к правам доступа'}
-    )
-
-    id: Mapped[str] = mapped_column(
-        sa.Uuid(as_uuid=False),
-        primary_key=True,
-        server_default=sa.text("uuid_generate_v4()"),
-        init=False
     )
 
     role_id: Mapped[str] = mapped_column(
@@ -502,8 +493,7 @@ class RolePermition(Base):
         init=False
     )
 
-    def __repr__(self) -> str:
-        return f"RolePermition(role_id: {self.role_id}, permition_id: {self.permition_id})"
+    repr_cols = ("role_id", "permition_id")
 
 
 class User(SQLAlchemyBaseUserTableUUID, Base):
@@ -632,8 +622,7 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
         init=False
     )
 
-    def __repr__(self) -> str:
-        return f"User({self.username})"
+    repr_cols = ("username",)
 
     def is_admin_for_company(self, company_id: str) -> bool:
         return bool(list(filter(lambda ac: ac.company_id == company_id, self.admin_company)))
@@ -656,13 +645,6 @@ class AdminCompany(Base):
     __table_args__ = {
         'comment': 'Привязка пользователей с ролью <Менеджер ПроАВТО> к администрируемым организациям'
     }
-
-    id: Mapped[str] = mapped_column(
-        sa.Uuid(as_uuid=False),
-        primary_key=True,
-        server_default=sa.text("uuid_generate_v4()"),
-        init=False
-    )
 
     user_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.user.id"),
@@ -692,8 +674,7 @@ class AdminCompany(Base):
         init = False
     )
 
-    def __repr__(self) -> str:
-        return f"AdminCompany(Admin: {self.user_id}, Company: {self.company_id})"
+    repr_cols = ("user_id", "company_id")
 
 
 class CardType(Base):
@@ -701,13 +682,6 @@ class CardType(Base):
     __table_args__ = {
         'comment': 'Типы карт'
     }
-
-    id: Mapped[str] = mapped_column(
-        sa.Uuid(as_uuid=False),
-        primary_key=True,
-        server_default=sa.text("uuid_generate_v4()"),
-        init=False
-    )
 
     name: Mapped[str] = mapped_column(
         sa.String(50),
@@ -724,8 +698,7 @@ class CardType(Base):
         init=False
     )
 
-    def __repr__(self) -> str:
-        return f"CardType({self.name})"
+    repr_cols = ("name",)
 
 
 class Car(Base):
@@ -733,13 +706,6 @@ class Car(Base):
     __table_args__ = {
         'comment': 'Автомобили'
     }
-
-    id: Mapped[str] = mapped_column(
-        sa.Uuid(as_uuid=False),
-        primary_key=True,
-        server_default=sa.text("uuid_generate_v4()"),
-        init=False
-    )
 
     master_db_id: Mapped[int] = mapped_column(
         sa.Integer(),
@@ -789,8 +755,7 @@ class Car(Base):
         init=False
     )
 
-    def __repr__(self) -> str:
-        return f"Car({self.model} {self.reg_number})"
+    repr_cols = ("model", "reg_number")
 
 
 class CarDriver(Base):
@@ -798,13 +763,6 @@ class CarDriver(Base):
     __table_args__ = {
         'comment': 'Водители'
     }
-
-    id: Mapped[str] = mapped_column(
-        sa.Uuid(as_uuid=False),
-        primary_key=True,
-        server_default=sa.text("uuid_generate_v4()"),
-        init=False
-    )
 
     car_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.car.id"),
@@ -830,8 +788,7 @@ class CarDriver(Base):
         lazy="noload"
     )
 
-    def __repr__(self) -> str:
-        return f"CarDriver(Карта: {self.car_id}, Система: {self.driver_id})"
+    repr_cols = ("car_id", "driver_id")
 
 
 class Card(Base):
@@ -839,13 +796,6 @@ class Card(Base):
     __table_args__ = {
         'comment': 'Карты'
     }
-
-    id: Mapped[str] = mapped_column(
-        sa.Uuid(as_uuid=False),
-        primary_key=True,
-        server_default=sa.text("uuid_generate_v4()"),
-        init=False
-    )
 
     card_number: Mapped[str] = mapped_column(
         sa.String(20),
@@ -871,6 +821,21 @@ class Card(Base):
         nullable=False,
         server_default=sa.sql.false(),
         comment="Карта активна"
+    )
+
+    # Организация
+    company_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.company.id"),
+        nullable=False,
+        init=True,
+        comment="Организация"
+    )
+
+    # Организация
+    company: Mapped["Company"] = relationship(
+        back_populates="cards",
+        lazy="noload",
+        init=False
     )
 
     belongs_to_car_id: Mapped[str] = mapped_column(
@@ -914,10 +879,27 @@ class Card(Base):
         comment="Признак ручной блокировки"
     )
 
+    """
     # Список связей этой карты
     card_bindings: Mapped[List["CardBinding"]] = relationship(
         back_populates="card",
         cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+    """
+    # Список балансов, связанных с этой картой
+    balances: Mapped[List["Balance"]] = relationship(
+        back_populates="cards",
+        secondary="cargonomica.card_binding",
+        lazy="noload",
+        init=False
+    )
+
+    # Список систем, связанных с этой картой
+    systems: Mapped[List["System"]] = relationship(
+        back_populates="cards",
+        secondary="cargonomica.card_binding",
         lazy="noload",
         init=False
     )
@@ -930,8 +912,7 @@ class Card(Base):
         init=False
     )
 
-    def __repr__(self) -> str:
-        return f"Card(Номер: {self.card_number})"
+    repr_cols = ("card_number",)
 
 
 class System(Base):
@@ -939,13 +920,6 @@ class System(Base):
     __table_args__ = {
         'comment': 'Поставщики услуг'
     }
-
-    id: Mapped[str] = mapped_column(
-        sa.Uuid(as_uuid=False),
-        primary_key=True,
-        server_default=sa.text("uuid_generate_v4()"),
-        init=False
-    )
 
     master_db_id: Mapped[int] = mapped_column(
         sa.Integer(),
@@ -1018,10 +992,27 @@ class System(Base):
         comment="Дата последней успешной синхронизации баланса"
     )
 
+    """
     # Список договоров, привязанных к этой системе
     card_bindings: Mapped[List["CardBinding"]] = relationship(
         back_populates="system",
         cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+    """
+    # Список балансов, связанных с этой системой
+    balances: Mapped[List["Balance"]] = relationship(
+        back_populates="systems",
+        secondary="cargonomica.card_binding",
+        lazy="noload",
+        init=False
+    )
+
+    # Список карт, связанных с этой системой
+    cards: Mapped[List["Card"]] = relationship(
+        back_populates="systems",
+        secondary="cargonomica.card_binding",
         lazy="noload",
         init=False
     )
@@ -1050,8 +1041,7 @@ class System(Base):
         init=False
     )
 
-    def __repr__(self) -> str:
-        return f"System({self.full_name})"
+    repr_cols = ("full_name",)
 
 
 class CardBinding(Base):
@@ -1063,13 +1053,6 @@ class CardBinding(Base):
         )
     }
 
-    id: Mapped[str] = mapped_column(
-        sa.Uuid(as_uuid=False),
-        primary_key=True,
-        server_default=sa.text("uuid_generate_v4()"),
-        init=False
-    )
-
     # Карта
     card_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.card.id"),
@@ -1077,11 +1060,13 @@ class CardBinding(Base):
         comment="Карта"
     )
 
+    """
     # Карта
     card: Mapped["Card"] = relationship(
         back_populates="card_bindings",
         lazy="noload"
     )
+    """
 
     # Поставщиик услуг
     system_id: Mapped[str] = mapped_column(
@@ -1090,11 +1075,13 @@ class CardBinding(Base):
         comment="Поставщиик услуг"
     )
 
+    """
     # Поставщиик услуг
     system: Mapped["System"] = relationship(
         back_populates="card_bindings",
         lazy="noload"
     )
+    """
 
     # Баланс
     balance_id: Mapped[str] = mapped_column(
@@ -1104,15 +1091,16 @@ class CardBinding(Base):
         comment="Баланс"
     )
 
+    """
     # Баланс
     balance: Mapped["Balance"] = relationship(
         back_populates="card_bindings",
         lazy="noload",
         init=False
     )
+    """
 
-    def __repr__(self) -> str:
-        return f"CardSystem(Карта: {self.card.card_number if self.card else self.card_id})"
+    repr_cols = ("card_id",)
 
 
 class InnerGoods(Base):
@@ -1120,13 +1108,6 @@ class InnerGoods(Base):
     __table_args__ = {
         'comment': 'Товары/услуги в нашей системе'
     }
-
-    id: Mapped[str] = mapped_column(
-        sa.Uuid(as_uuid=False),
-        primary_key=True,
-        server_default=sa.text("uuid_generate_v4()"),
-        init=False
-    )
 
     name: Mapped[str] = mapped_column(
         sa.String(50),
@@ -1143,8 +1124,7 @@ class InnerGoods(Base):
         init=False
     )
 
-    def __repr__(self) -> str:
-        return f"InnerGoods({self.name})"
+    repr_cols = ("name",)
 
 
 class OuterGoods(Base):
@@ -1152,13 +1132,6 @@ class OuterGoods(Base):
     __table_args__ = (
         sa.UniqueConstraint("name", "system_id"),
         {'comment': 'Товары/услуги в системе поставщика услуг'}
-    )
-
-    id: Mapped[str] = mapped_column(
-        sa.Uuid(as_uuid=False),
-        primary_key=True,
-        server_default=sa.text("uuid_generate_v4()"),
-        init=False
     )
 
     name: Mapped[str] = mapped_column(
@@ -1202,8 +1175,7 @@ class OuterGoods(Base):
         init=False
     )
 
-    def __repr__(self) -> str:
-        return f"OuterGoods({self.name})"
+    repr_cols = ("name",)
 
 
 class Transaction(Base):
@@ -1211,13 +1183,6 @@ class Transaction(Base):
     __table_args__ = {
         'comment': 'Транзакции'
     }
-
-    id: Mapped[str] = mapped_column(
-        sa.Uuid(as_uuid=False),
-        primary_key=True,
-        server_default=sa.text("uuid_generate_v4()"),
-        init=False
-    )
 
     master_db_id: Mapped[str] = mapped_column(
         sa.String(255),
@@ -1414,12 +1379,7 @@ class Transaction(Base):
         comment="Комментарии"
     )
 
-    def __repr__(self) -> str:
-        return "Transaction(ID: {}, Сумма: {} руб, Время: {})".format(
-            self.id,
-            self.transaction_sum,
-            self.date_time.isoformat().replace('T', ' ')
-        )
+    repr_cols = ("id", "transaction_sum", "date_time")
 
 
 class LogType(Base):
@@ -1427,13 +1387,6 @@ class LogType(Base):
     __table_args__ = {
         'comment': 'Типы логов'
     }
-
-    id: Mapped[str] = mapped_column(
-        sa.Uuid(as_uuid=False),
-        primary_key=True,
-        server_default=sa.text("uuid_generate_v4()"),
-        init=False
-    )
 
     name: Mapped[str] = mapped_column(
         sa.String(50),
@@ -1450,8 +1403,7 @@ class LogType(Base):
         init=False
     )
 
-    def __repr__(self) -> str:
-        return f"LogType({self.name})"
+    repr_cols = ("name",)
 
 
 class Log(Base):
@@ -1459,13 +1411,6 @@ class Log(Base):
     __table_args__ = {
         'comment': 'Логирование'
     }
-
-    id: Mapped[str] = mapped_column(
-        sa.Uuid(as_uuid=False),
-        primary_key=True,
-        server_default=sa.text("uuid_generate_v4()"),
-        init=False
-    )
 
     date_time: Mapped[datetime] = mapped_column(
         sa.DateTime,
@@ -1526,5 +1471,4 @@ class Log(Base):
         comment="Новое состояние"
     )
 
-    def __repr__(self) -> str:
-        return f"Log({self.message})"
+    repr_cols = ("message",)

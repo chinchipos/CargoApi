@@ -23,7 +23,7 @@ class SystemEditSchema(SystemBaseSchema):
         Field(
             description="Синхронизировать транзакции за период, дни (0 < x <= 50)",
             examples=[30],
-            gt=0, le=50)
+            ge=0, le=50)
     ] = None
 
 
@@ -67,11 +67,25 @@ class SystemReadSchema(SystemReadMinimumSchema, SystemEditSchema):
             examples=["2024-06-22 13:30:45"])
     ] = None
 
-    cards_amount: Annotated[
+    cards_amount_total: Annotated[
         int,
         Field(
-            description="Кол-во карт этого поставщика услуг",
+            description="Общее кол-во карт этого поставщика услуг",
             examples=[750])
+    ]
+
+    cards_amount_in_use: Annotated[
+        int,
+        Field(
+            description="Кол-во используемых карт этого поставщика услуг",
+            examples=[630])
+    ]
+
+    cards_amount_free: Annotated[
+        int,
+        Field(
+            description="Кол-во неиспользуемых карт этого поставщика услуг",
+            examples=[120])
     ]
 
 

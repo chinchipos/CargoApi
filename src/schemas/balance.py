@@ -4,6 +4,7 @@ from pydantic import Field
 
 from src.schemas.base import BaseSchema
 from src.schemas.contract import ContractReadSchema
+from src.schemas.system import SystemReadMinimumSchema
 from src.utils import enums
 
 from typing import Annotated, List
@@ -53,18 +54,16 @@ class BalanceReadMinimumSchema(BalanceEditSchema):
     ]
 
     balance: Annotated[
-        str | None,
+        float | None,
         Field(
             description="Номер договора (не более 20 символов)",
-            examples=["2024/А179"],
-            min_length=1,
-            max_length=20)
+            examples=["2024/А179"])
     ] = None
 
 
 class BalanceReadSchema(BalanceReadMinimumSchema, BalanceCreateSchema):
 
-    contracts: Annotated[
-        List[ContractReadSchema] | None,
-        Field(description="Список договоров")
-    ] = None
+    systems: Annotated[
+        List[SystemReadMinimumSchema] | None,
+        Field(description="Поставщики услуг")
+    ] = []
