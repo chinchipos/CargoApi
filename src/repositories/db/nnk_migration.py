@@ -102,7 +102,7 @@ class NNKMigration(BaseRepository):
         await self._set_company_ids()
 
     async def import_balances(self, companies: list[Dict[str, Any]]) -> None:
-        # Создаем записи в таблице balance
+        # Для каждой организации создаем единственный баланс (для перекупной схемы)
         dataset = [
             dict(
                 company_id=self.company_ids[company['id']],
@@ -188,7 +188,7 @@ class NNKMigration(BaseRepository):
         await self._set_card_ids()
 
     async def import_card_bindings(self, cards: list[Dict[str, Any]]) -> None:
-        # Создаем записи в таблице card_binding
+        # Создаем записи в таблице card_binding - связываем карты с соответствующими системой и балансом
         dataset = [
             dict(
                 card_id=self.card_ids[str(card['card_num'])],
@@ -199,9 +199,11 @@ class NNKMigration(BaseRepository):
         await self.bulk_insert_or_update(models.CardBinding, dataset)
 
     async def import_tariffs_history(self, companies: list[Dict[str, Any]]) -> None:
-        # Создаем записи в таблице tariff_history
-        # Для всех организаций привязываем текущий тариф к балансу ННК с открытой датой.
-        # Для остальных систем выполняем привязку с указанием даты прекращения действия.
+        # Создаем записи в таблице balance_system_tariff
+        # Для всех организаций делаем связку: системы, в которых работает организация,
+        # привязываем к соответствующему балансу (сейчас он один у каждой организации),
+        # указываем какой тариф при этом следует использовать.
+        # Привязку выполняем только для ННК, так как на данный момент работа ведется только в этой системе.
 
         # ННК
         nnk_system = await self.select_first(sa_select(models.System).where(
@@ -209,17 +211,15 @@ class NNKMigration(BaseRepository):
         )
         dataset = [
             dict(
-                tariff_id=self.tariff_ids[company['tariff_id']],
                 balance_id=self.balance_ids[company['id']],
                 system_id=nnk_system.id,
-                start_date=datetime.fromisoformat(company['date_add']).date(),
-                end_date=None,
-                current=True,
+                tariff_id=self.tariff_ids[company['tariff_id']],
             ) for company in companies
         ]
-        await self.bulk_insert_or_update(models.TariffHistory, dataset)
+        await self.bulk_insert_or_update(models.BalanceSystemTariff, dataset)
 
-        # Остальные системы
+        """
+        # Остальные системы (Роснефть)
         systems = await self.select_all(sa_select(models.System))
         for system in systems:
             if system.id != nnk_system.id:
@@ -234,6 +234,7 @@ class NNKMigration(BaseRepository):
                     ) for company in companies
                 ]
                 await self.bulk_insert_or_update(models.TariffHistory, dataset)
+        """
 
     async def import_inner_goods(self, goods: list[Dict[str, Any]]) -> None:
         dataset = [{'name': good['inner_goods']} for good in goods if good['inner_goods']]
