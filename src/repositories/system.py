@@ -27,7 +27,7 @@ class SystemRepository(BaseRepository):
                 models.System.id,
                 sa_func.count(models.CardBinding.id).label('cards_amount_total'),
             )
-            .select_from(models.CardBinding)
+            .where(models.CardBinding.system_id == models.System.id)
             .group_by(models.System.id)
             .subquery("helper_cards_total")
         )
@@ -37,7 +37,7 @@ class SystemRepository(BaseRepository):
                 models.System.id,
                 sa_func.count(models.CardBinding.id).label('cards_amount_in_use'),
             )
-            .select_from(models.CardBinding)
+            .where(models.CardBinding.system_id == models.System.id)
             .where(models.CardBinding.balance_id.is_not(null()))
             .group_by(models.System.id)
             .subquery("helper_cards_in_use")
@@ -51,9 +51,6 @@ class SystemRepository(BaseRepository):
             )
             .join(subq_cards_total, subq_cards_total.c.id == models.System.id)
             .join(subq_cards_in_use, subq_cards_in_use.c.id == models.System.id)
-            .options(
-                selectinload(models.System.cards)
-            )
         )
 
         dataset = await self.select_all(stmt, scalars=False)

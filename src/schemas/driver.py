@@ -2,21 +2,26 @@ from typing import Optional, Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.schemas.base import BaseSchema
 from src.schemas.company import CompanyReadMinimumSchema
 
+id_ = Annotated[str, Field(description="UUID водителя", examples=["c39e5c5c-b980-45eb-a192-585e6823faa7"])]
 
-class DriverReadSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+first_name_ = Annotated[str, Field(description="Имя", examples=["Алексей"])]
 
-    id: Annotated[str, Field(description="UUID водителя", examples=["c39e5c5c-b980-45eb-a192-585e6823faa7"])]
-    first_name: Annotated[str, Field(description="Имя", examples=["Алексей"])]
-    last_name: Annotated[str, Field(description="Фамилия", examples=["Гагарин"])]
-    company: Annotated[Optional[CompanyReadMinimumSchema], Field(description="Организация")] = None
+last_name_ = Annotated[str, Field(description="Фамилия", examples=["Гагарин"])]
+
+company_ = Annotated[Optional[CompanyReadMinimumSchema], Field(description="Организация")]
 
 
-class DriverReadMinimumSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class DriverReadSchema(BaseSchema):
+    id: id_
+    first_name: first_name_
+    last_name: last_name_
+    company: company_ = None
 
-    id: Annotated[str, Field(description="UUID водителя", examples=["c39e5c5c-b980-45eb-a192-585e6823faa7"])]
-    first_name: Annotated[str, Field(description="Имя", examples=["Алексей"])]
-    last_name: Annotated[str, Field(description="Фамилия", examples=["Гагарин"])]
+
+class DriverReadMinimumSchema(BaseSchema):
+    id: id_
+    first_name: first_name_
+    last_name: last_name_

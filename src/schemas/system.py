@@ -5,88 +5,66 @@ from pydantic import Field
 from src.schemas.base import BaseSchema
 from src.schemas.validators import DateTimeNormalized
 
+id_ = Annotated[str, Field(description="UUID поставщика услуг", examples=["68425199-ac93-4733-becb-de2e89e85303"])]
 
-class SystemBaseSchema(BaseSchema):
+full_name_ = Annotated[str | None, Field(description="Полное наименование", examples=["Роснефть"])]
 
-    full_name: Annotated[
-        str | None,
-        Field(
-            description="Полное наименование",
-            examples=["Роснефть"])
-    ] = None
+balance_ = Annotated[float, Field(description="Баланс, руб", examples=[59327.98])]
+
+transactions_sync_dt_ = Annotated[
+    DateTimeNormalized | None,
+    Field(description="Время последней успешной синхронизации транзакции", examples=["2024-06-22 13:30:45"])
+]
+
+cards_sync_dt_ = Annotated[
+    DateTimeNormalized | None,
+    Field(description="Время последней успешной синхронизации карт", examples=["2024-06-22 13:30:45"])
+]
+
+balance_sync_dt_ = Annotated[
+    DateTimeNormalized | None,
+    Field(description="Время последней успешной синхронизации баланса", examples=["2024-06-22 13:30:45"])
+]
+
+cards_amount_total_ = Annotated[int, Field(description="Общее кол-во карт этого поставщика услуг", examples=[750])]
+
+cards_amount_in_use_ = Annotated[
+    int,
+    Field(description="Кол-во используемых карт этого поставщика услуг", examples=[630])
+]
+
+cards_amount_free_ = Annotated[
+    int,
+    Field(description="Кол-во неиспользуемых карт этого поставщика услуг", examples=[120])
+]
+
+transaction_days_ = Annotated[
+    int | None,
+    Field(description="Синхронизировать транзакции за период, дни (0 < x <= 50)", examples=[30], ge=0, le=50)
+]
 
 
-class SystemEditSchema(SystemBaseSchema):
-
-    transaction_days: Annotated[
-        int | None,
-        Field(
-            description="Синхронизировать транзакции за период, дни (0 < x <= 50)",
-            examples=[30],
-            ge=0, le=50)
-    ] = None
+class SystemEditSchema(BaseSchema):
+    full_name: full_name_ = None
+    transaction_days: transaction_days_ = None
 
 
-class SystemReadMinimumSchema(SystemBaseSchema):
-
-    id: Annotated[
-        str,
-        Field(
-            description="UUID поставщика услуг",
-            examples=["68425199-ac93-4733-becb-de2e89e85303"])
-    ]
+class SystemReadMinimumSchema(BaseSchema):
+    id: id_
+    full_name: full_name_
 
 
-class SystemReadSchema(SystemReadMinimumSchema, SystemEditSchema):
-
-    balance: Annotated[
-        float,
-        Field(
-            description="Баланс, руб",
-            examples=[59327.98])
-    ]
-
-    transactions_sync_dt: Annotated[
-        DateTimeNormalized | None,
-        Field(
-            description="Время последней успешной синхронизации транзакции",
-            examples=["2024-06-22 13:30:45"])
-    ] = None
-
-    cards_sync_dt: Annotated[
-        DateTimeNormalized | None,
-        Field(
-            description="Время последней успешной синхронизации карт",
-            examples=["2024-06-22 13:30:45"])
-    ] = None
-
-    balance_sync_dt: Annotated[
-        DateTimeNormalized | None,
-        Field(
-            description="Время последней успешной синхронизации баланса",
-            examples=["2024-06-22 13:30:45"])
-    ] = None
-
-    cards_amount_total: Annotated[
-        int,
-        Field(
-            description="Общее кол-во карт этого поставщика услуг",
-            examples=[750])
-    ]
-
-    cards_amount_in_use: Annotated[
-        int,
-        Field(
-            description="Кол-во используемых карт этого поставщика услуг",
-            examples=[630])
-    ]
-
-    cards_amount_free: Annotated[
-        int,
-        Field(
-            description="Кол-во неиспользуемых карт этого поставщика услуг",
-            examples=[120])
-    ]
+class SystemReadSchema(SystemEditSchema):
+    id: id_
+    full_name: full_name_
+    balance: balance_
+    transaction_days: transaction_days_
+    transactions_sync_dt: transactions_sync_dt_ = None
+    cards_sync_dt: cards_sync_dt_ = None
+    balance_sync_dt: balance_sync_dt_ = None
+    cards_amount_total: cards_amount_total_
+    cards_amount_in_use: cards_amount_in_use_
+    cards_amount_free: cards_amount_free_
 
 
 """
@@ -100,4 +78,3 @@ class SystemCreateSchema(BaseModel):
         examples=[30])
     ] = 50
 """
-

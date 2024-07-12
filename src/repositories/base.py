@@ -2,6 +2,7 @@ from typing import Dict, Any
 
 import sqlalchemy as sa
 import sqlalchemy.exc
+import sqlparse
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 
@@ -19,6 +20,10 @@ class BaseRepository:
         self.session = session
         self.user = user
         self.logger = api_logger
+
+    @staticmethod
+    def statement(stmt) -> None:
+        print(sqlparse.format(str(stmt.compile()), reindent=True))
 
     async def select_helper(self, stmt, scalars=True) -> Any:
         try:

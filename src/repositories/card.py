@@ -2,7 +2,7 @@ import traceback
 from typing import List
 
 from sqlalchemy import select as sa_select, delete as sa_delete, func as sa_func
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm import joinedload, selectinload, load_only, aliased
 
 from src.database import models
 from src.repositories.base import BaseRepository
@@ -37,31 +37,54 @@ class CardRepository(BaseRepository):
         return card
 
     async def get_cards(self, card_numbers: List[str] = None) -> List[models.Card]:
+        card = aliased(models.Card, name = "card")
         stmt = (
-            sa_select(models.Card)
+            sa_select(card)
             .options(
-                joinedload(models.Card.card_type),
-                joinedload(models.Card.company),
-                joinedload(models.Card.belongs_to_car),
-                joinedload(models.Card.belongs_to_driver),
-                selectinload(models.Card.systems)
+                load_only(
+                    card.id,
+                    card.card_number,
+                    card.is_active,
+                    card.date_last_use,
+                    card.manual_lock
+                )
+            )
+            .options(
+                joinedload(card.card_type)
+                .load_only(models.CardType.id, models.CardType.name)
+            )
+            .options(
+                joinedload(card.company)
+                .load_only(models.Company.id, models.Company.name, models.Company.inn)
+            )
+            .options(
+                joinedload(card.belongs_to_car)
+                .load_only(models.Car.id, models.Car.model, models.Car.reg_number)
+            )
+            .options(
+                joinedload(card.belongs_to_driver)
+                .load_only(models.User.id, models.User.first_name, models.User.last_name)
+            )
+            .options(
+                selectinload(card.systems)
+                .load_only(models.System.id, models.System.full_name)
             )
         )
-        print(stmt)
+
         if card_numbers:
-            stmt = stmt.where(models.Card.card_number.in_(card_numbers))
+            stmt = stmt.where(card.card_number.in_(card_numbers))
 
         if self.user.role.name == enums.Role.CARGO_MANAGER.name:
-            stmt = stmt.where(models.Card.company_id.in_(self.user.company_ids_subquery()))
+            stmt = stmt.where(card.company_id.in_(self.user.company_ids_subquery()))
 
         elif self.user.role.name in [enums.Role.COMPANY_ADMIN.name, enums.Role.COMPANY_LOGIST.name]:
-            stmt = stmt.where(models.Card.company_id == self.user.company_id)
+            stmt = stmt.where(card.company_id == self.user.company_id)
 
         elif self.user.role.name == enums.Role.COMPANY_DRIVER.name:
             stmt = (
                 stmt
-                .where(models.Card.company_id == self.user.company_id)
-                .where(models.Card.belongs_to_driver_id == self.user.id)
+                .where(card.company_id == self.user.company_id)
+                .where(card.belongs_to_driver_id == self.user.id)
             )
 
         cards = await self.select_all(stmt)

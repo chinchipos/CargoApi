@@ -1240,6 +1240,12 @@ class Transaction(Base):
         lazy="noload"
     )
 
+    # Организация
+    company: Mapped[List["Balance"]] = relationship(
+        viewonly=True,
+        lazy="noload"
+    )
+
     # Поставщик услуг
     system_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.system.id"),

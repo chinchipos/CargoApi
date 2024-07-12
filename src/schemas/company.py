@@ -8,43 +8,6 @@ from src.schemas.base import BaseSchema
 from src.schemas.role import RoleReadSchema
 
 
-class CompanyBaseSchema(BaseSchema):
-
-    name: Annotated[
-        str | None,
-        Field(
-            description="Наименование",
-            examples=['ООО "Современные технологии"'])
-    ] = None
-
-    inn: Annotated[
-        str | None,
-        Field(
-            description="ИНН",
-            examples=["77896534678800"])
-    ] = None
-
-
-class CompanyEditSchema(CompanyBaseSchema):
-
-    contacts: Annotated[
-        str | None,
-        Field(
-            description="Контактные данные",
-            examples=[""])
-    ] = None
-
-
-class CompanyReadMinimumSchema(CompanyBaseSchema):
-
-    id: Annotated[
-        str,
-        Field(
-            description="UUID организации",
-            examples=["20f06bf0-ae28-4f32-b2ca-f57796103a71"])
-    ]
-
-
 class CompanyUserSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -56,38 +19,49 @@ class CompanyUserSchema(BaseModel):
     role: Annotated[RoleReadSchema, Field(description="Роль")]
 
 
-class CompanyReadSchema(CompanyReadMinimumSchema):
+id_ = Annotated[str, Field(description="UUID организации", examples=["20f06bf0-ae28-4f32-b2ca-f57796103a71"])]
 
-    personal_account: Annotated[
-        str | None,
-        Field(
-            description="Лицевой счет",
-            examples=["6590100"])
-    ] = None
+name_ = Annotated[str | None, Field(description="Наименование", examples=['ООО "Современные технологии"'])]
 
-    date_add: Annotated[
-        date | None,
-        Field(
-            description="Дата добавления в систему",
-            examples=["2023-05-17"])
-    ] = None
+inn_ = Annotated[str | None, Field(description="ИНН", examples=["77896534678800"])]
 
-    cards_amount: Annotated[
-        int | None,
-        Field(
-            description="Количество карт, принадлежащих этой организации",
-            examples=[271886.33])
-    ] = None
+contacts_ = Annotated[str | None, Field(description="Контактные данные", examples=[""])]
 
-    users: Annotated[
-        List[CompanyUserSchema],
-        Field(description="Список пользователей этой организации")
-    ] = []
+personal_account_ = Annotated[str | None, Field(description="Лицевой счет", examples=["6590100"])]
 
-    balances: Annotated[
-        List[BalanceReadSchema],
-        Field(description="Список балансов этой организации")
-    ] = []
+date_add_ = Annotated[date | None, Field(description="Дата добавления в систему", examples=["2023-05-17"])]
+
+cards_amount_ = Annotated[
+    int | None,
+    Field(description="Количество карт, принадлежащих этой организации", examples=[271886.33])
+]
+
+users_ = Annotated[List[CompanyUserSchema], Field(description="Список пользователей этой организации")]
+
+balances_ = Annotated[List[BalanceReadSchema], Field(description="Список балансов этой организации")]
+
+
+class CompanyEditSchema(BaseSchema):
+    contacts: contacts_ = None
+    name: name_ = None
+    inn: inn_ = None
+
+
+class CompanyReadMinimumSchema(BaseSchema):
+    id: id_
+    name: name_
+    inn: inn_
+
+
+class CompanyReadSchema(BaseSchema):
+    id: id_
+    name: name_
+    inn: inn_
+    personal_account: personal_account_
+    date_add: date_add_
+    cards_amount: cards_amount_ = None
+    users: users_ = []
+    balances: balances_ = []
 
 
 """

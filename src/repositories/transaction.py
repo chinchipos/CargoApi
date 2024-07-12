@@ -2,12 +2,14 @@ from datetime import date
 from typing import List
 
 from sqlalchemy import select as sa_select, desc
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, load_only
 
 from src.database import models
 from src.repositories.base import BaseRepository
 from src.utils import enums
 from src.utils.exceptions import ForbiddenException
+
+import sqlparse
 
 
 class TransactionRepository(BaseRepository):
@@ -20,12 +22,47 @@ class TransactionRepository(BaseRepository):
         stmt = (
             sa_select(models.Transaction)
             .options(
-                joinedload(models.Transaction.system),
-                joinedload(models.Transaction.card).joinedload(models.Card.belongs_to_car),
-                joinedload(models.Transaction.card).joinedload(models.Card.belongs_to_driver),
-                joinedload(models.Transaction.balance),
-                joinedload(models.Transaction.outer_goods).joinedload(models.OuterGoods.inner_goods),
+                load_only(
+                    models.Transaction.id,
+                    models.Transaction.date_time,
+                    models.Transaction.date_time_load,
+                    models.Transaction.is_debit,
+                    models.Transaction.azs_code,
+                    models.Transaction.azs_address,
+                    models.Transaction.fuel_volume,
+                    models.Transaction.price,
+                    models.Transaction.transaction_sum,
+                    models.Transaction.discount_sum,
+                    models.Transaction.fee_percent,
+                    models.Transaction.fee_sum,
+                    models.Transaction.total_sum,
+                    models.Transaction.card_balance,
+                    models.Transaction.company_balance,
+                    models.Transaction.comments
+                )
+            )
+            .options(
+                joinedload(models.Transaction.card)
+                .load_only(models.Card.id, models.Card.card_number, models.Card.is_active)
+            )
+            .options(
+                joinedload(models.Transaction.system)
+                .load_only(models.System.id, models.System.full_name)
+            )
+            .options(
+                joinedload(models.Transaction.outer_goods)
+                .load_only(models.OuterGoods.id, models.OuterGoods.name)
+                .joinedload(models.OuterGoods.inner_goods)
+            )
+            .options(
                 joinedload(models.Transaction.tariff)
+                .load_only(models.Tariff.id, models.Tariff.name)
+            )
+            .options(
+                joinedload(models.Transaction.company)
+                .load_only()
+                .joinedload(models.Balance.company)
+                .load_only(models.Company.id, models.Company.name, models.Company.inn)
             )
             .where(models.Transaction.date_time >= start_date)
             .where(models.Transaction.date_time < end_date)

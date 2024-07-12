@@ -2,7 +2,7 @@ from typing import List
 
 from src.database import models
 from src.repositories.tariff import TariffRepository
-from src.schemas.tariff import TariffCreateSchema, TariffReadSchema, TariffBaseSchema
+from src.schemas.tariff import TariffCreateSchema, TariffReadSchema, TariffEditSchema
 from src.utils.exceptions import BadRequestException
 
 
@@ -19,7 +19,7 @@ class TariffService:
         tariff_read_schema = TariffReadSchema(**new_tariff_data)
         return tariff_read_schema
 
-    async def edit(self, tariff_id: str, tariff_edit_schema: TariffBaseSchema) -> TariffReadSchema:
+    async def edit(self, tariff_id: str, tariff_edit_schema: TariffEditSchema) -> TariffReadSchema:
         # Получаем тариф из БД
         tariff_obj = await self.repository.session.get(models.Tariff, tariff_id)
         if not tariff_obj:

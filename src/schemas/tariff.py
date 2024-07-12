@@ -4,35 +4,28 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from src.schemas.base import BaseSchema
 
+id_ = Annotated[str, Field(description="UUID тарифа", examples=["c39e5c5c-b980-45eb-a192-585e6823faa7"])]
 
-class TariffBaseSchema(BaseSchema):
+name_ = Annotated[str, Field(description="Наименование", examples=["ННК 0,5%"])]
 
-    name: Annotated[
-        str,
-        Field(
-            description="Наименование",
-            examples=["ННК 0,5%"])
-    ]
+fee_percent_ = Annotated[float, Field(description="Комиссия, %", examples=[0.5])]
 
 
-class TariffCreateSchema(TariffBaseSchema):
-
-    fee_percent: Annotated[
-        float,
-        Field(
-            description="Комиссия, %",
-            examples=[0.5])
-    ]
+class TariffCreateSchema(BaseSchema):
+    name: name_
+    fee_percent: fee_percent_
 
 
-class TariffMinimumReadSchema(TariffBaseSchema):
-
-    id: Annotated[
-        str, Field(
-            description="UUID тарифа",
-            examples=["c39e5c5c-b980-45eb-a192-585e6823faa7"])
-    ]
+class TariffEditSchema(BaseSchema):
+    name: name_
 
 
-class TariffReadSchema(TariffMinimumReadSchema, TariffCreateSchema):
-    ...
+class TariffMinimumReadSchema(BaseSchema):
+    id: id_
+    name: name_
+
+
+class TariffReadSchema(BaseSchema):
+    id: id_
+    name: name_
+    fee_percent: fee_percent_
