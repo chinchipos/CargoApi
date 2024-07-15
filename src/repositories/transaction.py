@@ -88,10 +88,10 @@ class TransactionRepository(BaseRepository):
         transactions = await self.select_all(stmt)
         return transactions
 
-    async def get_last_transaction(self, company_id: str) -> models.Transaction:
+    async def get_last_transaction(self, balance_id: str) -> models.Transaction:
         stmt = (
             sa_select(models.Transaction)
-            .where(models.Transaction.company_id == company_id)
+            .where(models.Transaction.balance_id == balance_id)
             .order_by(models.Transaction.date_time.desc())
             .limit(1)
         )

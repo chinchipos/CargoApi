@@ -1,7 +1,7 @@
-from typing import List
+from typing import List, Tuple
 
 from sqlalchemy import select as sa_select, func as sa_func
-from sqlalchemy.orm import joinedload, selectinload, raiseload, lazyload, subqueryload
+from sqlalchemy.orm import joinedload, selectinload, raiseload, lazyload, subqueryload, aliased
 
 from src.database import models
 from src.repositories.base import BaseRepository
@@ -42,6 +42,18 @@ class CompanyRepository(BaseRepository):
         # amount = await self.select_single_field(stmt)
         # company.annotate({'cards_amount': amount})
 
+        return company
+
+    async def get_company_by_balance_id(self, balance_id: str) -> models.Company:
+        org = aliased(models.Company, name="org")
+        balance = aliased(models.Balance, name="balance")
+        stmt = (
+            sa_select(org)
+            .select_from(org, balance)
+            .where(balance.id == balance_id)
+            .where(org.id == balance.company_id)
+        )
+        company = await self.select_first(stmt)
         return company
 
     async def get_companies(self) -> List[models.Company]:
@@ -101,14 +113,14 @@ class CompanyRepository(BaseRepository):
         new_company_nanager_link = models.AdminCompany(company_id = company_id, user_id = user_id)
         await self.save_object(new_company_nanager_link)
 
-    async def set_company_balance_by_last_transaction(self, company_id: str) -> models.Company:
+    async def set_company_balance_by_last_transaction(self, balance_id: str) -> Tuple[models.Company, float]:
         # Получаем организацию
-        company = await self.get_company(company_id)
+        company = await self.get_company_by_balance_id(balance_id)
 
         # Получаем последнюю транзакцию
         transaction_repository = TransactionRepository(self.session, self.user)
-        last_transaction = await transaction_repository.get_last_transaction(company_id)
+        last_transaction = await transaction_repository.get_last_transaction(balance_id)
 
         # Устанавливаем текущий баланс организации
         await self.update_object(company, update_data={"balance": last_transaction.company_balance})
-        return company
+        return company, last_transaction.company_balance

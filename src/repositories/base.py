@@ -36,7 +36,7 @@ class BaseRepository:
             else:
                 result = await self.session.execute(stmt)
 
-            # await self.session.commit()
+            await self.session.commit()
             return result
 
         except Exception:
@@ -158,7 +158,8 @@ class BaseRepository:
             await self.session.commit()
             # Удалим объект из сессии, так как в кэше хранятся связанные объекты и при обновлении информации
             # об объекте из БД связанные объекты не будут обновлены, вместо этого будут взяты из кэша.
-            self.session.expire(obj)
+            # self.session.expire(obj)
+            await self.session.refresh(obj)
             # self.session.expire_all()
             # https://stackoverflow.com/questions/12108913/how-to-avoid-caching-in-sqlalchemy
 

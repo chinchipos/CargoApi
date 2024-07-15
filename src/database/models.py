@@ -97,8 +97,16 @@ class Tariff(Base):
         init=False
     )
 
-    # История применения этого тарифа к организациям
+    # Текущие связки Баланс-Система, для которых применяется этот тариф
     balance_system_tariff: Mapped[List["BalanceSystemTariff"]] = relationship(
+        back_populates="tariff",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
+    # История связок Баланс-Система, для которых применялся или применяется этот тариф
+    balance_tariff_history: Mapped[List["BalanceTariffHistory"]] = relationship(
         back_populates="tariff",
         cascade="all, delete-orphan",
         lazy="noload",
@@ -259,15 +267,13 @@ class Balance(Base):
         comment="Дата прекращения действия временного овердрафта"
     )
 
-    """
-    # Список договоров, привязанных к этому балансу
+    # Список вязей, привязанных к этому балансу
     card_bindings: Mapped[List["CardBinding"]] = relationship(
         back_populates="balance",
         cascade="all, delete-orphan",
         lazy="noload",
         init=False
     )
-    """
 
     # Список карт, привязанных к этому балансу
     cards: Mapped[List["Card"]] = relationship(
@@ -315,7 +321,7 @@ class BalanceSystemTariff(Base):
         UniqueConstraint("balance_id", "system_id", "tariff_id", name="unique_balance_sys_tariff"),
         {
             'comment': (
-                "Сведения из таблицы позволяют указать какой тариф применялся ранее и применяется сейчас "
+                "Сведения из таблицы позволяют указать какой тариф применяется сейчас "
                 "при отражении операций с конкретным поставщиком услуг на соответствующем  балансе."
             )
         }
@@ -356,6 +362,61 @@ class BalanceSystemTariff(Base):
     tariff: Mapped["Tariff"] = relationship(
         back_populates="balance_system_tariff",
         lazy="noload"
+    )
+
+
+class BalanceTariffHistory(Base):
+    __tablename__ = "balance_tariff_history"
+    __table_args__ = (
+        UniqueConstraint("balance_id", "system_id", "tariff_id", "start_date", name="unique_balance_sys_tariff_start"),
+        UniqueConstraint("balance_id", "system_id", "tariff_id", "end_date", name="unique_balance_sys_tariff_end"),
+        {
+            'comment': (
+                "Сведения из таблицы позволяют узнать какой тариф применялся ранее и применяется сейчас "
+                "при отражении операций с конкретным поставщиком услуг на соответствующем  балансе."
+            )
+        }
+    )
+
+    # Баланс
+    balance_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.balance.id"),
+        comment="Баланс"
+    )
+
+    # Поставщиик услуг
+    system_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.system.id"),
+        nullable=False,
+        comment="Поставщиик услуг"
+    )
+
+    # Тариф
+    tariff_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.tariff.id"),
+        comment="Тариф"
+    )
+
+    # Тариф
+    tariff: Mapped["Tariff"] = relationship(
+        back_populates="balance_tariff_history",
+        lazy="noload"
+    )
+
+    # Дата начала действия (тариф действует с 00:00:00 в указанную дату)
+    start_date: Mapped[date] = mapped_column(
+        sa.Date,
+        nullable=False,
+        server_default=sa.text("NOW()"),
+        comment="Дата начала действия (тариф действует с 00:00:00 в указанную дату)"
+    )
+
+    # Дата прекращения действия (тариф прекращает действовать с 00:00:00 в указанную дату)
+    end_date: Mapped[date] = mapped_column(
+        sa.Date,
+        nullable=True,
+        init=False,
+        comment="Дата прекращения действия (тариф прекращает действовать с 00:00:00 в указанную дату)"
     )
 
 
@@ -862,7 +923,6 @@ class Card(Base):
         comment="Признак ручной блокировки"
     )
 
-    """
     # Список связей этой карты
     card_bindings: Mapped[List["CardBinding"]] = relationship(
         back_populates="card",
@@ -870,7 +930,7 @@ class Card(Base):
         lazy="noload",
         init=False
     )
-    """
+
     # Список балансов, связанных с этой картой
     balances: Mapped[List["Balance"]] = relationship(
         back_populates="cards",
@@ -1053,13 +1113,11 @@ class CardBinding(Base):
         comment="Карта"
     )
 
-    """
     # Карта
     card: Mapped["Card"] = relationship(
         back_populates="card_bindings",
         lazy="noload"
     )
-    """
 
     # Поставщиик услуг
     system_id: Mapped[str] = mapped_column(
@@ -1084,14 +1142,12 @@ class CardBinding(Base):
         comment="Баланс"
     )
 
-    """
     # Баланс
     balance: Mapped["Balance"] = relationship(
         back_populates="card_bindings",
         lazy="noload",
         init=False
     )
-    """
 
     repr_cols = ("card_id",)
 

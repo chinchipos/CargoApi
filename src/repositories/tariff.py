@@ -1,8 +1,8 @@
 from datetime import date
 from typing import List, Optional
 
-from sqlalchemy import select as sa_select, func as sa_func
-from sqlalchemy.orm import joinedload
+from sqlalchemy import select as sa_select, func as sa_func, and_, or_, null
+from sqlalchemy.orm import joinedload, aliased
 
 from src.database import models
 from src.repositories.base import BaseRepository
@@ -44,28 +44,33 @@ class TariffRepository(BaseRepository):
         amount = await self.select_single_field(stmt)
         return amount
 
-    async def get_company_tariff_on_date(self, company: models.Company, _date_: date) -> models.Tariff:
+    async def get_tariff_on_date(self, balance_id: str, system_id: str, date_: date) -> models.Tariff:
         # Получаем историю применения тарифов для найденной организации
+        bth = aliased(models.BalanceTariffHistory, name="bth")
         stmt = (
-            sa_select(models.TariffHistory)
-            .options(
-                joinedload(models.TariffHistory.tariff),
-            )
-            .where(models.TariffHistory.company_id == company.id)
-            .where(models.TariffHistory.start_date <= _date_)
+            sa_select(models.Tariff)
+            .join(bth, and_(
+                bth.balance_id == balance_id,
+                bth.system_id == system_id,
+                bth.start_date <= date_,
+                or_(
+                    bth.end_date > date_,
+                    bth.end_date.is_(null())
+                )
+            ))
         )
-        history = await self.select_all(stmt)
+        tariff = await self.select_first(stmt)
 
-        # Выполняем поиск по записям, в которых указана дата окончания действия тарифа
-        for record in history:
-            if record.end_date > _date_:
-                return record.tariff
+        # Если в истории никаких записей не найдено, то возвращаем текущий тариф
+        if not tariff:
+            bst = aliased(models.BalanceSystemTariff, name="bst")
+            stmt = (
+                sa_select(models.Tariff)
+                .join(bst, and_(
+                    bst.balance_id == balance_id,
+                    bst.system_id == system_id
+                ))
+            )
+            tariff = await self.select_first(stmt)
 
-        # Если существует запись без даты прекращения действия тарифа,
-        # то возвращаем тариф, указанный в ней
-        for record in history:
-            if not record.end_date:
-                return record.tariff
-
-        # Если в истории никаких записей не найдено, то возвращаем текущий тариф организации
-        return company.tariff
+        return tariff

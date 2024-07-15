@@ -3,19 +3,31 @@ from typing import Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.connectors.calc_balance import CalcBalance
+from src.connectors.khnp.config import SYSTEM_SHORT_NAME
 from src.connectors.khnp.connector import KHNPConnector
 from src.connectors.khnp.exceptions import KHNPConnectorError, KHNPParserError
+from src.database.models import System
+from src.repositories.system import SystemRepository
 from src.tasks.init import sync_task_logger
+
+import traceback
+
+
+async def get_system(session: AsyncSession) -> System:
+    system_repository = SystemRepository(session)
+    system = await system_repository.get_system_by_short_name(SYSTEM_SHORT_NAME)
+    return system
 
 
 async def perform_khnp_operations(session: AsyncSession) -> Dict[str, Any]:
-    khnp = KHNPConnector(session)
+    system = await get_system(session)
+    khnp = KHNPConnector(session, system)
 
     # Прогружаем наш баланс
     await khnp.load_balance(need_authorization=True)
 
     # Прогружаем карты
-    await khnp.load_cards(need_authorization=False)
+    # await khnp.load_cards(need_authorization=False)
 
     # Прогружаем транзакции
     calc_balance_info = await khnp.load_transactions(need_authorization=False)
@@ -26,13 +38,13 @@ def update_calc_balance_info(
     global_calc_balance_info: Dict[str, Any],
     provider_calc_balance_info: Dict[str, Any]
 ) -> None:
-    for company_id, provider_transaction_dt in provider_calc_balance_info.items():
-        if global_calc_balance_info.get(company_id, None):
-            if provider_transaction_dt < global_calc_balance_info[company_id]:
-                global_calc_balance_info[company_id] = provider_transaction_dt
+    for balance_id, provider_transaction_dt in provider_calc_balance_info.items():
+        if global_calc_balance_info.get(balance_id, None):
+            if provider_transaction_dt < global_calc_balance_info[balance_id]:
+                global_calc_balance_info[balance_id] = provider_transaction_dt
 
         else:
-            global_calc_balance_info[company_id] = provider_transaction_dt
+            global_calc_balance_info[balance_id] = provider_transaction_dt
 
 
 async def run_sync(session: AsyncSession) -> None:
@@ -47,7 +59,9 @@ async def run_sync(session: AsyncSession) -> None:
         sync_task_logger.info('Синхронизации с ННК (KHNP) завершилась с ошибкой')
 
     except Exception as e:
+        trace_info = traceback.format_exc()
         sync_task_logger.error(str(e))
+        sync_task_logger.error(trace_info)
         sync_task_logger.info('Синхронизации с ННК (KHNP) завершилась с ошибкой')
 
     else:

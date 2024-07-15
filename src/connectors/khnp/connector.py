@@ -3,84 +3,72 @@ from typing import Dict, Any, List
 
 from sqlalchemy import select as sa_select, update as sa_update, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, load_only, aliased
 
 from src.config import TZ
-from src.connectors.khnp.config import SYSTEM_SHORT_NAME
 from src.connectors.khnp.exceptions import KHNPConnectorError, khnp_connector_logger
 from src.connectors.khnp.parser import KHNPParser
-from src.database.models import User, CardSystem, Card, System, CardType, Transaction, OuterGoods, Company
+from src.database.models import User, Card, System, CardType, Transaction, OuterGoods, CardBinding, \
+    BalanceTariffHistory, Tariff, Balance, BalanceSystemTariff
 from src.repositories.base import BaseRepository
-from src.repositories.system import SystemRepository
-from src.repositories.tariff import TariffRepository
 
 
 class KHNPConnector(BaseRepository):
 
-    def __init__(self, session: AsyncSession, user: User | None = None):
+    def __init__(self, session: AsyncSession, system: System, user: User | None = None):
         super().__init__(session, user)
         self.parser = KHNPParser()
-        self.system = None
-        self.system_repository = None
-        self.local_cards = None
-        self.provider_cards = None
-        self.outer_goods = None
-        self.tariff_repository = None
-
-    def get_system_repository(self):
-        if not self.system_repository:
-            self.system_repository = SystemRepository(self.session, self.user)
-
-        return self.system_repository
-
-    async def get_system(self) -> System:
-        if not self.system:
-            system_repository = self.get_system_repository()
-            self.system = await system_repository.get_system_by_short_name(SYSTEM_SHORT_NAME)
-
-        return self.system
+        self.system = system
+        self.local_cards: List[Card] = []
+        self.provider_cards: List[Dict[str, Any]] = []
+        self.outer_goods: List[OuterGoods] = []
+        self._tariffs_history: List[BalanceTariffHistory] = []
+        self._bst_list: List[BalanceSystemTariff] = []
+        self._card_bindings: List[CardBinding] = []
+        self._local_cards: List[Card] = []
 
     async def load_balance(self, need_authorization: bool = True) -> None:
         if need_authorization:
             self.parser.login()
 
-        # Получаем систему
-        system = await self.get_system()
-
         # Получаем наш баланс у поставщика услуг
         balance = self.parser.get_balance()
-        khnp_connector_logger.info('Наш баланс в системе {}: {} руб.'.format(system.full_name, balance))
+        khnp_connector_logger.info('Наш баланс в системе {}: {} руб.'.format(self.system.full_name, balance))
 
         # Обновляем запись в локальной БД
-        await self.update_object(system, update_data={
+        await self.update_object(self.system, update_data={
             "balance": balance,
             "balance_sync_dt": datetime.now(tz=TZ)
         })
         khnp_connector_logger.info('Обновлен баланс в локальной БД')
 
-    async def get_local_cards(self) -> List[CardSystem]:
-        # Получаем систему
-        system = await self.get_system()
-
+    async def get_local_cards(self, card_numbers: List[str] = None) -> List[Card]:
         stmt = (
-            sa_select(CardSystem)
+            sa_select(Card)
             .options(
-                joinedload(CardSystem.card).joinedload(Card.company).joinedload(Company.tariff)
+                load_only(Card.id, Card.card_number, Card.is_active, Card.manual_lock, Card.company_id)
             )
-            .where(CardSystem.system_id == system.id)
-            .outerjoin(CardSystem.card)
+            .select_from(Card, CardBinding)
+            .where(CardBinding.system_id == self.system.id, CardBinding.card_id == Card.id)
+            # .join(CardBinding, and_(CardBinding.card_id == Card.id, CardBinding.system_id == system.id))
             .order_by(Card.card_number)
         )
+        if card_numbers:
+            stmt = stmt.where(Card.card_number.in_(card_numbers))
+        # print('YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY')
+        # print('get_local_cards expression:')
+        # self.statement(stmt)
         self.local_cards = await self.select_all(stmt)
 
         return self.local_cards
 
-    def get_equal_local_card(self, provider_card: Dict[str, Any], local_cards: List[CardSystem]) -> Card:
+    @staticmethod
+    def get_equal_local_card(provider_card: Dict[str, Any], local_cards: List[Card]) -> Card:
         i = 0
         length = len(local_cards)
         while i < length:
-            if local_cards[i].card.card_number == provider_card['cardNo']:
-                card = local_cards.pop(i).card
+            if local_cards[i].card_number == provider_card['cardNo']:
+                card = local_cards.pop(i)
                 return card
             else:
                 i += 1
@@ -89,10 +77,7 @@ class KHNPConnector(BaseRepository):
         fields = dict(
             card_number=card_number,
             card_type_id=default_card_type_id,
-            is_active=True,
-            company_id=None,
-            belongs_to_car_id=None,
-            belongs_to_driver_id=None,
+            is_active=True
         )
         new_card = await self.insert(Card, **fields)
         khnp_connector_logger.info(f'Создана карта {new_card.card_number}')
@@ -127,20 +112,19 @@ class KHNPConnector(BaseRepository):
                 # Записываем в БД сведения о новой карте
                 await self.create_card(provider_card['cardNo'], default_card_type.id)
 
+            # Здесь нужно добавить код для проверки состояния карты (активна / заблокирована).
+            # Устанавливать его в локальной БД таким, каким он установлен в БД поставщика.
+
         # Записываем в БД время последней успешной синхронизации
-        system = await self.get_system()
-        await self.update_object(system, update_data={"cards_sync_dt": datetime.now(tz=TZ)})
+        await self.update_object(self.system, update_data={"cards_sync_dt": datetime.now(tz=TZ)})
         khnp_connector_logger.info('Синхронизация карт выполнена')
 
     async def get_provider_transactions(self, need_authorization: bool = True) -> Dict[str, Any]:
         if need_authorization:
             self.parser.login()
 
-        # Получаем систему
-        system = await self.get_system()
-
         # Устанавливаем период для транзакций
-        start_date = date.today() - timedelta(days=system.transaction_days)
+        start_date = date.today() - timedelta(days=self.system.transaction_days)
         end_date = date.today()
 
         # Получаем транзакции
@@ -168,8 +152,8 @@ class KHNPConnector(BaseRepository):
 
         return transactions
 
+    @staticmethod
     def get_equal_provider_transaction(
-        self,
         local_transaction: Transaction,
         provider_transactions: Dict[str, Any]
     ) -> Dict[str, Any]:
@@ -189,17 +173,15 @@ class KHNPConnector(BaseRepository):
                         return transaction
 
     async def get_local_card(self, card_number) -> Card:
-        local_cards = await self.get_local_cards()
-        for card_system in local_cards:
-            if card_system.card.card_number == card_number:
-                return card_system.card
+        for card in self._local_cards:
+            if card.card_number == card_number:
+                return card
 
         raise KHNPConnectorError(trace=True, message=f'Карта с номером {card_number} не найдена в БД')
 
     async def get_all_outer_goods(self) -> List[OuterGoods]:
         if not self.outer_goods:
-            system = await self.get_system()
-            stmt = sa_select(OuterGoods).where(OuterGoods.system_id == system.id)
+            stmt = sa_select(OuterGoods).where(OuterGoods.system_id == self.system.id)
             self.outer_goods = await self.select_all(stmt)
 
         return self.outer_goods
@@ -224,13 +206,81 @@ class KHNPConnector(BaseRepository):
 
         return goods
 
-    async def get_tariff_repository(self):
-        if not self.tariff_repository:
-            self.tariff_repository = TariffRepository(self.session, self.user)
+    async def _get_tariffs_history(self) -> List[BalanceTariffHistory]:
+        bth = aliased(BalanceTariffHistory, name="bth")
+        stmt = (
+            sa_select(bth)
+            .options(
+                joinedload(bth.tariff)
+                .load_only(Tariff.id, Tariff.fee_percent)
+            )
+            .where(bth.system_id == self.system.id)
+        )
+        # print('YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY')
+        # print('_get_tariffs_history')
+        # self.statement(stmt)
+        tariffs_history = await self.select_all(stmt)
+        return tariffs_history
 
-        return self.tariff_repository
+    def _get_tariff_on_date_by_balance(self, balance_id: str, transaction_date: date) -> Tariff:
+        for th in self._tariffs_history:
+            if th.balance_id == balance_id and th.start_date <= transaction_date \
+                    and (th.end_date is None or th.end_date > transaction_date):
+                return th.tariff
 
-    async def process_provider_transaction(self, card_number, provider_transaction: Dict[str, Any]) -> Dict[str, Any]:
+    async def _get_balance_system_tariff_list(self) -> List[BalanceSystemTariff]:
+        bst = aliased(BalanceSystemTariff, name="bst")
+        stmt = (
+            sa_select(bst)
+            .options(
+                joinedload(bst.tariff)
+                .load_only(Tariff.id, Tariff.fee_percent)
+            )
+            .where(bst.system_id == self.system.id)
+        )
+        # print('YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY')
+        # print('_get_balance_system_tariff_list')
+        # self.statement(stmt)
+        balance_system_tariff_list = await self.select_all(stmt)
+        return balance_system_tariff_list
+
+    def _get_current_tariff_by_balance(self, balance_id: str) -> Tariff:
+        for bst in self._bst_list:
+            if bst.balance_id == balance_id:
+                return bst.tariff
+
+    async def _get_card_bindings(self, card_numbers: List[str]) -> List[Balance]:
+        balance = aliased(Balance, name="balance")
+        cb = aliased(CardBinding, name="cb")
+        card = aliased(Card, name="card")
+        stmt = (
+            sa_select(cb)
+            .options(
+                joinedload(cb.balance)
+                .load_only(Balance.id, Balance.balance)
+            )
+            .options(
+                joinedload(cb.card)
+                .load_only(Card.id, Card.card_number)
+            )
+            .select_from(cb, card)
+            .where(card.card_number.in_(card_numbers))
+            .where(cb.card_id == card.id)
+            .where(cb.system_id == self.system.id)
+        )
+        # print('YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY')
+        # print('_get_card_bindings')
+        # self.statement(stmt)
+        card_bindings = await self.select_all(stmt)
+        return card_bindings
+
+    def _get_balance_obj_by_card_number(self, card_number: str) -> Balance:
+        for cb in self._card_bindings:
+            if cb.card.card_number == card_number:
+                return cb.balance
+
+    async def process_provider_transaction(
+            self, card_number: str, provider_transaction: Dict[str, Any]) -> Dict[str, Any] | None:
         # system_transaction = {
         #    azs: АЗС № 01 (АБНС)           <class 'str'>
         #    product_type: Любой            <class 'str'>
@@ -251,18 +301,21 @@ class KHNPConnector(BaseRepository):
         # Получаем карту
         card = await self.get_local_card(card_number)
 
-        # Получаем систему
-        system = await self.get_system()
+        # Получаем баланс
+        balance = self._get_balance_obj_by_card_number(card_number)
+        if not balance:
+            return None
 
         # Получаем товар/услугу
         single_outer_goods = await self.get_single_outer_goods(provider_transaction)
 
         # Получаем тариф
-        tariff_repository = await self.get_tariff_repository()
-        tariff = await tariff_repository.get_company_tariff_on_date(
-            company=card.company,
-            _date_=provider_transaction['date_time'].date()
-        ) if card.company else None
+        tariff = self._get_tariff_on_date_by_balance(
+            balance_id=balance.id,
+            transaction_date=provider_transaction['date_time'].date()
+        )
+        if not tariff:
+            tariff = self._get_current_tariff_by_balance(balance.id)
 
         # Объем топлива
         fuel_volume = -provider_transaction['liters_ordered'] if debit else provider_transaction['liters_received']
@@ -284,9 +337,9 @@ class KHNPConnector(BaseRepository):
         transaction_data = dict(
             date_time=provider_transaction['date_time'],
             is_debit=debit,
-            system_id=system.id,
+            system_id=self.system.id,
             card_id=card.id,
-            company_id=card.company_id,
+            balance_id=balance.id,
             azs_code=provider_transaction['azs'],
             outer_goods_id=single_outer_goods.id if single_outer_goods else None,
             fuel_volume=fuel_volume,
@@ -302,23 +355,41 @@ class KHNPConnector(BaseRepository):
 
         return transaction_data
 
+    @staticmethod
     def update_calculation_info(
-        self,
-        company_id: str,
+        balance_id: str,
         transaction_date_time: datetime,
-        calculation_info: Dict[str, Any]
-    ) -> None:
-        if calculation_info.get(company_id, None):
-            if calculation_info[company_id] > transaction_date_time:
-                calculation_info[company_id] = transaction_date_time
+        calculation_info: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        if not calculation_info:
+            calculation_info = {balance_id: transaction_date_time}
+
+        elif balance_id in calculation_info:
+            if calculation_info[balance_id] > transaction_date_time:
+                calculation_info[balance_id] = transaction_date_time
         else:
-            calculation_info[company_id] = transaction_date_time
+            calculation_info[balance_id] = transaction_date_time
+
+        return calculation_info
 
     async def process_provider_transactions(
         self,
         provider_transactions: Dict[str, Any],
         calculation_info: Dict[str, Any]
-    ) -> None:
+    ) -> Dict[str, Any]:
+        # Получаем текущие тарифы
+        self._bst_list = await self._get_balance_system_tariff_list()
+
+        # Получаем историю тарифов
+        self._tariffs_history = await self._get_tariffs_history()
+
+        # Получаем связи карт (Карта-Система-Баланс)
+        card_numbers = [card_number for card_number in provider_transactions.keys()]
+        self._card_bindings = await self._get_card_bindings(card_numbers)
+
+        # Получаем карты
+        self._local_cards = await self.get_local_cards(card_numbers=card_numbers)
+
         # Подготавливаем список транзакций для сохранения в БД
         transactions_to_save = []
         for card_number, card_transactions in provider_transactions.items():
@@ -326,15 +397,17 @@ class KHNPConnector(BaseRepository):
                 transaction_data = await self.process_provider_transaction(card_number, card_transaction)
                 if transaction_data:
                     transactions_to_save.append(transaction_data)
-                    if transaction_data['company_id']:
-                        self.update_calculation_info(
-                            company_id=str(transaction_data['company_id']),
+                    if transaction_data['balance_id']:
+                        calculation_info = self.update_calculation_info(
+                            balance_id=str(transaction_data['balance_id']),
                             transaction_date_time=transaction_data['date_time'],
                             calculation_info=calculation_info
                         )
 
         # Сохраняем транзакции в БД
         await self.bulk_insert_or_update(Transaction, transactions_to_save)
+
+        return calculation_info
 
     async def renew_cards_date_last_use(self) -> None:
         date_last_use_subquery = (
@@ -375,9 +448,9 @@ class KHNPConnector(BaseRepository):
                     # Транзакция присутствует локально, но у поставщика услуг её нет.
                     # Помечаем на удаление локальную транзакцию.
                     to_delete.append(local_transaction)
-                    if local_transaction.company_id:
-                        self.update_calculation_info(
-                            company_id=local_transaction.company_id,
+                    if local_transaction.balance_id:
+                        calculation_info = self.update_calculation_info(
+                            balance_id=str(local_transaction.balance_id),
                             transaction_date_time=local_transaction.date_time,
                             calculation_info=calculation_info
                         )
@@ -401,12 +474,13 @@ class KHNPConnector(BaseRepository):
         khnp_connector_logger.info(f'Новые тразакции от поставщика услуг: {counter} шт')
 
         if counter:
-            khnp_connector_logger.info('Начинаю обработку транзакции от поставщика услуг, которые не обнаружены в локальной БД')
-            await self.process_provider_transactions(provider_transactions, calculation_info)
+            khnp_connector_logger.info(
+                'Начинаю обработку транзакции от поставщика услуг, которые не обнаружены в локальной БД'
+            )
+            calculation_info = await self.process_provider_transactions(provider_transactions, calculation_info)
 
         # Записываем в БД время последней успешной синхронизации
-        system = await self.get_system()
-        await self.update_object(system, update_data={"transactions_sync_dt": datetime.now(tz=TZ)})
+        await self.update_object(self.system, update_data={"transactions_sync_dt": datetime.now(tz=TZ)})
 
         # Обновляем время последней транзакции для карт
         await self.renew_cards_date_last_use()

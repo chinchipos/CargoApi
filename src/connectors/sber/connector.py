@@ -1,11 +1,4 @@
-import requests
-import os
-import base64
-from authlib.jose import JsonWebSignature
-import ssl
-
-TEST = True
-
+from src.connectors.sber.sber_api import SberApi
 
 # Получение кода авторизации
 """
@@ -101,7 +94,6 @@ response_json = response.json()
 AT = response_json['access_token']
 RT = response_json['refresh_token']
 """
-print('--------------')
 
 
 # Получение профиля ОРГАНИЗАЦИИ
@@ -124,7 +116,7 @@ print(response.json())
 
 
 # Получение выписки
-
+"""
 # Отправляем POST запрос на /fintech/api/v2/statement/transactions
 # Цель: получить выписку
 endpoint = "https://iftfintech.testsbi.sberbank.ru:9443/fintech/api/v2/statement/transactions" \
@@ -150,4 +142,25 @@ session.cert = OUR_CERT_PATH
 response = session.get(request_url)
 print(response)
 print(response.text)
+"""
 
+
+"""
+async def main():
+    sber_api = SberApi()
+    at, rt = await sber_api.init_tokens()
+    print(at)
+    print(rt)
+
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+asyncio.run(main())
+"""
+
+sber_api = SberApi()
+sber_api.init_tokens()
+# company_info = sber_api.get_company_info()
+# pprint.pprint(company_info)
+statement = sber_api.get_statement()
+statement.print_payments()
