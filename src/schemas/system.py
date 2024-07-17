@@ -3,6 +3,7 @@ from typing import Annotated
 from pydantic import Field
 
 from src.schemas.base import BaseSchema
+from src.schemas.tariff import TariffMinimumReadSchema
 from src.schemas.validators import DateTimeNormalized
 
 id_ = Annotated[str, Field(description="UUID поставщика услуг", examples=["68425199-ac93-4733-becb-de2e89e85303"])]
@@ -43,6 +44,8 @@ transaction_days_ = Annotated[
     Field(description="Синхронизировать транзакции за период, дни (0 < x <= 50)", examples=[30], ge=0, le=50)
 ]
 
+tariff_ = Annotated[TariffMinimumReadSchema | None, Field(description="Тариф")]
+
 
 class SystemEditSchema(BaseSchema):
     full_name: full_name_ = None
@@ -52,25 +55,24 @@ class SystemEditSchema(BaseSchema):
 class SystemReadMinimumSchema(BaseSchema):
     id: id_
     full_name: full_name_
+    tariff: tariff_ = None
 
 
-class SystemReadSchema(SystemEditSchema):
+class SystemReadSchema(BaseSchema):
     id: id_
     full_name: full_name_
     balance: balance_
     transaction_days: transaction_days_
-    transactions_sync_dt: transactions_sync_dt_ = None
-    cards_sync_dt: cards_sync_dt_ = None
-    balance_sync_dt: balance_sync_dt_ = None
+    transactions_sync_dt: transactions_sync_dt_
+    cards_sync_dt: cards_sync_dt_
+    balance_sync_dt: balance_sync_dt_
     cards_amount_total: cards_amount_total_
     cards_amount_in_use: cards_amount_in_use_
     cards_amount_free: cards_amount_free_
 
 
 """
-class SystemCreateSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
+class SystemCreateSchema(BaseSchema):
     full_name: Annotated[str, Field(description="Полное наименование", examples=["Роснефть"])]
     short_name: Annotated[str, Field(description="Сокращенное наименование", examples=["РН"])]
     transaction_days: Annotated[int, Field(

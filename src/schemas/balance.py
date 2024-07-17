@@ -3,67 +3,64 @@ from datetime import date
 from pydantic import Field
 
 from src.schemas.base import BaseSchema
-from src.schemas.contract import ContractReadSchema
 from src.schemas.system import SystemReadMinimumSchema
 from src.utils import enums
 
 from typing import Annotated, List
 
 
+id_ = Annotated[str, Field(description="UUID договора", examples=["75325199-ac93-4733-becb-de2e89e85202"])]
+
+scheme_ = Annotated[
+    enums.ContractScheme,
+    Field(description="Договорная схема [Агентская, Перекупная]", examples=["Агентская"])
+]
+
+balance_ = Annotated[float | None, Field(description="Номер договора (не более 20 символов)", examples=["2024/А179"])]
+
+min_balance_ = Annotated[
+    float | None,
+    Field(description="Постоянный овердрафт (минимальный баланс), руб", examples=[10000.0])
+]
+
+min_balance_period_ = Annotated[
+    float | None,
+    Field(description="Временный овердрафт (минимальный баланс), руб", examples=[30000.0])
+]
+
+min_balance_period_end_date_ = Annotated[
+    date | None,
+    Field(description="Дата прекращения действия временного овердрафта", examples=["2023-05-17"])
+]
+
+systems_ = Annotated[List[SystemReadMinimumSchema], Field(description="Поставщики услуг")]
+
+"""
+class BalanceCreateSchema(BaseSchema):
+    scheme: scheme_ = None
+    min_balance: min_balance_ = None
+    min_balance_on_period: min_balance_on_period_ = None
+    min_balance_period_end_date: min_balance_period_end_date_ = None
+"""
+
+"""    
 class BalanceEditSchema(BaseSchema):
-
-    min_balance: Annotated[
-        float | None,
-        Field(
-            description="Постоянный овердрафт (минимальный баланс), руб",
-            examples=[10000.0])
-    ] = None
-
-    min_balance_on_period: Annotated[
-        float | None,
-        Field(
-            description="Временный овердрафт (минимальный баланс), руб",
-            examples=[30000.0])
-    ] = None
-
-    min_balance_period_end_date: Annotated[
-        date | None,
-        Field(
-            description="Дата прекращения действия временного овердрафта",
-            examples=["2023-05-17"])
-    ] = None
+    min_balance: min_balance_ = None
+    min_balance_on_period: min_balance_on_period_ = None
+    min_balance_period_end_date: min_balance_period_end_date_ = None
+"""
 
 
-class BalanceCreateSchema(BalanceEditSchema):
-
-    scheme: Annotated[
-        enums.ContractScheme | None,
-        Field(
-            description="Договорная схема [Агентская, Перекупная]",
-            examples=["Агентская"])
-    ] = None
+class BalanceReadMinimumSchema(BaseSchema):
+    id: id_
+    scheme: scheme_
 
 
-class BalanceReadMinimumSchema(BalanceEditSchema):
-
-    id: Annotated[
-        str,
-        Field(
-            description="UUID договора",
-            examples=["75325199-ac93-4733-becb-de2e89e85202"])
-    ]
-
-    balance: Annotated[
-        float | None,
-        Field(
-            description="Номер договора (не более 20 символов)",
-            examples=["2024/А179"])
-    ] = None
-
-
-class BalanceReadSchema(BalanceReadMinimumSchema, BalanceCreateSchema):
-
-    systems: Annotated[
-        List[SystemReadMinimumSchema] | None,
-        Field(description="Поставщики услуг")
-    ] = []
+class BalanceReadSchema(BaseSchema):
+    id: id_
+    scheme: scheme_
+    balance: balance_
+    min_balance: min_balance_
+    min_balance_period: min_balance_period_
+    min_balance_period_end_date: min_balance_period_end_date_
+    systems: systems_ = []

@@ -1,6 +1,6 @@
 from typing import List
 
-from src.database import models
+from src.database.models import System as SystemOrm
 from src.repositories.system import SystemRepository
 from src.schemas.system import SystemReadSchema, SystemEditSchema
 from src.utils.exceptions import BadRequestException
@@ -21,6 +21,7 @@ class SystemService:
         return system_read_schema
     """
 
+    """
     async def edit(self, system_id: str, system_edit_schema: SystemEditSchema) -> SystemReadSchema:
         # Получаем систему из БД
         system_obj = await self.repository.session.get(models.System, system_id)
@@ -36,10 +37,29 @@ class SystemService:
         # Формируем ответ
         updated_system_data = system_obj.dumps()
         updated_system_data['cards_amount'] = await self.repository.get_cards_amount(system_id)
+        print('YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY')
+        print(updated_system_data)
         system_read_schema = SystemReadSchema(**updated_system_data)
-        return system_read_schema
 
-    async def get_systems(self) -> List[models.System]:
+        return system_read_schema
+    """
+
+    async def edit(self, system_id: str, system_edit_schema: SystemEditSchema) -> SystemOrm:
+        # Получаем систему из БД
+        system = await self.repository.get_system(system_id)
+        if not system:
+            raise BadRequestException('Запись не найдена')
+
+        # Обновляем данные, сохраняем в БД
+        update_data = system_edit_schema.model_dump(exclude_unset=True)
+        await self.repository.update_object(system, update_data)
+
+        # Формируем ответ
+        cards_amount = await self.repository.get_cards_amount(system_id)
+        system.annotate({"cards_amount": cards_amount})
+        return system
+
+    async def get_systems(self) -> List[SystemOrm]:
         systems = await self.repository.get_systems()
         return systems
 

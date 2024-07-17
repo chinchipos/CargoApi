@@ -1,22 +1,21 @@
-from typing import Optional, Annotated
+from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 
+from src.schemas.base import BaseSchema
 
-class CardTypeReadSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: Annotated[str, Field(description="UUID типа карт", examples=["c39e5c5c-b980-45eb-a192-585e6823faa7"])]
-    name: Annotated[str, Field(description="Наименование типа карт", examples=["Пластиковая карта"])]
+id_ = Annotated[str, Field(description="UUID типа карт", examples=["c39e5c5c-b980-45eb-a192-585e6823faa7"])]
+name_ = Annotated[str, Field(description="Наименование типа карт", examples=["Пластиковая карта"])]
 
 
-class CardTypeCreateSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class CardTypeReadSchema(BaseSchema):
+    id: id_
+    name: name_
 
-    name: Annotated[str, Field(description="Наименование типа карт", examples=["Пластиковая карта"])]
+
+class CardTypeCreateSchema(BaseSchema):
+    name: name_
 
 
-class CardTypeEditSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    name: Annotated[Optional[str], Field(description="Наименование типа карт", examples=["Пластиковая карта"])] = None
+class CardTypeEditSchema(BaseSchema):
+    name: name_

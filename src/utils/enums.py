@@ -72,3 +72,7 @@ class HttpMethod(StrEnum):
 class ContractScheme(Enum):
     AGENCY = "Агентская"
     OVERBOUGHT = "Перекупная"
+
+
+class Bank(Enum):
+    SBER = "Сбер"

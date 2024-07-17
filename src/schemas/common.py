@@ -1,11 +1,5 @@
-from pydantic import BaseModel, ConfigDict
+from src.schemas.base import BaseSchema
 
 
-class SuccessSchema(BaseModel):
+class SuccessSchema(BaseSchema):
     success: bool = True
-
-
-class ModelIDSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: str

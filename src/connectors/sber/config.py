@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import datetime
+from datetime import datetime, date
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -45,6 +45,7 @@ PROD_PARAMS = dict(
 
     # Пароль
     client_secret = os.environ.get('CLIENT_SECRET'),
+    client_secret_expiration = date.fromisoformat(os.environ.get('CLIENT_SECRET_EXPIRATION')),
 
     # Наш сертификат
     our_cert = os.path.join(os.getcwd(), 'CERTS', 'PROD', 'FINTECH_PROD_2024_CERT.pem'),
@@ -55,8 +56,8 @@ PROD_PARAMS = dict(
     # Цепочка сертификатов сервера Сбера
     sber_cert = os.path.join(os.getcwd(), 'CERTS', 'PROD', 'fintech-sberbank-ru-chain.pem'),
 
-    refresh_token = "ShV1OPSZcss4N7gCpyoKxkIgKOmNwuPGxZdxbu",
-    refresh_token_expiration = datetime(year=2025, month=1, day=13)
+    refresh_token = os.environ.get('REFRESH_TOKEN'),
+    refresh_token_expiration = datetime.fromisoformat(os.environ.get('REFRESH_TOKEN_EXPIRATION'))
 )
 
 

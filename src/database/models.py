@@ -136,7 +136,7 @@ class Company(Base):
     )
 
     inn: Mapped[str] = mapped_column(
-        sa.String(13),
+        sa.String(12),
         nullable=True,
         comment="ИНН"
     )
@@ -1037,7 +1037,6 @@ class System(Base):
         comment="Дата последней успешной синхронизации баланса"
     )
 
-    """
     # Список договоров, привязанных к этой системе
     card_bindings: Mapped[List["CardBinding"]] = relationship(
         back_populates="system",
@@ -1045,7 +1044,7 @@ class System(Base):
         lazy="noload",
         init=False
     )
-    """
+
     # Список балансов, связанных с этой системой
     balances: Mapped[List["Balance"]] = relationship(
         back_populates="systems",
@@ -1126,13 +1125,11 @@ class CardBinding(Base):
         comment="Поставщиик услуг"
     )
 
-    """
     # Поставщиик услуг
     system: Mapped["System"] = relationship(
         back_populates="card_bindings",
         lazy="noload"
     )
-    """
 
     # Баланс
     balance_id: Mapped[str] = mapped_column(
@@ -1434,7 +1431,89 @@ class Transaction(Base):
         comment="Комментарии"
     )
 
+    # Список автозачислений ДС этой организации
+    money_receipt: Mapped["MoneyReceipt"] = relationship(
+        back_populates="transaction",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
     repr_cols = ("id", "transaction_sum", "date_time")
+
+
+class MoneyReceipt(Base):
+    __tablename__ = "money_receipt"
+    __table_args__ = (
+        UniqueConstraint("payment_id", "payment_date_time", "amount", name="uniq_pmntid_time_amount"),
+        {
+            'comment': (
+                "Автозачисления денежных средств на балансы организаций"
+            )
+        }
+    )
+
+    bank: Mapped[enums.Bank] = mapped_column(
+        comment="Банк",
+        init=True,
+    )
+
+    payment_id: Mapped[str] = mapped_column(
+        sa.String(50),
+        nullable=True,
+        init=False,
+        comment="Идентификатор операции (транзакции), присвоенный банком"
+    )
+
+    payment_date_time: Mapped[datetime] = mapped_column(
+        sa.DateTime,
+        nullable=False,
+        init=True,
+        comment="Время выполнения проводки банком (по выписке)"
+    )
+
+    payment_company_name: Mapped[str] = mapped_column(
+        sa.String(255),
+        nullable=False,
+        init=True,
+        comment="Наименование организации (по выписке)"
+    )
+
+    payment_company_inn: Mapped[str] = mapped_column(
+        sa.String(12),
+        nullable=False,
+        init=True,
+        comment="ИНН организации (по выписке)"
+    )
+
+    payment_purpose: Mapped[str] = mapped_column(
+        sa.String(210),
+        nullable=False,
+        init=True,
+        comment="Назначение платежа"
+    )
+
+    amount: Mapped[float] = mapped_column(
+        sa.Numeric(12, 2, asdecimal=False),
+        nullable=False,
+        init=True,
+        comment="Сумма платежа"
+    )
+
+    # Локальная транзакция
+    transaction_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.transaction.id"),
+        nullable=True,
+        init=False,
+        comment="Локальная транзакция"
+    )
+
+    # Локальная транзакция
+    transaction: Mapped["Transaction"] = relationship(
+        back_populates="money_receipt",
+        lazy="noload",
+        init=False
+    )
 
 
 class LogType(Base):

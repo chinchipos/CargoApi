@@ -1,5 +1,5 @@
 import uuid
-from typing import Any, List
+from typing import List
 
 from fastapi import APIRouter, Depends
 
@@ -58,6 +58,7 @@ async def create(
     return system
 """
 
+
 @router.put(
     path="/system/{id}/edit",
     tags=["system"],
@@ -70,7 +71,7 @@ async def edit(
     id: uuid.UUID,
     data: SystemEditSchema,
     service: SystemService = Depends(get_service_system)
-) -> SystemReadSchema:
+):
     id = str(id)
     # Проверка прав доступа. Редактировать системы может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:

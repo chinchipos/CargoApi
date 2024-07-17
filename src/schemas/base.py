@@ -1,10 +1,13 @@
 from typing import Dict, Any
 
-from pydantic import BaseModel, ConfigDict, model_serializer
+from pydantic import BaseModel, ConfigDict, model_serializer, Extra
 
 
 class BaseSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra=Extra.ignore
+    )
 
     # При формировании JSON словаря первым будет идти ключ id, остальные будут отсортированы в порядке возрастания
     @model_serializer(when_used='json')

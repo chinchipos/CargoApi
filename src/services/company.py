@@ -1,8 +1,7 @@
 from typing import List, Any
 
-from src.database import models
+from src.database.models import Company as CompanyOrm, User as UserOrm
 from src.repositories.company import CompanyRepository
-from src.repositories.transaction import TransactionRepository
 from src.repositories.user import UserRepository
 from src.schemas.company import CompanyEditSchema, CompanyReadSchema, CompanyReadMinimumSchema
 from src.utils import enums
@@ -31,7 +30,7 @@ class CompanyService:
             raise ForbiddenException()
 
         # Получаем организацию из БД
-        company = await self.repository.session.get(models.Company, company_id)
+        company = await self.repository.session.get(CompanyOrm, company_id)
         print('tariff_id 1', company.tariff_id)
         print('tariff 1', company.tariff)
         if not company:
@@ -70,7 +69,7 @@ class CompanyService:
 
         return company_read_schema
 
-    async def get_companies(self) -> List[Any]:
+    async def get_companies(self) -> List[CompanyReadSchema] | List[CompanyReadMinimumSchema]:
         # Получаем организации
         companies = await self.repository.get_companies()
 
@@ -83,7 +82,7 @@ class CompanyService:
 
         return company_read_schemas
 
-    async def get_drivers(self, company_id: str = None) -> models.User:
+    async def get_drivers(self, company_id: str = None) -> UserOrm:
         drivers = await self.repository.get_drivers(company_id)
         return drivers
 

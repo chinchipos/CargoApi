@@ -1,120 +1,136 @@
 import uuid
-from typing import Optional, List, Annotated
+from typing import List, Annotated
 
-from fastapi_users import models, schemas
-
+from fastapi_users import models as fastapi_models, schemas as fastapi_schemas
 from pydantic import EmailStr, Field
-from pydantic import BaseModel, ConfigDict
 
+from src.schemas.base import BaseSchema
 from src.schemas.company import CompanyReadMinimumSchema
 from src.schemas.role import RoleReadSchema
 from src.schemas.validators import EmptyStrToNone
 
+id_uuid_ = Annotated[
+    fastapi_models.ID,
+    Field(description="UUID пользователя", examples=["c39e5c5c-b980-45eb-a192-585e6823faa7"])
+]
 
-class NewUserReadSchema(schemas.BaseUser[uuid.UUID]):
-    id: Annotated[models.ID, Field(description="UUID пользователя", examples=["c39e5c5c-b980-45eb-a192-585e6823faa7"])]
-    username: Annotated[str, Field(description="Имя пользователя", examples=["user"])]
-    first_name: Annotated[str, Field(description="Имя", examples=["Алексей"])]
-    last_name: Annotated[str, Field(description="Фамилия", examples=["Гагарин"])]
-    email: Annotated[EmailStr, Field(description="Email", examples=["user@cargonomica.com"])]
-    phone: Annotated[str, Field(description="Телефон", examples=["+79332194370"])]
-    is_active: Annotated[Optional[bool], Field(description="Признак активности", examples=[True])] = True
+id_str_ = Annotated[str, Field(description="UUID пользователя", examples=["c39e5c5c-b980-45eb-a192-585e6823faa7"])]
 
+username_ = Annotated[str | None, Field(description="Имя пользователя", examples=["user"])]
 
-class UserReadSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+first_name_ = Annotated[str | None, Field(description="Имя", examples=["Алексей"])]
 
-    id: Annotated[str, Field(description="UUID пользователя", examples=["c39e5c5c-b980-45eb-a192-585e6823faa7"])]
-    username: Annotated[str, Field(description="Имя пользователя", examples=["user"])]
-    first_name: Annotated[str, Field(description="Имя", examples=["Алексей"])]
-    last_name: Annotated[str, Field(description="Фамилия", examples=["Гагарин"])]
-    email: Annotated[EmailStr, Field(description="Email", examples=["user@cargonomica.com"])]
-    phone: Annotated[str, Field(description="Телефон", examples=["+79332194370"])]
-    is_active: Annotated[bool, Field(description="Признак активности", examples=[True])]
-    role: Annotated[Optional[RoleReadSchema], Field(description="Роль")]
+last_name_ = Annotated[str | None, Field(description="Фамилия", examples=["Гагарин"])]
 
+email_ = Annotated[EmailStr, Field(description="Email", examples=["user@cargonomica.com"])]
 
-class UserCompanyReadSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+password_ = Annotated[str | None, Field(description="Пароль", examples=["Xuu76mn66"])]
 
-    id: Annotated[str, Field(description="UUID пользователя", examples=["c39e5c5c-b980-45eb-a192-585e6823faa7"])]
-    username: Annotated[str, Field(description="Имя пользователя", examples=["user"])]
-    first_name: Annotated[str, Field(description="Имя", examples=["Алексей"])]
-    last_name: Annotated[str, Field(description="Фамилия", examples=["Гагарин"])]
-    email: Annotated[EmailStr, Field(description="Email", examples=["user@cargonomica.com"])]
-    phone: Annotated[str, Field(description="Телефон", examples=["+79332194370"])]
-    is_active: Annotated[bool, Field(description="Признак активности", examples=[True])]
-    role: Annotated[Optional[RoleReadSchema], Field(description="Роль")]
-    company: Annotated[Optional[CompanyReadMinimumSchema], Field(description="Организация")]
+phone_ = Annotated[str | None, Field(description="Телефон", examples=["+79332194370"])]
 
+is_active_ = Annotated[bool | None, Field(description="Признак активности", examples=[True])]
 
-class UserCargoReadSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+role_id_ = Annotated[str | None, Field(description="ID роли", examples=["059d01d6-c023-47a2-974f-afedd2ce4bfd"])]
 
-    id: Annotated[str, Field(description="UUID пользователя", examples=["c39e5c5c-b980-45eb-a192-585e6823faa7"])]
-    username: Annotated[str, Field(description="Имя пользователя", examples=["user"])]
-    first_name: Annotated[str, Field(description="Имя", examples=["Алексей"])]
-    last_name: Annotated[str, Field(description="Фамилия", examples=["Гагарин"])]
-    email: Annotated[EmailStr, Field(description="Email", examples=["user@cargonomica.com"])]
-    phone: Annotated[str, Field(description="Телефон", examples=["+79332194370"])]
-    is_active: Annotated[bool, Field(description="Признак активности", examples=[True])]
-    role: Annotated[Optional[RoleReadSchema], Field(description="Роль")]
-    managed_companies: Annotated[List[CompanyReadMinimumSchema], Field(description="Администрируемые организации")]
+role_ = Annotated[RoleReadSchema | None, Field(description="Роль")]
+
+company_id_ = Annotated[
+    EmptyStrToNone | None,
+    Field(description="ID организации", examples=["20f06bf0-ae28-4f32-b2ca-f57796103a71"])
+]
+
+company_ = Annotated[CompanyReadMinimumSchema | None, Field(description="Организация")]
+
+managed_companies_ = Annotated[List[CompanyReadMinimumSchema], Field(description="Администрируемые организации")]
+
+access_token_ = Annotated[
+    str,
+    Field(description="Access Token",
+          examples=[(
+              "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwNjViMzc5MS1jYTI1LTQ2YTMtYjQwNy00ODFlZjMzYTFhMjAiLCJhdWQ"
+              "iOlsiZmFzdGFwaS11c2VyczphdXRoIl0sImV4cCI6MTcxOTI5MzE1MX0.Dy3inizhElunx5k5A_KbXYm-zKTFWzGzBrBrRq3v9NA")])
+]
+
+token_type_ = Annotated[str, Field(description="Тип токена", examples=["bearer"])]
 
 
-class UserCreateSchema(schemas.BaseUserCreate):
-    model_config = ConfigDict(from_attributes=True)
-    email: Annotated[EmailStr, Field(description="Email", examples=["user@cargonomica.com"])]
+class NewUserReadSchema(fastapi_schemas.BaseUser[uuid.UUID]):
+    id: id_uuid_
+    username: username_
+    first_name: first_name_
+    last_name: last_name_
+    email: email_
+    phone: phone_
+    is_active: is_active_ = True
+
+
+class UserReadSchema(BaseSchema):
+    id: id_str_
+    username: username_
+    first_name: first_name_
+    last_name: last_name_
+    email: email_
+    phone: phone_
+    is_active: is_active_
+    role: role_ = None
+
+
+class UserCompanyReadSchema(BaseSchema):
+    id: id_str_
+    username: username_
+    first_name: first_name_
+    last_name: last_name_
+    email: email_
+    phone: phone_
+    is_active: is_active_
+    role: role_ = None
+    company: company_
+
+
+class UserCargoReadSchema(BaseSchema):
+    id: id_str_
+    username: username_
+    first_name: first_name_
+    last_name: last_name_
+    email: email_
+    phone: phone_
+    is_active: is_active_
+    role: role_
+    managed_companies: managed_companies_ = []
+
+
+class UserCreateSchema(fastapi_schemas.BaseUserCreate):
+    email: email_
     password: Annotated[str, Field(description="Пароль", examples=["Xuu76mn66%$"])]
-    first_name: Annotated[str, Field(description="Имя", examples=["Алексей"])]
-    last_name: Annotated[str, Field(description="Фамилия", examples=["Гагарин"])]
-    username: Annotated[str, Field(description="Имя пользователя", examples=["user"])]
-    phone: Annotated[str, Field(description="Телефон", examples=["+79332194370"])]
-    is_active: Annotated[Optional[bool], Field(description="Признак активности", examples=[True])] = True
+    first_name: first_name_
+    last_name: last_name_
+    username: username_
+    phone: phone_
+    is_active: is_active_ = True
     is_superuser: Annotated[bool, Field(deprecated=True)] = False
     is_verified: Annotated[bool, Field(deprecated=True)] = False
-    role_id: Annotated[str, Field(description="ID роли", examples=["059d01d6-c023-47a2-974f-afedd2ce4bfd"])]
-    company_id: Annotated[
-        Optional[EmptyStrToNone],
-        Field(description="ID организации", examples=["20f06bf0-ae28-4f32-b2ca-f57796103a71"])
-    ] = None
+    role_id: role_id_
+    company_id: company_id_ = None
 
 
-class UserEditSchema(schemas.BaseUserCreate):
-    model_config = ConfigDict(from_attributes=True)
-    username: Annotated[Optional[str], Field(description="Имя пользователя", examples=["user"])] = None
-    password: Annotated[Optional[str], Field(description="Пароль", examples=["Xuu76mn66%$"])] = None
-    first_name: Annotated[Optional[str], Field(description="Имя", examples=["Алексей"])] = None
-    last_name: Annotated[Optional[str], Field(description="Фамилия", examples=["Гагарин"])] = None
-    phone: Annotated[Optional[str], Field(description="Телефон", examples=["+79332194370"])] = None
-    is_active: Annotated[Optional[bool], Field(description="Признак активности", examples=[True])] = None
-
-    role_id: Annotated[
-        Optional[str],
-        Field(description="ID роли", examples=["059d01d6-c023-47a2-974f-afedd2ce4bfd"])
-    ] = None
-    
-    company_id: Annotated[
-        Optional[str],
-        Field(description="ID организации", examples=["20f06bf0-ae28-4f32-b2ca-f57796103a71"])
-    ] = None
+class UserEditSchema(fastapi_schemas.BaseUserCreate):
+    username: username_ = None
+    password: password_ = None
+    first_name: first_name_ = None
+    last_name: last_name_ = None
+    phone: phone_ = None
+    is_active: is_active_ = None
+    role_id: role_id_ = None
+    company_id: company_id_ = None
 
 
-class UserImpersonatedSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: Annotated[str, Field(description="UUID пользователя", examples=["c39e5c5c-b980-45eb-a192-585e6823faa7"])]
-    access_token: Annotated[str, Field(
-        description="Access Token",
-        examples=[(
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwNjViMzc5MS1jYTI1LTQ2YTMtYjQwNy00ODFlZjMzYTFhMjAiLCJhdWQ"
-            "iOlsiZmFzdGFwaS11c2VyczphdXRoIl0sImV4cCI6MTcxOTI5MzE1MX0.Dy3inizhElunx5k5A_KbXYm-zKTFWzGzBrBrRq3v9NA"
-        )]
-    )]
-    token_type: Annotated[str, Field(description="Тип токена", examples=["bearer"])]
-    username: Annotated[str, Field(description="Имя пользователя", examples=["user"])]
-    first_name: Annotated[str, Field(description="Имя", examples=["Алексей"])]
-    last_name: Annotated[str, Field(description="Фамилия", examples=["Гагарин"])]
-    email: Annotated[EmailStr, Field(description="Email", examples=["user@cargonomica.com"])]
-    is_active: Annotated[bool, Field(description="Признак активности", examples=[True])]
-    role: Annotated[RoleReadSchema, Field(description="Роль")]
+class UserImpersonatedSchema(BaseSchema):
+    id: id_str_
+    access_token: access_token_
+    token_type: token_type_
+    username: username_
+    first_name: first_name_
+    last_name: last_name_
+    email: email_
+    is_active: is_active_
+    role: role_

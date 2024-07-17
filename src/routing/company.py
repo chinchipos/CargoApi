@@ -5,14 +5,13 @@ from fastapi import APIRouter, Depends
 
 from src.database import models
 from src.depends import get_service_company
+from src.descriptions.company import company_tag_description, edit_company_description, get_company_description, \
+    get_companies_description, get_company_drivers_description, bind_manager_to_company_description
 from src.schemas.common import SuccessSchema
 from src.schemas.company import CompanyReadSchema, CompanyEditSchema
 from src.schemas.driver import DriverReadSchema
 from src.services.company import CompanyService
 from src.utils import enums
-from src.descriptions.company import company_tag_description, edit_company_description, get_company_description, \
-    get_companies_description, get_company_drivers_description, bind_manager_to_company_description, \
-    edit_balance_description
 from src.utils.exceptions import ForbiddenException
 from src.utils.schemas import MessageSchema
 
@@ -33,13 +32,13 @@ company_tag_metadata = {
 )
 async def get_companies(
     service: CompanyService = Depends(get_service_company)
-) -> List[Any]:
+):
     # Получить список организаций может любой пользователь.
     # Состав списка зависит от роли пользователя.
     # Проверка будет выполнена при формировании списка.
 
-    company = await service.get_companies()
-    return company
+    companies = await service.get_companies()
+    return companies
 
 
 @router.get(

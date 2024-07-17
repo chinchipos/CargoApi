@@ -4,7 +4,9 @@ from typing import List
 from sqlalchemy import select as sa_select, delete as sa_delete, func as sa_func
 from sqlalchemy.orm import joinedload, selectinload, load_only, aliased
 
-from src.database import models
+from src.database.models import (Card as CardOrm, User as UserOrm, Transaction as TransactionOrm, System as SystemOrm,
+                                 CardType as CardTypeOrm, Company as CompanyOrm, CardBinding as CardBindingOrm,
+                                 Balance as BalanceOrm, Car as CarOrm)
 from src.repositories.base import BaseRepository
 from src.schemas.card import CardCreateSchema
 from src.utils import enums
@@ -13,78 +15,113 @@ from src.utils.exceptions import DBException
 
 class CardRepository(BaseRepository):
 
-    async def create(self, create_schema: CardCreateSchema) -> models.Card:
-        new_card = models.Card(**create_schema.model_dump())
+    async def create(self, create_schema: CardCreateSchema) -> CardOrm:
+        new_card = CardOrm(**create_schema.model_dump())
         await self.save_object(new_card)
         await self.session.refresh(new_card)
 
         return new_card
 
-    async def get_card(self, card_id: str) -> models.Card:
+    async def get_card(self, card_id: str) -> CardOrm:
         stmt = (
-            sa_select(models.Card)
+            sa_select(CardOrm)
             .options(
-                joinedload(models.Card.card_system).joinedload(models.CardSystem.system),
-                joinedload(models.Card.card_type),
-                joinedload(models.Card.company),
-                joinedload(models.Card.belongs_to_car),
-                joinedload(models.Card.belongs_to_driver)
+                load_only(
+                    CardOrm.id,
+                    CardOrm.card_number,
+                    CardOrm.is_active,
+                    CardOrm.date_last_use,
+                    CardOrm.manual_lock
+                )
             )
-            .where(models.Card.id == card_id)
+            .options(
+                selectinload(CardOrm.card_bindings)
+                .joinedload(CardBindingOrm.system)
+                .load_only(SystemOrm.id, SystemOrm.full_name)
+            )
+            .options(
+                selectinload(CardOrm.card_bindings)
+                .joinedload(CardBindingOrm.balance)
+                .load_only(BalanceOrm.id, BalanceOrm.scheme)
+            )
+            .options(
+                joinedload(CardOrm.card_type)
+                .load_only(CardTypeOrm.id, CardTypeOrm.name)
+            )
+            .options(
+                joinedload(CardOrm.company)
+                .load_only(CompanyOrm.id, CompanyOrm.name, CompanyOrm.inn)
+            )
+            .options(
+                joinedload(CardOrm.belongs_to_car)
+                .load_only(CarOrm.id, CarOrm.model, CarOrm.reg_number)
+            )
+            .options(
+                joinedload(CardOrm.belongs_to_driver)
+                .load_only(UserOrm.id, UserOrm.first_name, UserOrm.last_name)
+            )
+            .where(CardOrm.id == card_id)
         )
 
         card = await self.select_first(stmt)
         return card
 
-    async def get_cards(self, card_numbers: List[str] = None) -> List[models.Card]:
-        card = aliased(models.Card, name = "card")
+    async def get_cards(self, card_numbers: List[str] = None) -> List[CardOrm]:
         stmt = (
-            sa_select(card)
+            sa_select(CardOrm)
             .options(
                 load_only(
-                    card.id,
-                    card.card_number,
-                    card.is_active,
-                    card.date_last_use,
-                    card.manual_lock
+                    CardOrm.id,
+                    CardOrm.card_number,
+                    CardOrm.is_active,
+                    CardOrm.date_last_use,
+                    CardOrm.manual_lock
                 )
             )
             .options(
-                joinedload(card.card_type)
-                .load_only(models.CardType.id, models.CardType.name)
+                selectinload(CardOrm.card_bindings)
+                .joinedload(CardBindingOrm.system)
+                .load_only(SystemOrm.id, SystemOrm.full_name)
             )
             .options(
-                joinedload(card.company)
-                .load_only(models.Company.id, models.Company.name, models.Company.inn)
+                selectinload(CardOrm.card_bindings)
+                .joinedload(CardBindingOrm.balance)
+                .load_only(BalanceOrm.id, BalanceOrm.scheme)
             )
             .options(
-                joinedload(card.belongs_to_car)
-                .load_only(models.Car.id, models.Car.model, models.Car.reg_number)
+                joinedload(CardOrm.card_type)
+                .load_only(CardTypeOrm.id, CardTypeOrm.name)
             )
             .options(
-                joinedload(card.belongs_to_driver)
-                .load_only(models.User.id, models.User.first_name, models.User.last_name)
+                joinedload(CardOrm.company)
+                .load_only(CompanyOrm.id, CompanyOrm.name, CompanyOrm.inn)
             )
             .options(
-                selectinload(card.systems)
-                .load_only(models.System.id, models.System.full_name)
+                joinedload(CardOrm.belongs_to_car)
+                .load_only(CarOrm.id, CarOrm.model, CarOrm.reg_number)
+            )
+            .options(
+                joinedload(CardOrm.belongs_to_driver)
+                .load_only(UserOrm.id, UserOrm.first_name, UserOrm.last_name)
             )
         )
 
         if card_numbers:
-            stmt = stmt.where(card.card_number.in_(card_numbers))
+            stmt = stmt.where(CardOrm.card_number.in_(card_numbers))
 
         if self.user.role.name == enums.Role.CARGO_MANAGER.name:
-            stmt = stmt.where(card.company_id.in_(self.user.company_ids_subquery()))
+            company_ids_subquery = self.user.company_ids_subquery()
+            stmt = stmt.join(company_ids_subquery, company_ids_subquery.c.id == CardOrm.company_id)
+            # stmt = stmt.where(card.company_id.in_(self.user.company_ids_subquery()))
 
         elif self.user.role.name in [enums.Role.COMPANY_ADMIN.name, enums.Role.COMPANY_LOGIST.name]:
-            stmt = stmt.where(card.company_id == self.user.company_id)
+            stmt = stmt.where(CardOrm.company_id == self.user.company_id)
 
         elif self.user.role.name == enums.Role.COMPANY_DRIVER.name:
             stmt = (
                 stmt
-                .where(card.company_id == self.user.company_id)
-                .where(card.belongs_to_driver_id == self.user.id)
+                .where(CardOrm.company_id == self.user.company_id)
+                .where(CardOrm.belongs_to_driver_id == self.user.id)
             )
 
         cards = await self.select_all(stmt)
@@ -93,14 +130,14 @@ class CardRepository(BaseRepository):
     async def bind_managed_companies(self, card_id: str, system_ids: List[str]) -> None:
         if system_ids:
             dataset = [{"card_id": card_id, "system_id": system_id} for system_id in system_ids]
-            await self.bulk_insert_or_update(models.CardSystem, dataset)
+            await self.bulk_insert_or_update(CardOrmSystem, dataset)
 
     async def unbind_managed_companies(self, card_id: str, system_ids: List[str]) -> None:
         if system_ids:
             stmt = (
-                sa_delete(models.CardSystem)
-                .where(models.CardSystem.card_id == card_id)
-                .where(models.CardSystem.system_id.in_(system_ids))
+                sa_delete(CardOrmSystem)
+                .where(CardOrmSystem.card_id == card_id)
+                .where(CardOrmSystem.system_id.in_(system_ids))
             )
             try:
                 await self.session.execute(stmt)
@@ -111,18 +148,18 @@ class CardRepository(BaseRepository):
                 raise DBException()
 
     async def has_transactions(self, card_id: str) -> bool:
-        stmt = sa_select(sa_func.count(models.Transaction.id)).where(models.Transaction.card_id == card_id)
+        stmt = sa_select(sa_func.count(TransactionOrm.id)).where(TransactionOrm.card_id == card_id)
         amount = await self.select_single_field(stmt)
         return amount > 0
 
     async def delete(self, card_id: str) -> None:
         try:
             # Удаляем связь Карта-Система
-            stmt = sa_delete(models.CardSystem).where(models.CardSystem.card_id == card_id)
+            stmt = sa_delete(CardOrmSystem).where(CardOrmSystem.card_id == card_id)
             await self.session.execute(stmt)
 
             # Удаляем карту
-            stmt = sa_delete(models.Card).where(models.Card.id == card_id)
+            stmt = sa_delete(CardOrm).where(CardOrm.id == card_id)
             await self.session.execute(stmt)
 
             await self.session.commit()
@@ -131,7 +168,7 @@ class CardRepository(BaseRepository):
             self.logger.error(traceback.format_exc())
             raise DBException()
 
-    async def get_systems(self, system_ids: List[str]) -> List[models.System]:
-        stmt = sa_select(models.System).where(models.System.id.in_(system_ids))
+    async def get_systems(self, system_ids: List[str]) -> List[SystemOrm]:
+        stmt = sa_select(SystemOrm).where(SystemOrm.id.in_(system_ids))
         systems = await self.select_all(stmt)
         return systems

@@ -3,14 +3,12 @@ from typing import List, Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.schemas.balance import BalanceReadSchema, BalanceReadMinimumSchema
+from src.schemas.balance import BalanceReadSchema
 from src.schemas.base import BaseSchema
 from src.schemas.role import RoleReadSchema
 
 
-class CompanyUserSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
+class CompanyUserSchema(BaseSchema):
     id: Annotated[str, Field(description="UUID пользователя", examples=["c39e5c5c-b980-45eb-a192-585e6823faa7"])]
     username: Annotated[str, Field(description="Имя пользователя", examples=["user"])]
     first_name: Annotated[str, Field(description="Имя", examples=["Алексей"])]
@@ -33,7 +31,7 @@ date_add_ = Annotated[date | None, Field(description="Дата добавлен�
 
 cards_amount_ = Annotated[
     int | None,
-    Field(description="Количество карт, принадлежащих этой организации", examples=[271886.33])
+    Field(description="Количество карт, принадлежащих этой организации", examples=[60])
 ]
 
 users_ = Annotated[List[CompanyUserSchema], Field(description="Список пользователей этой организации")]

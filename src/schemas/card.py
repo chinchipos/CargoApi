@@ -1,15 +1,22 @@
 from datetime import date
-from typing import Optional, List, Annotated
+from typing import List, Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 
+from src.schemas.balance import BalanceReadMinimumSchema
 from src.schemas.base import BaseSchema
-from src.schemas.car import CarReadSchema
+from src.schemas.car import CarReadMinimumSchema
 from src.schemas.card_type import CardTypeReadSchema
 from src.schemas.company import CompanyReadMinimumSchema
 from src.schemas.driver import DriverReadMinimumSchema
 from src.schemas.system import SystemReadMinimumSchema
 from src.schemas.validators import EmptyStrToNone
+
+
+class CardBindingMinimumSchemaForCard(BaseSchema):
+    system: Annotated[SystemReadMinimumSchema | None, Field(description="Система")] = None
+    balance: Annotated[BalanceReadMinimumSchema | None, Field(description="Баланс")] = None
+
 
 pk_ = Annotated[str, Field(description="UUID карты", examples=["c39e5c5c-b980-45eb-a192-585e6823faa7"])]
 
@@ -36,7 +43,7 @@ belongs_to_car_id_ = Annotated[
     Field(description="UUID автомобиля", examples=["c83180ab-27b0-4686-9572-f7e2c9b13676"])
 ]
 
-belongs_to_car_ = Annotated[CarReadSchema | None, Field(description="Автомобиль")]
+belongs_to_car_ = Annotated[CarReadMinimumSchema | None, Field(description="Автомобиль")]
 
 belongs_to_driver_id_ = Annotated[
     EmptyStrToNone | None,
@@ -50,6 +57,18 @@ date_last_use_ = Annotated[date | None, Field(description="Дата послед
 manual_lock_ = Annotated[bool, Field(description="Признак ручной блокировки", examples=[True])]
 
 systems_ = Annotated[List[SystemReadMinimumSchema], Field(description="Системы")]
+
+card_numbers_ = Annotated[List[str], Field(description="Номера карт", examples=[["502980100000358664"]])]
+
+system_ids_ = Annotated[
+    List[EmptyStrToNone],
+    Field(description="Список UUID поставщиков услуг", examples=["20f06bf0-ae28-4f32-b2ca-f57796103a71"])
+]
+
+card_bindings_ = Annotated[
+    List[CardBindingMinimumSchemaForCard],
+    Field(description="Привязка карты к системам и тарифам")
+]
 
 
 class CardEditSchema(BaseSchema):
@@ -79,34 +98,20 @@ class CardReadSchema(BaseSchema):
     id: pk_
     is_active: is_active_
     card_number: card_number_
-    card_type: card_type_
+    card_type: card_type_ = None
     company: company_ = None
     belongs_to_car: belongs_to_car_ = None
     belongs_to_driver: belongs_to_driver_ = None
     date_last_use: date_last_use_ = None
     manual_lock: manual_lock_
-    systems: systems_ = []
+    card_bindings: card_bindings_ = []
 
 
-class BulkBindSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    card_numbers: Annotated[List[str], Field(description="Номера карт", examples=[["502980100000358664"]])]
-
-    company_id: Annotated[
-        Optional[EmptyStrToNone],
-        Field(description="UUID организации", examples=["20f06bf0-ae28-4f32-b2ca-f57796103a71"])
-    ] = None
-
-    system_ids: Annotated[
-        Optional[List[EmptyStrToNone]],
-        Field(description="Список UUID поставщиков услуг", examples=["20f06bf0-ae28-4f32-b2ca-f57796103a71"])
-    ] = None
+class BulkBindSchema(BaseSchema):
+    card_numbers: card_numbers_
+    company_id: company_id_ = None
+    system_ids: system_ids_ = []
 
 
-class BulkUnbindSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    card_numbers: Annotated[
-        Optional[List[str]], Field(description="Список номеров карт", examples=[["502980100000358664"]])
-    ] = []
+class BulkUnbindSchema(BaseSchema):
+    card_numbers: card_numbers_ = []

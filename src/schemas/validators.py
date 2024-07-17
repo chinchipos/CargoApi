@@ -18,7 +18,7 @@ def normalize_date_time(value: datetime):
     return value.isoformat(sep=' ', timespec='seconds') if value else None
 
 
-DateTimeNormalized = Annotated[datetime | None, AfterValidator(normalize_date_time)]
+DateTimeNormalized = Annotated[str | None, BeforeValidator(normalize_date_time)]
 
 
 def company_from_balance(balance: BalanceModel):
@@ -29,5 +29,6 @@ class CompanyMinimumSchema(BaseSchema):
     id: Annotated[str, Field(description="UUID организации", examples=["20f06bf0-ae28-4f32-b2ca-f57796103a71"])]
     name: Annotated[str | None, Field(description="Наименование", examples=['ООО "Современные технологии"'])]
     inn: Annotated[str | None, Field(description="ИНН", examples=["77896534678800"])]
+
 
 CompanyFromBalance = Annotated[CompanyMinimumSchema | None, BeforeValidator(company_from_balance)]

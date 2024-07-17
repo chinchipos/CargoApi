@@ -22,8 +22,15 @@ class BaseRepository:
         self.logger = api_logger
 
     @staticmethod
-    def statement(stmt) -> None:
+    def statement(stmt, description: str = "") -> None:
+        print('   ')
+        if description:
+            description = '  ' + description + '  '
+        title = ('--------------' + description.upper() + '-' * 35)[:50]
+        print(title)
+        print('   ')
         print(sqlparse.format(str(stmt.compile()), reindent=True))
+        print('   ')
 
     async def select_helper(self, stmt, scalars=True) -> Any:
         try:

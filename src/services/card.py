@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from src.database import models
+from src.database.models import Card as CardOrm
 from src.repositories.card import CardRepository
 from src.schemas.card import CardCreateSchema, CardReadSchema, CardEditSchema
 from src.utils import enums
@@ -13,7 +13,7 @@ class CardService:
         self.repository = repository
         self.logger = repository.logger
 
-    async def get_card(self, card_id: str):
+    async def get_card(self, card_id: str) -> CardOrm:
         card = await self.repository.get_card(card_id)
         if not card:
             raise BadRequestException('Запись не найдена')
@@ -119,17 +119,8 @@ class CardService:
         card_read_schema = CardReadSchema.model_validate(card_obj)
         return card_read_schema
 
-    async def get_cards(self) -> List[models.Card]:
+    async def get_cards(self) -> List[CardOrm]:
         cards = await self.repository.get_cards()
-        """
-        def get_card_schema(card_obj: models.Card) -> CardReadSchema:
-            card_data = card_obj.dumps()
-            card_data['systems'] = [cs.system for cs in card_obj.card_system]
-            card_read_schema = CardReadSchema(**card_data)
-            return card_read_schema
-
-        cards = list(map(get_card_schema, cards))
-        """
         return cards
 
     async def delete(self, card_id: str) -> None:
@@ -175,7 +166,7 @@ class CardService:
 
         # Выполняем привязку к организации
         dataset = [{"id": card.id, "company_id": company_id} for card in cards]
-        await self.repository.bulk_update(models.Card, dataset)
+        await self.repository.bulk_update(CardOrm, dataset)
 
     async def bulk_bind_systems(self, card_numbers: List[str], system_ids: List[str]) -> None:
         # Проверяем права доступа.
@@ -200,7 +191,7 @@ class CardService:
                         card_id=card.id,
                         system_id=system.id,
                     )
-                    await self.repository.insert(models.CardSystem, **cs_fields)
+                    await self.repository.insert(CardSystem, **cs_fields)
 
     async def bulk_bind(self, card_numbers: List[str], company_id: str, system_ids: List[str]) -> None:
         if company_id:
@@ -232,7 +223,7 @@ class CardService:
 
         # Отвязываем от карт текущую организацию
         dataset = [{"id": card.id, "company_id": None} for card in cards]
-        await self.repository.bulk_update(models.Card, dataset)
+        await self.repository.bulk_update(CardOrm, dataset)
 
     async def bulk_unbind_systems(self, card_numbers: List[str]) -> None:
         # Проверяем права доступа.
@@ -247,7 +238,7 @@ class CardService:
         # Отвязываем карты от всех систем
         for card in cards:
             for cs in card.card_system:
-                await self.repository.delete_object(models.CardSystem, cs.id)
+                await self.repository.delete_object(CardOrmSystem, cs.id)
 
     async def bulk_activate(self, card_numbers: List[str]) -> None:
         # Получаем из БД карты по списку номеров
@@ -270,7 +261,7 @@ class CardService:
 
         # Разблокируем карты
         dataset = [{"id": card.id, "is_active": True, "manual_lock": False} for card in cards]
-        await self.repository.bulk_update(models.Card, dataset)
+        await self.repository.bulk_update(CardOrm, dataset)
 
     async def bulk_block(self, card_numbers: List[str]) -> None:
         # Получаем из БД карты по списку номеров
@@ -299,4 +290,4 @@ class CardService:
 
         # Блокируем карты
         dataset = [{"id": card.id, "is_active": False, "manual_lock": True} for card in cards]
-        await self.repository.bulk_update(models.Card, dataset)
+        await self.repository.bulk_update(CardOrm, dataset)

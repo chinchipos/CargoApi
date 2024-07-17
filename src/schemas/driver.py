@@ -1,6 +1,6 @@
 from typing import Optional, Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 
 from src.schemas.base import BaseSchema
 from src.schemas.company import CompanyReadMinimumSchema

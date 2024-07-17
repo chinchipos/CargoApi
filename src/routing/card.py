@@ -1,16 +1,16 @@
 import uuid
-from typing import Any, List, Optional, Dict
+from typing import Any, List, Dict
 
 from fastapi import APIRouter, Depends
 
 from src.depends import get_service_card
+from src.descriptions.card import delete_card_description, get_cards_description, edit_card_description, \
+    create_card_description, card_tag_description, get_card_description, bulk_bind_description, \
+    bulk_unbind_systems_description, bulk_unbind_company_description, bulk_block_description, bulk_activate_description
 from src.schemas.card import CardReadSchema, CardCreateSchema, CardEditSchema, BulkBindSchema, BulkUnbindSchema
 from src.schemas.common import SuccessSchema
 from src.services.card import CardService
 from src.utils import enums
-from src.descriptions.card import delete_card_description, get_cards_description, edit_card_description, \
-    create_card_description, card_tag_description, get_card_description, bulk_bind_description, \
-    bulk_unbind_systems_description, bulk_unbind_company_description, bulk_block_description, bulk_activate_description
 from src.utils.exceptions import ForbiddenException
 from src.utils.schemas import MessageSchema
 
@@ -48,9 +48,11 @@ async def get_cards(
 )
 async def create(
     card: CardCreateSchema,
-    systems: Optional[List[uuid.UUID]] = [],
+    systems: List[uuid.UUID] | None = None,
     service: CardService = Depends(get_service_card)
 ) -> CardReadSchema:
+    if systems is None:
+        systems = []
     # Создавать карты может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()
@@ -151,7 +153,7 @@ async def bulk_block(
 async def get_card(
     id: uuid.UUID,
     service: CardService = Depends(get_service_card)
-) -> CardReadSchema:
+):
     id = str(id)
     card = await service.get_card(id)
 
@@ -168,10 +170,7 @@ async def get_card(
         if not service.repository.user.is_worker_of_company(card.company_id):
             raise ForbiddenException()
 
-    card_data = card.dumps()
-    card_data['systems'] = [cs.system for cs in card.card_system]
-    card_read_schema = CardReadSchema(**card_data)
-    return card_read_schema
+    return card
 
 
 @router.put(
@@ -185,10 +184,12 @@ async def get_card(
 async def edit(
     id: uuid.UUID,
     card: CardEditSchema,
-    systems: Optional[List[uuid.UUID]] = [],
+    systems: List[uuid.UUID] | None = None,
     service: CardService = Depends(get_service_card)
 ) -> CardReadSchema:
     id = str(id)
+    if systems is None:
+        systems = []
     # Право редактирования есть у сотрудников ПроАВТО, администратора организации и логиста.
     # У водителя нет прав.
     # Дополнительная проверка прав доступа будет выполнена на следующем этапе.
