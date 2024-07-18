@@ -27,6 +27,8 @@ description_ = Annotated[
 class RoleReadMinimumSchema(BaseSchema):
     id: id_
     name: name_
+    title: title_
+
 
 class RoleReadSchema(BaseSchema):
     id: id_

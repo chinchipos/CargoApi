@@ -5,7 +5,7 @@ from sqlalchemy.orm import joinedload, selectinload, aliased, load_only
 
 from src.database.models import (Company as CompanyOrm, Balance as BalanceOrm, AdminCompany as AdminCompanyOrm,
                                  User as UserOrm, Role as RoleOrm, BalanceSystemTariff as BalanceSystemTariffOrm,
-                                 System as SystemOrm, Car as CarOrm)
+                                 System as SystemOrm, Car as CarOrm, Tariff as TariffOrm)
 from src.repositories.base import BaseRepository
 from src.repositories.transaction import TransactionRepository
 from src.utils import enums
@@ -37,9 +37,15 @@ class CompanyRepository(BaseRepository):
                     BalanceOrm.min_balance_period_end_date
                 )
                 .selectinload(BalanceOrm.balance_system_tariff)
-                .load_only()
                 .joinedload(BalanceSystemTariffOrm.system)
                 .load_only(SystemOrm.id, SystemOrm.full_name)
+            )
+            .options(
+                selectinload(CompanyOrm.balances)
+                .load_only()
+                .selectinload(BalanceOrm.balance_system_tariff)
+                .joinedload(BalanceSystemTariffOrm.tariff)
+                .load_only(TariffOrm.id, TariffOrm.name)
             )
             .options(
                 selectinload(CompanyOrm.users)
@@ -60,6 +66,12 @@ class CompanyRepository(BaseRepository):
             .where(CompanyOrm.id == company_id)
         )
         company = await self.select_first(stmt)
+        for balance in company.balances:
+            systems = []
+            for bst in balance.balance_system_tariff:
+                bst.system.annotate({"tariff": bst.tariff})
+                systems.append(bst.system)
+            balance.annotate({"systems": systems})
 
         # Добавляем сведения о количестве карт
         # stmt = sa_select(sa_func.count(models.Card.id)).filter_by(company_id=company_id)
@@ -81,20 +93,7 @@ class CompanyRepository(BaseRepository):
         return company
 
     async def get_companies(self) -> List[CompanyOrm]:
-        # Получаем полные сведения об организациях
-        """
-        stmt = (
-            sa_select(CompanyOrm, sa_func.count(models.Card.id).label('cards_amount'))
-            .select_from(models.Card)
-            .outerjoin(CompanyOrm.cards)
-            .group_by(CompanyOrm)
-            .order_by(CompanyOrm.name)
-            .options(
-                selectinload(CompanyOrm.tariff),
-                selectinload(CompanyOrm.users).joinedload(UserOrm.role)
-            )
-        )
-        """
+        # Получаем сведения об организациях
         stmt = (
             sa_select(CompanyOrm)
             .options(
@@ -117,9 +116,15 @@ class CompanyRepository(BaseRepository):
                     BalanceOrm.min_balance_period_end_date
                 )
                 .selectinload(BalanceOrm.balance_system_tariff)
-                .load_only()
                 .joinedload(BalanceSystemTariffOrm.system)
                 .load_only(SystemOrm.id, SystemOrm.full_name)
+            )
+            .options(
+                selectinload(CompanyOrm.balances)
+                .load_only()
+                .selectinload(BalanceOrm.balance_system_tariff)
+                .joinedload(BalanceSystemTariffOrm.tariff)
+                .load_only(TariffOrm.id, TariffOrm.name)
             )
             .options(
                 selectinload(CompanyOrm.users)
@@ -144,16 +149,16 @@ class CompanyRepository(BaseRepository):
 
         companies = await self.select_all(stmt, scalars=True)
 
-        def annotate_systems(company: CompanyOrm) -> CompanyOrm:
+        def annotate(company: CompanyOrm) -> CompanyOrm:
             for balance in company.balances:
-                systems = [bst.system for bst in balance.balance_system_tariff]
+                systems = []
+                for bst in balance.balance_system_tariff:
+                    bst.system.annotate({"tariff": bst.tariff})
+                    systems.append(bst.system)
                 balance.annotate({"systems": systems})
             return company
 
-        companies = list(map(annotate_systems, companies))
-        # companies = list(map(lambda data: data[0].annotate({'cards_amount': data[1]}), dataset))
-        # companies = list(map(lambda data: data[0].annotate({'cards_amount': 0}), dataset))
-
+        companies = list(map(annotate, companies))
         return companies
 
     async def get_drivers(self, company_id: str = None) -> UserOrm:

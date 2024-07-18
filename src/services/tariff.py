@@ -1,6 +1,6 @@
 from typing import List
 
-from src.database import models
+from src.database.models import Tariff as TariffOrm
 from src.repositories.tariff import TariffRepository
 from src.schemas.tariff import TariffCreateSchema, TariffReadSchema, TariffEditSchema
 from src.utils.exceptions import BadRequestException
@@ -21,7 +21,7 @@ class TariffService:
 
     async def edit(self, tariff_id: str, tariff_edit_schema: TariffEditSchema) -> TariffReadSchema:
         # Получаем тариф из БД
-        tariff_obj = await self.repository.session.get(models.Tariff, tariff_id)
+        tariff_obj = await self.repository.session.get(TariffOrm, tariff_id)
         if not tariff_obj:
             raise BadRequestException('Запись не найдена')
 
@@ -30,14 +30,14 @@ class TariffService:
         await self.repository.update_object(tariff_obj, update_data)
 
         # Формируем ответ
-        companies_amount = await self.repository.get_companies_amount(tariff_id)
-        tariff_obj.annotate({'companies_amount': companies_amount})
+        # companies_amount = await self.repository.get_companies_amount(tariff_id)
+        # tariff_obj.annotate({'companies_amount': companies_amount})
         tariff_read_schema = TariffReadSchema.model_validate(tariff_obj)
         return tariff_read_schema
 
-    async def get_tariffs(self) -> List[models.Tariff]:
+    async def get_tariffs(self) -> List[TariffOrm]:
         tariffs = await self.repository.get_tariffs()
         return tariffs
 
     async def delete(self, tariff_id: str) -> None:
-        await self.repository.delete_object(models.Tariff, tariff_id)
+        await self.repository.delete_object(TariffOrm, tariff_id)

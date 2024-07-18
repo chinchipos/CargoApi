@@ -4,9 +4,14 @@ from pydantic import Field
 
 from src.schemas.base import BaseSchema
 from src.schemas.system import SystemReadMinimumSchema
+from src.schemas.tariff import TariffMinimumReadSchema
 from src.utils import enums
 
 from typing import Annotated, List
+
+
+class SystemWithTariffSchema(SystemReadMinimumSchema):
+    tariff: Annotated[TariffMinimumReadSchema, Field(description="Тариф")]
 
 
 id_ = Annotated[str, Field(description="UUID договора", examples=["75325199-ac93-4733-becb-de2e89e85202"])]
@@ -33,7 +38,7 @@ min_balance_period_end_date_ = Annotated[
     Field(description="Дата прекращения действия временного овердрафта", examples=["2023-05-17"])
 ]
 
-systems_ = Annotated[List[SystemReadMinimumSchema], Field(description="Поставщики услуг")]
+systems_ = Annotated[List[SystemWithTariffSchema], Field(description="Поставщики услуг")]
 
 """
 class BalanceCreateSchema(BaseSchema):

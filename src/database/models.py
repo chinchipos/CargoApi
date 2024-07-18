@@ -10,21 +10,26 @@ from fastapi_users.db import SQLAlchemyBaseUserTableUUID
 from src.config import SCHEMA
 from src.utils import enums
 
-pk = Annotated[
-    str,
-    mapped_column(
-        sa.Uuid(as_uuid=False),
-        primary_key=True,
-        server_default=sa.text("uuid_generate_v4()"),
-        init=False
-    )
-]
+# pk = Annotated[
+#     str,
+#     mapped_column(
+#         sa.Uuid(as_uuid=False),
+#         primary_key=True,
+#         server_default=sa.text("uuid_generate_v4()"),
+#         init=False
+#     )
+# ]
 
 
 class Base(AsyncAttrs, MappedAsDataclass, DeclarativeBase):
     metadata = MetaData(schema=SCHEMA)
 
-    id: Mapped[pk]
+    id: Mapped[str] = mapped_column(
+        sa.Uuid(as_uuid=False),
+        primary_key=True,
+        server_default=sa.text("uuid_generate_v4()"),
+        init=False
+    )
 
     repr_cols = tuple()
 
