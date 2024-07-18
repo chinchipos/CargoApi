@@ -44,8 +44,6 @@ transaction_days_ = Annotated[
     Field(description="Синхронизировать транзакции за период, дни (0 < x <= 50)", examples=[30], ge=0, le=50)
 ]
 
-tariff_ = Annotated[TariffMinimumReadSchema | None, Field(description="Тариф")]
-
 
 class SystemEditSchema(BaseSchema):
     full_name: full_name_ = None
@@ -55,7 +53,6 @@ class SystemEditSchema(BaseSchema):
 class SystemReadMinimumSchema(BaseSchema):
     id: id_
     full_name: full_name_
-    tariff: tariff_ = None
 
 
 class SystemReadSchema(BaseSchema):

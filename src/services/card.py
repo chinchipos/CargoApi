@@ -1,6 +1,6 @@
-from typing import List, Optional
+from typing import List
 
-from src.database.models import Card as CardOrm
+from src.database.models import Card as CardOrm, CardSystem as CardSystemOrm
 from src.repositories.card import CardRepository
 from src.schemas.card import CardCreateSchema, CardReadSchema, CardEditSchema
 from src.utils import enums
@@ -25,7 +25,7 @@ class CardService:
 
         # Привязываем к системам
         await self.binding_systems(
-            system_id=new_card_obj.id,
+            card_id=new_card_obj.id,
             current_systems=[],
             new_systems=systems
         )
@@ -104,7 +104,7 @@ class CardService:
         # Отвязываем от неактуальных систем, привязываем к новым
         await self.binding_systems(
             card_id=card.id,
-            current_systems=[cb.system.id for cb in card.card_bindings],
+            current_systems=[system.id for system in card.systems],
             new_systems=systems
         )
 
@@ -181,14 +181,14 @@ class CardService:
 
         # Прикрепляем карты к полученным системам (ранее привязанные системы не удаляются)
         for card in cards:
-            current_system_ids = [cs.system_id for cs in card.card_system]
+            current_system_ids = [system.id for system in card.systems]
             for system in systems:
                 if system.id not in current_system_ids:
                     cs_fields = dict(
                         card_id=card.id,
                         system_id=system.id,
                     )
-                    await self.repository.insert(CardSystem, **cs_fields)
+                    await self.repository.insert(CardSystemOrm, **cs_fields)
 
     async def bulk_bind(self, card_numbers: List[str], company_id: str, system_ids: List[str]) -> None:
         if company_id:
@@ -218,24 +218,30 @@ class CardService:
         else:
             raise ForbiddenException()
 
-        # Отвязываем от карт текущую организацию
-        dataset = [{"id": card.id, "company_id": None} for card in cards]
+        # Отвязываем от карт автомобиль, водителя, организацию. Блокируем карту.
+        dataset = [
+            {
+                "id": card.id,
+                "company_id": None,
+                "belongs_to_car_id": None,
+                "belongs_to_driver_id": None,
+                "is_active": False,
+            } for card in cards
+        ]
         await self.repository.bulk_update(CardOrm, dataset)
 
     async def bulk_unbind_systems(self, card_numbers: List[str]) -> None:
+        if not card_numbers:
+            return
+
         # Проверяем права доступа.
         # У Суперадмина ПроАВТО есть право в отношении любых сарт.
         # У остальных ролей нет прав.
         if self.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
             raise ForbiddenException()
 
-        # Получаем из БД карты по списку номеров
-        cards = await self.repository.get_cards(card_numbers=card_numbers)
-
-        # Отвязываем карты от всех систем
-        for card in cards:
-            for cs in card.card_system:
-                await self.repository.delete_object(CardOrmSystem, cs.id)
+        # Открепляем карты от систем
+        await self.repository.bulk_unbind_systems(card_numbers=card_numbers)
 
     async def bulk_activate(self, card_numbers: List[str]) -> None:
         # Получаем из БД карты по списку номеров

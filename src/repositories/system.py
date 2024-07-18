@@ -11,46 +11,41 @@ from src.utils.enums import ContractScheme
 class SystemRepository(BaseRepository):
 
     async def get_system(self, system_id: str) -> SystemOrm:
-        system_table_total = aliased(SystemOrm, name="system_table_total")
-        system_table_in_use = aliased(SystemOrm, name="system_table_in_use")
-        system_table = aliased(SystemOrm, name="system_table")
-
         subq_cards_total = (
             sa_select(
-                system_table_total.id,
+                CardSystemOrm.system_id,
                 sa_func.count(CardSystemOrm.id).label('cards_amount_total'),
             )
-            .where(system_table_total.id == system_id)
-            .where(CardSystemOrm.system_id == system_table_total.id)
-            .group_by(system_table_total.id)
+            .where(CardSystemOrm.system_id == system_id)
+            .group_by(CardSystemOrm.system_id)
             .subquery("helper_cards_total")
         )
 
         subq_cards_in_use = (
             sa_select(
-                system_table_in_use.id,
+                CardSystemOrm.system_id,
                 sa_func.count(CardSystemOrm.id).label('cards_amount_in_use'),
             )
-            .where(system_table_in_use.id == system_id)
-            .where(CardSystemOrm.system_id == system_table_in_use.id)
-            .group_by(system_table_in_use.id)
+            .where(CardOrm.company_id.is_not(null()))
+            .where(CardSystemOrm.card_id == CardOrm.id)
+            .where(CardSystemOrm.system_id == system_id)
+            .group_by(CardSystemOrm.system_id)
             .subquery("helper_cards_in_use")
         )
 
-        stmt_get_system = (
+        stmt = (
             sa_select(
-                system_table,
+                SystemOrm,
                 subq_cards_total.c.cards_amount_total,
                 subq_cards_in_use.c.cards_amount_in_use
             )
-            .select_from(subq_cards_total, subq_cards_in_use, system_table)
-            .where(system_table.id == system_id)
-            .where(subq_cards_total.c.id == system_table.id)
-            .where(subq_cards_in_use.c.id == system_table.id)
-
+            .select_from(SystemOrm)
+            .where(SystemOrm.id == system_id)
+            .outerjoin(subq_cards_total, subq_cards_total.c.system_id == SystemOrm.id)
+            .outerjoin(subq_cards_in_use, subq_cards_in_use.c.system_id == SystemOrm.id)
         )
 
-        dataset = await self.select_first(stmt_get_system, scalars=False)
+        dataset = await self.select_first(stmt, scalars=False)
         system = dataset[0]
         system.annotate({'cards_amount_total': dataset[1]})
         system.annotate({'cards_amount_in_use': dataset[2]})
@@ -66,7 +61,6 @@ class SystemRepository(BaseRepository):
             .group_by(CardSystemOrm.system_id)
             .subquery("helper_cards_total")
         )
-        self.statement(subq_cards_total)
 
         subq_cards_in_use = (
             sa_select(
@@ -78,7 +72,6 @@ class SystemRepository(BaseRepository):
             .group_by(CardSystemOrm.system_id)
             .subquery("helper_cards_in_use")
         )
-        self.statement(subq_cards_in_use)
 
         stmt = (
             sa_select(
@@ -90,7 +83,6 @@ class SystemRepository(BaseRepository):
             .outerjoin(subq_cards_total, subq_cards_total.c.system_id == SystemOrm.id)
             .outerjoin(subq_cards_in_use, subq_cards_in_use.c.system_id == SystemOrm.id)
         )
-        self.statement(stmt)
 
         dataset = await self.select_all(stmt, scalars=False)
 
@@ -104,8 +96,6 @@ class SystemRepository(BaseRepository):
             return data[0]
 
         systems = list(map(annotate_amounts, dataset))
-        print('YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY')
-        print(len(systems))
         return systems
 
     async def get_cards_amount(self, system_id: str) -> int:

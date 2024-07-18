@@ -1,98 +1,131 @@
 from datetime import date
 from typing import List
 
-from sqlalchemy import select as sa_select, desc
-from sqlalchemy.orm import joinedload, load_only
+from sqlalchemy import select as sa_select, and_
+from sqlalchemy.orm import joinedload, load_only, aliased
 
-from src.database import models
+from src.database.models import (Transaction as TransactionOrm, Card as CardOrm, System as SystemOrm, 
+                                 OuterGoods as OuterGoodsOrm, Tariff as TariffOrm, Company as CompanyOrm,
+                                 Balance as BalanceOrm)
 from src.repositories.base import BaseRepository
 from src.utils import enums
 from src.utils.exceptions import ForbiddenException
 
-import sqlparse
-
 
 class TransactionRepository(BaseRepository):
-    async def get_transactions(self, start_date: date, end_date: date) -> List[models.Transaction]:
+    async def get_transactions(self, start_date: date, end_date: date) -> List[TransactionOrm]:
         # Суперадмин ПроАВТО имеет полные права.
         # Менеджер ПроАВТО может получать информацию только по своим организациям.
         # Администратор и логист компании могут получать информацию только по своей организации.
         # Водитель может получать только транзакции по своим картам.
         # Состав списка зависит от роли пользователя.
-        stmt = (
-            sa_select(models.Transaction)
-            .options(
-                load_only(
-                    models.Transaction.id,
-                    models.Transaction.date_time,
-                    models.Transaction.date_time_load,
-                    models.Transaction.is_debit,
-                    models.Transaction.azs_code,
-                    models.Transaction.azs_address,
-                    models.Transaction.fuel_volume,
-                    models.Transaction.price,
-                    models.Transaction.transaction_sum,
-                    models.Transaction.discount_sum,
-                    models.Transaction.fee_percent,
-                    models.Transaction.fee_sum,
-                    models.Transaction.total_sum,
-                    models.Transaction.card_balance,
-                    models.Transaction.company_balance,
-                    models.Transaction.comments
-                )
-            )
-            .options(
-                joinedload(models.Transaction.card)
-                .load_only(models.Card.id, models.Card.card_number, models.Card.is_active)
-            )
-            .options(
-                joinedload(models.Transaction.system)
-                .load_only(models.System.id, models.System.full_name)
-            )
-            .options(
-                joinedload(models.Transaction.outer_goods)
-                .load_only(models.OuterGoods.id, models.OuterGoods.name)
-                .joinedload(models.OuterGoods.inner_goods)
-            )
-            .options(
-                joinedload(models.Transaction.tariff)
-                .load_only(models.Tariff.id, models.Tariff.name)
-            )
-            .options(
-                joinedload(models.Transaction.company)
-                .load_only()
-                .joinedload(models.Balance.company)
-                .load_only(models.Company.id, models.Company.name, models.Company.inn)
-            )
-            .where(models.Transaction.date_time >= start_date)
-            .where(models.Transaction.date_time < end_date)
-            .order_by(models.Transaction.date_time.desc())
+        transaction_table = aliased(TransactionOrm, name="transaction_table")
+        base_subquery = (
+            sa_select(transaction_table.id)
+            .where(transaction_table.date_time >= start_date)
+            .where(transaction_table.date_time < end_date)
         )
 
         if self.user.role.name == enums.Role.CARGO_SUPER_ADMIN.name:
             pass
 
         elif self.user.role.name == enums.Role.CARGO_MANAGER.name:
-            stmt = stmt.where(models.Transaction.company_id.in_(self.user.company_ids_subquery()))
+            balance_table = aliased(BalanceOrm, name="balance_table")
+            company_ids_subquery = self.user.company_ids_subquery()
+            base_subquery = (
+                base_subquery
+                .join(balance_table, balance_table.id == transaction_table.balance_id)
+                .join(company_ids_subquery, company_ids_subquery.c.id == balance_table.company_id)
+            )
 
         elif self.user.role.name in [enums.Role.COMPANY_ADMIN.name, enums.Role.COMPANY_LOGIST.name]:
-            stmt = stmt.where(models.Transaction.company_id == self.user.company_id)
+            balance_table = aliased(BalanceOrm, name="balance_table")
+            base_subquery = (
+                base_subquery
+                .join(balance_table, and_(
+                    balance_table.id == transaction_table.balance_id,
+                    balance_table.company_id == self.user.company_id
+                ))
+            )
 
         elif self.user.role.name == enums.Role.COMPANY_DRIVER.name:
-            stmt = stmt.where(models.Transaction.company_id == self.user.company_id)
-            stmt = stmt.where(models.Card.belongs_to_driver_id == self.user.id)
+            balance_table = aliased(BalanceOrm, name="balance_table")
+            card_table = aliased(CardOrm, name="card_table")
+            base_subquery = (
+                base_subquery
+                .join(balance_table, and_(
+                    balance_table.id == transaction_table.balance_id,
+                    balance_table.company_id == self.user.company_id
+                ))
+                .join(card_table, and_(
+                    card_table.id == transaction_table.card_id,
+                    card_table.belongs_to_driver_id == self.user.id
+                ))
+            )
 
         else:
             raise ForbiddenException()
 
+        base_subquery = base_subquery.subquery("helper_base")
+        stmt = (
+            sa_select(TransactionOrm)
+            .options(
+                load_only(
+                    TransactionOrm.id,
+                    TransactionOrm.date_time,
+                    TransactionOrm.date_time_load,
+                    TransactionOrm.is_debit,
+                    TransactionOrm.azs_code,
+                    TransactionOrm.azs_address,
+                    TransactionOrm.fuel_volume,
+                    TransactionOrm.price,
+                    TransactionOrm.transaction_sum,
+                    TransactionOrm.discount_sum,
+                    TransactionOrm.fee_percent,
+                    TransactionOrm.fee_sum,
+                    TransactionOrm.total_sum,
+                    TransactionOrm.card_balance,
+                    TransactionOrm.company_balance,
+                    TransactionOrm.comments
+                )
+            )
+            .options(
+                joinedload(TransactionOrm.card)
+                .load_only(CardOrm.id, CardOrm.card_number, CardOrm.is_active)
+            )
+            .options(
+                joinedload(TransactionOrm.system)
+                .load_only(SystemOrm.id, SystemOrm.full_name)
+            )
+            .options(
+                joinedload(TransactionOrm.outer_goods)
+                .load_only(OuterGoodsOrm.id, OuterGoodsOrm.name)
+                .joinedload(OuterGoodsOrm.inner_goods)
+            )
+            .options(
+                joinedload(TransactionOrm.tariff)
+                .load_only(TariffOrm.id, TariffOrm.name)
+            )
+            .options(
+                joinedload(TransactionOrm.company)
+                .load_only()
+                .joinedload(BalanceOrm.company)
+                .load_only(CompanyOrm.id, CompanyOrm.name, CompanyOrm.inn)
+            )
+            .select_from(base_subquery, TransactionOrm)
+            .where(TransactionOrm.id == base_subquery.c.id)
+            .order_by(TransactionOrm.date_time.desc())
+        )
+
+        self.statement(stmt)
         transactions = await self.select_all(stmt)
         return transactions
 
-    async def get_last_transaction(self, balance_id: str) -> models.Transaction:
+    async def get_last_transaction(self, balance_id: str) -> TransactionOrm:
         stmt = (
-            sa_select(models.Transaction)
-            .where(models.Transaction.balance_id == balance_id)
-            .order_by(models.Transaction.date_time.desc())
+            sa_select(TransactionOrm)
+            .where(TransactionOrm.balance_id == balance_id)
+            .order_by(TransactionOrm.date_time.desc())
             .limit(1)
         )
         last_transaction = await self.select_first(stmt)
@@ -116,10 +149,10 @@ class TransactionRepository(BaseRepository):
             "total_sum": delta_sum,
             "company_balance": current_balance + delta_sum,
         }
-        corrective_transaction = await self.insert(models.Transaction, **corrective_transaction)
+        corrective_transaction = await self.insert(TransactionOrm, **corrective_transaction)
 
         # Получаем организацию
-        stmt = sa_select(models.Company).where(models.Company.id == company_id)
+        stmt = sa_select(CompanyOrm).where(CompanyOrm.id == company_id)
         company = await self.select_first(stmt)
 
         # Обновляем текущий баланс организации

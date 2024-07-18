@@ -136,6 +136,37 @@ class CardRepository(BaseRepository):
                 self.logger.error(traceback.format_exc())
                 raise DBException()
 
+    async def bulk_unbind_systems(self, card_numbers: List[str]) -> None:
+        """
+        Открепление карты от всех систем.
+        """
+        if card_numbers:
+            cards = await self.get_cards(card_numbers=card_numbers)
+            card_ids = [card.id for card in cards]
+            stmt = (
+                sa_delete(CardSystemOrm)
+                .where(CardSystemOrm.card_id.in_(card_ids))
+            )
+            try:
+                await self.session.execute(stmt)
+                await self.session.commit()
+
+                # Отвязываем от карт автомобиль, водителя, организацию. Блокируем карту.
+                dataset = [
+                    {
+                        "id": card.id,
+                        "company_id": None,
+                        "belongs_to_car_id": None,
+                        "belongs_to_driver_id": None,
+                        "is_active": False,
+                    } for card in cards
+                ]
+                await self.bulk_update(CardOrm, dataset)
+
+            except Exception:
+                self.logger.error(traceback.format_exc())
+                raise DBException()
+
     async def has_transactions(self, card_id: str) -> bool:
         stmt = sa_select(sa_func.count(TransactionOrm.id)).where(TransactionOrm.card_id == card_id)
         amount = await self.select_single_field(stmt)

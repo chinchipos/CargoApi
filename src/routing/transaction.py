@@ -27,7 +27,7 @@ transaction_tag_metadata = {
 async def get_transactions(
     end_date: date = date.today(),
     service: TransactionService = Depends(get_service_transaction)
-) -> List[Any]:
+):
     # Получать сведения может пользователь с любой ролью, но состав списка зависит от роли
     # пользователя. Проверка будет выполнена при формировании списка.
     transaction = await service.get_transactions(end_date)

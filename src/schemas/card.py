@@ -13,11 +13,6 @@ from src.schemas.system import SystemReadMinimumSchema
 from src.schemas.validators import EmptyStrToNone
 
 
-class CardBindingMinimumSchemaForCard(BaseSchema):
-    system: Annotated[SystemReadMinimumSchema | None, Field(description="Система")] = None
-    balance: Annotated[BalanceReadMinimumSchema | None, Field(description="Баланс")] = None
-
-
 pk_ = Annotated[str, Field(description="UUID карты", examples=["c39e5c5c-b980-45eb-a192-585e6823faa7"])]
 
 card_number_ = Annotated[str | None, Field(description="Номер карты", examples=["502980100000358664"])]
@@ -65,11 +60,6 @@ system_ids_ = Annotated[
     Field(description="Список UUID поставщиков услуг", examples=["20f06bf0-ae28-4f32-b2ca-f57796103a71"])
 ]
 
-card_bindings_ = Annotated[
-    List[CardBindingMinimumSchemaForCard],
-    Field(description="Привязка карты к системам и тарифам")
-]
-
 
 class CardEditSchema(BaseSchema):
     card_number: card_number_ = None
@@ -106,7 +96,7 @@ class CardReadSchema(BaseSchema):
     belongs_to_driver: belongs_to_driver_ = None
     date_last_use: date_last_use_ = None
     manual_lock: manual_lock_
-    card_bindings: card_bindings_ = []
+    systems: systems_ = []
 
 
 class BulkBindSchema(BaseSchema):

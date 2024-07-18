@@ -906,6 +906,14 @@ class Card(Base):
         comment="Признак ручной блокировки"
     )
 
+    # Список связей этой карты с системами
+    card_system_links: Mapped[List["CardSystem"]] = relationship(
+        back_populates="card",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
     # Список систем, связанных с этой картой
     systems: Mapped[List["System"]] = relationship(
         back_populates="cards",
@@ -1056,6 +1064,12 @@ class CardSystem(Base):
         sa.ForeignKey("cargonomica.card.id"),
         nullable=False,
         comment="Карта"
+    )
+
+    # Карта
+    card: Mapped["Card"] = relationship(
+        back_populates="card_system_links",
+        lazy="noload"
     )
 
     # Система
