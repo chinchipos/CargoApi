@@ -4,7 +4,7 @@ from src.config import SERVICE_TOKEN, BUILTIN_ADMIN_NAME, BUILTIN_ADMIN_FIRSTNAM
 from src.database import models
 from src.database.models import Base
 from src.repositories.db.db import DBRepository
-from src.schemas.db import DBInitSchema, DBInitialSyncSchema, DBRegularSyncSchema
+from src.schemas.db import DBInitSchema, DBInitialSyncSchema
 from src.schemas.user import UserCreateSchema
 from src.utils import enums
 from src.utils.exceptions import BadRequestException, ApiError
@@ -19,7 +19,8 @@ class DBService:
         self.repository = repository
         self.logger = repository.logger
 
-    def check_token(self, token: str) -> None:
+    @staticmethod
+    def check_token(token: str) -> None:
         if token != SERVICE_TOKEN:
             raise BadRequestException('Некорректный токен')
 
@@ -35,7 +36,7 @@ class DBService:
             print('Цикл:', counter)
             i = 0
             while i < len(table_names):
-                table_name = table_names[i]
+                table_name: str = table_names[i]
                 table = tables[table_name]
                 try:
                     stmt = sa_delete(table)
@@ -111,7 +112,8 @@ class DBService:
                 'company_balance': transactions[0].contract_balance,
             }]
             while i < length:
-                transactions[i].contract_balance = previous_transaction.contract_balance - previous_transaction.total_sum
+                transactions[i].contract_balance = previous_transaction.contract_balance - \
+                                                   previous_transaction.total_sum
                 previous_transaction = transactions[i]
                 dataset.append({
                     'id': transactions[i].id,
@@ -150,6 +152,7 @@ class DBService:
         except Exception:
             raise ApiError(trace=True, message='Ошибка выполнения процедуры первичной синхронизации')
 
+    """
     async def regular_sync(self, data: DBRegularSyncSchema) -> str:
         # Проверка инициализационного токена
         if data.service_token != SERVICE_TOKEN:
@@ -160,3 +163,4 @@ class DBService:
 
         message = f'Импортировано новых организаций: {companies_amount} шт'
         return message
+    """

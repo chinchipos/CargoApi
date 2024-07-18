@@ -20,7 +20,7 @@ class CardBindingMinimumSchemaForCard(BaseSchema):
 
 pk_ = Annotated[str, Field(description="UUID карты", examples=["c39e5c5c-b980-45eb-a192-585e6823faa7"])]
 
-card_number_ = Annotated[str, Field(description="Номер карты", examples=["502980100000358664"])]
+card_number_ = Annotated[str | None, Field(description="Номер карты", examples=["502980100000358664"])]
 
 is_active_ = Annotated[bool | None, Field(description="Признак активности", examples=[True])]
 
@@ -54,7 +54,7 @@ belongs_to_driver_ = Annotated[DriverReadMinimumSchema | None, Field(description
 
 date_last_use_ = Annotated[date | None, Field(description="Дата последнего использования", examples=[True])]
 
-manual_lock_ = Annotated[bool, Field(description="Признак ручной блокировки", examples=[True])]
+manual_lock_ = Annotated[bool | None, Field(description="Признак ручной блокировки", examples=[True])]
 
 systems_ = Annotated[List[SystemReadMinimumSchema], Field(description="Системы")]
 
@@ -72,11 +72,13 @@ card_bindings_ = Annotated[
 
 
 class CardEditSchema(BaseSchema):
+    card_number: card_number_ = None
     is_active: is_active_ = None
     card_type_id: card_type_id_ = None
     company_id: company_id_ = None
     belongs_to_car_id: belongs_to_car_id_ = None
     belongs_to_driver_id: belongs_to_driver_id_ = None
+    manual_lock: manual_lock_ = None
 
 
 class CardCreateSchema(BaseSchema):

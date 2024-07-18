@@ -19,11 +19,7 @@ class CardService:
             raise BadRequestException('Запись не найдена')
         return card
 
-    async def create(
-        self,
-        card_create_schema: CardCreateSchema,
-        systems: Optional[List[str]]
-    ) -> CardReadSchema:
+    async def create(self, card_create_schema: CardCreateSchema, systems: List[str] | None) -> CardReadSchema:
         # Создаем карту
         new_card_obj = await self.repository.create(card_create_schema)
 
@@ -41,9 +37,9 @@ class CardService:
         card_read_schema = CardReadSchema.model_validate(card_obj)
         return card_read_schema
 
-    async def edit(self, card_id: str, card_edit_schema: CardEditSchema, systems: List[str]) -> CardReadSchema:
+    async def edit(self, card_id: str, card_edit_schema: CardEditSchema, systems: List[str]) -> CardOrm:
         # Получаем карту из БД
-        card_obj = await self.get_card(card_id)
+        card = await self.get_card(card_id)
 
         # Проверяем права доступа
         # У Суперадмина ПроАВТО есть право в отношении любых сарт
@@ -60,7 +56,7 @@ class CardService:
         #  >> Привязывать к водителю
         # У Водителя нет прав
 
-        current_company_id = card_obj.company_id
+        current_company_id = card.company_id
         new_company_id = card_edit_schema.company_id
 
         if self.repository.user.role.name == enums.Role.CARGO_SUPER_ADMIN.name:
@@ -103,21 +99,22 @@ class CardService:
             update_data = temporary_update_data
 
         # Обновляем запись в БД
-        await self.repository.update_object(card_obj, update_data)
+        await self.repository.update_object(card, update_data)
 
         # Отвязываем от неактуальных систем, привязываем к новым
         await self.binding_systems(
-            system_id=card_obj.id,
-            current_systems=[cs.system_id for cs in card_obj.card_system],
+            card_id=card.id,
+            current_systems=[cb.system.id for cb in card.card_bindings],
             new_systems=systems
         )
 
         # Получаем карту из БД
-        card_obj = await self.get_card(card_id)
+        card = await self.get_card(card_id)
 
         # Формируем ответ
-        card_read_schema = CardReadSchema.model_validate(card_obj)
-        return card_read_schema
+        # card_read_schema = CardReadSchema.model_validate(card_obj)
+        # return card_read_schema
+        return card
 
     async def get_cards(self) -> List[CardOrm]:
         cards = await self.repository.get_cards()
@@ -133,12 +130,12 @@ class CardService:
         # Открепляем карту от других объектов и удаляем её саму
         await self.repository.delete(card_id)
 
-    async def binding_systems(self, system_id: str, current_systems: List[str], new_systems: List[str]) -> None:
-        to_unbind = [_id_ for _id_ in current_systems if _id_ not in new_systems]
-        await self.repository.unbind_managed_companies(system_id, to_unbind)
+    async def binding_systems(self, card_id: str, current_systems: List[str], new_systems: List[str]) -> None:
+        systems_to_unbind = [pk for pk in current_systems if pk not in new_systems]
+        await self.repository.unbind_systems(card_id, systems_to_unbind)
 
-        to_bind = [_id_ for _id_ in new_systems if _id_ not in current_systems]
-        await self.repository.bind_managed_companies(system_id, to_bind)
+        systems_to_bind = [pk for pk in new_systems if pk not in current_systems]
+        await self.repository.bind_systems(card_id, systems_to_bind)
 
     async def bulk_bind_company(self, card_numbers: List[str], company_id: str) -> None:
         # Получаем из БД карты по списку номеров

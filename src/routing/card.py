@@ -186,7 +186,7 @@ async def edit(
     card: CardEditSchema,
     systems: List[uuid.UUID] | None = None,
     service: CardService = Depends(get_service_card)
-) -> CardReadSchema:
+):
     id = str(id)
     if systems is None:
         systems = []

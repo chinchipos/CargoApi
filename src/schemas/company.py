@@ -1,11 +1,11 @@
 from datetime import date
 from typing import List, Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 
 from src.schemas.balance import BalanceReadSchema
 from src.schemas.base import BaseSchema
-from src.schemas.role import RoleReadSchema
+from src.schemas.role import RoleReadMinimumSchema
 
 
 class CompanyUserSchema(BaseSchema):
@@ -14,7 +14,13 @@ class CompanyUserSchema(BaseSchema):
     first_name: Annotated[str, Field(description="Имя", examples=["Алексей"])]
     last_name: Annotated[str, Field(description="Фамилия", examples=["Гагарин"])]
     phone: Annotated[str, Field(description="Телефон", examples=["+79332194370"])]
-    role: Annotated[RoleReadSchema, Field(description="Роль")]
+    role: Annotated[RoleReadMinimumSchema, Field(description="Роль")]
+
+
+class CompanyCarSchema(BaseSchema):
+    id: Annotated[str, Field(description="UUID автомобиля", examples=["c39e5c5c-b980-45eb-a192-585e6823faa7"])]
+    model: Annotated[str, Field(description="Марка/модель", examples=["Камаз"])]
+    reg_number: Annotated[str, Field(description="Государственный регистрационный номер", examples=["Н314УР77"])]
 
 
 id_ = Annotated[str, Field(description="UUID организации", examples=["20f06bf0-ae28-4f32-b2ca-f57796103a71"])]
@@ -38,6 +44,8 @@ users_ = Annotated[List[CompanyUserSchema], Field(description="Список по
 
 balances_ = Annotated[List[BalanceReadSchema], Field(description="Список балансов этой организации")]
 
+cars_ = Annotated[List[CompanyCarSchema], Field(description="Список пользователей этой организации")]
+
 
 class CompanyEditSchema(BaseSchema):
     contacts: contacts_ = None
@@ -60,6 +68,7 @@ class CompanyReadSchema(BaseSchema):
     cards_amount: cards_amount_ = None
     users: users_ = []
     balances: balances_ = []
+    cars: cars_ = []
 
 
 """

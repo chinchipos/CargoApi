@@ -2,11 +2,11 @@ import traceback
 from typing import List
 
 from sqlalchemy import select as sa_select, delete as sa_delete, func as sa_func
-from sqlalchemy.orm import joinedload, selectinload, load_only, aliased
+from sqlalchemy.orm import joinedload, selectinload, load_only
 
 from src.database.models import (Card as CardOrm, User as UserOrm, Transaction as TransactionOrm, System as SystemOrm,
-                                 CardType as CardTypeOrm, Company as CompanyOrm, CardBinding as CardBindingOrm,
-                                 Balance as BalanceOrm, Car as CarOrm)
+                                 CardType as CardTypeOrm, Company as CompanyOrm, CardSystem as CardSystemOrm,
+                                 Car as CarOrm)
 from src.repositories.base import BaseRepository
 from src.schemas.card import CardCreateSchema
 from src.utils import enums
@@ -31,18 +31,13 @@ class CardRepository(BaseRepository):
                     CardOrm.card_number,
                     CardOrm.is_active,
                     CardOrm.date_last_use,
-                    CardOrm.manual_lock
+                    CardOrm.manual_lock,
+                    CardOrm.company_id
                 )
             )
             .options(
-                selectinload(CardOrm.card_bindings)
-                .joinedload(CardBindingOrm.system)
+                selectinload(CardOrm.systems)
                 .load_only(SystemOrm.id, SystemOrm.full_name)
-            )
-            .options(
-                selectinload(CardOrm.card_bindings)
-                .joinedload(CardBindingOrm.balance)
-                .load_only(BalanceOrm.id, BalanceOrm.scheme)
             )
             .options(
                 joinedload(CardOrm.card_type)
@@ -79,14 +74,8 @@ class CardRepository(BaseRepository):
                 )
             )
             .options(
-                selectinload(CardOrm.card_bindings)
-                .joinedload(CardBindingOrm.system)
+                selectinload(CardOrm.systems)
                 .load_only(SystemOrm.id, SystemOrm.full_name)
-            )
-            .options(
-                selectinload(CardOrm.card_bindings)
-                .joinedload(CardBindingOrm.balance)
-                .load_only(BalanceOrm.id, BalanceOrm.scheme)
             )
             .options(
                 joinedload(CardOrm.card_type)
@@ -127,17 +116,17 @@ class CardRepository(BaseRepository):
         cards = await self.select_all(stmt)
         return cards
 
-    async def bind_managed_companies(self, card_id: str, system_ids: List[str]) -> None:
+    async def bind_systems(self, card_id: str, system_ids: List[str]) -> None:
         if system_ids:
             dataset = [{"card_id": card_id, "system_id": system_id} for system_id in system_ids]
-            await self.bulk_insert_or_update(CardOrmSystem, dataset)
+            await self.bulk_insert_or_update(CardSystemOrm, dataset)
 
-    async def unbind_managed_companies(self, card_id: str, system_ids: List[str]) -> None:
+    async def unbind_systems(self, card_id: str, system_ids: List[str]) -> None:
         if system_ids:
             stmt = (
-                sa_delete(CardOrmSystem)
-                .where(CardOrmSystem.card_id == card_id)
-                .where(CardOrmSystem.system_id.in_(system_ids))
+                sa_delete(CardSystemOrm)
+                .where(CardSystemOrm.card_id == card_id)
+                .where(CardSystemOrm.system_id.in_(system_ids))
             )
             try:
                 await self.session.execute(stmt)
@@ -155,7 +144,7 @@ class CardRepository(BaseRepository):
     async def delete(self, card_id: str) -> None:
         try:
             # Удаляем связь Карта-Система
-            stmt = sa_delete(CardOrmSystem).where(CardOrmSystem.card_id == card_id)
+            stmt = sa_delete(CardSystemOrm).where(CardSystemOrm.card_id == card_id)
             await self.session.execute(stmt)
 
             # Удаляем карту

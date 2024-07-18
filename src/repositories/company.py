@@ -5,7 +5,7 @@ from sqlalchemy.orm import joinedload, selectinload, aliased, load_only
 
 from src.database.models import (Company as CompanyOrm, Balance as BalanceOrm, AdminCompany as AdminCompanyOrm,
                                  User as UserOrm, Role as RoleOrm, BalanceSystemTariff as BalanceSystemTariffOrm,
-                                 System as SystemOrm)
+                                 System as SystemOrm, Car as CarOrm)
 from src.repositories.base import BaseRepository
 from src.repositories.transaction import TransactionRepository
 from src.utils import enums
@@ -18,26 +18,48 @@ class CompanyRepository(BaseRepository):
         stmt = (
             sa_select(CompanyOrm)
             .options(
-                (
-                    selectinload(CompanyOrm.balances)
-                    .selectinload(BalanceOrm.tariffs_history)
-                    .joinedload(TariffHistoryOrm.system, TariffHistoryOrm.tariff)
-                ),
-                selectinload(CompanyOrm.users).joinedload(UserOrm.role)
+                load_only(
+                    CompanyOrm.id,
+                    CompanyOrm.name,
+                    CompanyOrm.inn,
+                    CompanyOrm.personal_account,
+                    CompanyOrm.date_add
+                )
+            )
+            .options(
+                selectinload(CompanyOrm.balances)
+                .load_only(
+                    BalanceOrm.id,
+                    BalanceOrm.scheme,
+                    BalanceOrm.balance,
+                    BalanceOrm.min_balance,
+                    BalanceOrm.min_balance_period,
+                    BalanceOrm.min_balance_period_end_date
+                )
+                .selectinload(BalanceOrm.balance_system_tariff)
+                .load_only()
+                .joinedload(BalanceSystemTariffOrm.system)
+                .load_only(SystemOrm.id, SystemOrm.full_name)
+            )
+            .options(
+                selectinload(CompanyOrm.users)
+                .load_only(
+                    UserOrm.id,
+                    UserOrm.username,
+                    UserOrm.first_name,
+                    UserOrm.last_name,
+                    UserOrm.phone
+                )
+                .joinedload(UserOrm.role)
+                .load_only(RoleOrm.id, RoleOrm.name, RoleOrm.title, RoleOrm.description)
+            )
+            .options(
+                selectinload(CompanyOrm.cars)
+                .load_only(CarOrm.id, CarOrm.model, CarOrm.reg_number)
             )
             .where(CompanyOrm.id == company_id)
-            .join(TariffHistoryOrm, TariffHistoryOrm.balance_id == BalanceOrm.id)
-            .where(TariffHistoryOrm.is_active)
         )
-        dataset = await self.session.scalars(stmt)
-        company = dataset.all()
-        print(len(company))
-        for balance in company.balances:
-            for tariff_history in balance.tariffs_history:
-                print('------------------------------')
-                print(balance, tariff_history)
-                print('System:', tariff_history.system)
-                print('Tariff:', tariff_history.tariff)
+        company = await self.select_first(stmt)
 
         # Добавляем сведения о количестве карт
         # stmt = sa_select(sa_func.count(models.Card.id)).filter_by(company_id=company_id)

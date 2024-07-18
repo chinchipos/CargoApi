@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import List
 
 from src.database import models
 from src.repositories.base import BaseRepository
@@ -61,7 +61,7 @@ class DBRepository(BaseRepository):
 
         self.logger.info('Импортирую топливные карты')
         await nnk.import_cards(data.cards)
-        await nnk.import_card_bindings(data.cards)
+        await nnk.bind_cards_with_systems(data.cards)
         await nnk.import_tariffs_history(data.companies)
 
         self.logger.info('Импортирую товары/услуги')

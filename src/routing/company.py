@@ -71,7 +71,7 @@ async def get_companies_drivers(
 async def get_company(
     id: uuid.UUID,
     service: CompanyService = Depends(get_service_company)
-) -> Any:
+):
     id = str(id)
     minor_roles = [enums.Role.COMPANY_ADMIN.name, enums.Role.COMPANY_LOGIST.name, enums.Role.COMPANY_DRIVER.name]
     # Проверка прав доступа.

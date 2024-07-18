@@ -211,7 +211,8 @@ class KHNPParser:
         except Exception:
             raise KHNPParserError(trace=True, message='Не удалось установить галку "выбрать все карты"')
 
-    def parse_transactions_report(self, excel, start_date: date) -> Dict[str, Any]:
+    @staticmethod
+    def parse_transactions_report(excel, start_date: date) -> Dict[str, Any]:
         reading_card_data = False
         allowed_transaction_types = [
             "Дебет",
@@ -327,7 +328,7 @@ class KHNPParser:
             xls_download_btn.click()
 
             def file_downloaded():
-                _files = [os.path.join(self.downloads_dir, f) for f in os.listdir(self.downloads_dir) \
+                _files = [os.path.join(self.downloads_dir, f) for f in os.listdir(self.downloads_dir)
                           if f.startswith('cards_details') and f.endswith('xls')]
                 if _files:
                     transactions_file = _files[0]

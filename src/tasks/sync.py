@@ -12,10 +12,15 @@ from src.tasks.init import sync_task_logger
 
 import traceback
 
+from src.utils.enums import ContractScheme
+
 
 async def get_system(session: AsyncSession) -> System:
     system_repository = SystemRepository(session)
-    system = await system_repository.get_system_by_short_name(SYSTEM_SHORT_NAME)
+    system = await system_repository.get_system_by_short_name(
+        system_fhort_name=SYSTEM_SHORT_NAME,
+        scheme=ContractScheme.OVERBOUGHT
+    )
     return system
 
 

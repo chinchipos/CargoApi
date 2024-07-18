@@ -267,23 +267,6 @@ class Balance(Base):
         comment="Дата прекращения действия временного овердрафта"
     )
 
-    # Список вязей, привязанных к этому балансу
-    card_bindings: Mapped[List["CardBinding"]] = relationship(
-        back_populates="balance",
-        cascade="all, delete-orphan",
-        lazy="noload",
-        init=False
-    )
-
-    # Список карт, привязанных к этому балансу
-    cards: Mapped[List["Card"]] = relationship(
-        back_populates="balances",
-        secondary="cargonomica.card_binding",
-        viewonly=True,
-        lazy="noload",
-        init=False
-    )
-
     # Список поставщиков услуг, привязанных к этому балансу
     systems: Mapped[List["System"]] = relationship(
         back_populates="balances",
@@ -318,7 +301,7 @@ class Balance(Base):
 class BalanceSystemTariff(Base):
     __tablename__ = "balance_system_tariff"
     __table_args__ = (
-        UniqueConstraint("balance_id", "system_id", "tariff_id", name="unique_balance_sys_tariff"),
+        UniqueConstraint("balance_id", "system_id", name="unique_balance_system"),
         {
             'comment': (
                 "Сведения из таблицы позволяют указать какой тариф применяется сейчас "
@@ -923,27 +906,10 @@ class Card(Base):
         comment="Признак ручной блокировки"
     )
 
-    # Список связей этой карты
-    card_bindings: Mapped[List["CardBinding"]] = relationship(
-        back_populates="card",
-        cascade="all, delete-orphan",
-        lazy="noload",
-        init=False
-    )
-
-    # Список балансов, связанных с этой картой
-    balances: Mapped[List["Balance"]] = relationship(
-        back_populates="cards",
-        secondary="cargonomica.card_binding",
-        viewonly=True,
-        lazy="noload",
-        init=False
-    )
-
     # Список систем, связанных с этой картой
     systems: Mapped[List["System"]] = relationship(
         back_populates="cards",
-        secondary="cargonomica.card_binding",
+        secondary="cargonomica.card_system",
         viewonly=True,
         lazy="noload",
         init=False
@@ -1002,18 +968,9 @@ class System(Base):
         comment="Период, за который запрашиваются транзакции при синхронизации"
     )
 
-    agency_scheme_enabled: Mapped[bool] = mapped_column(
-        sa.Boolean,
-        nullable=False,
-        server_default=sa.sql.false(),
-        comment="Возможность применения агентской схемы работы с поставщиком услуг"
-    )
-
-    overbought_scheme_enabled: Mapped[bool] = mapped_column(
-        sa.Boolean,
-        nullable=False,
-        server_default=sa.sql.false(),
-        comment="Возможность применения перекупной схемы работы с поставщиком услуг"
+    scheme: Mapped[enums.ContractScheme] = mapped_column(
+        comment="Схема работы (агентская, перекупная, ...). См. соответствующий public -> Types.",
+        server_default=enums.ContractScheme.OVERBOUGHT.name
     )
 
     transactions_sync_dt: Mapped[datetime] = mapped_column(
@@ -1037,14 +994,6 @@ class System(Base):
         comment="Дата последней успешной синхронизации баланса"
     )
 
-    # Список договоров, привязанных к этой системе
-    card_bindings: Mapped[List["CardBinding"]] = relationship(
-        back_populates="system",
-        cascade="all, delete-orphan",
-        lazy="noload",
-        init=False
-    )
-
     # Список балансов, связанных с этой системой
     balances: Mapped[List["Balance"]] = relationship(
         back_populates="systems",
@@ -1057,7 +1006,7 @@ class System(Base):
     # Список карт, связанных с этой системой
     cards: Mapped[List["Card"]] = relationship(
         back_populates="systems",
-        secondary="cargonomica.card_binding",
+        secondary="cargonomica.card_system",
         viewonly=True,
         lazy="noload",
         init=False
@@ -1093,15 +1042,12 @@ class System(Base):
         return self.repr(self.repr_cols)
 
 
-class CardBinding(Base):
-    __tablename__ = "card_binding"
+class CardSystem(Base):
+    __tablename__ = "card_system"
     __table_args__ = (
-        UniqueConstraint("card_id", "system_id", "balance_id", name="unique_card_balance_sys"),
+        UniqueConstraint("card_id", "system_id", name="unique_card_system"),
         {
-            'comment': (
-                "Сведения из таблицы позволяют указать к какому поставщику услуг привязана карта и какому клиенту "
-                "она в данный момент принадлежит (привязка через баланс)."
-            )
+            'comment': "Сведения из таблицы указывают к какой системе привязана карта"
         }
     )
 
@@ -1112,38 +1058,11 @@ class CardBinding(Base):
         comment="Карта"
     )
 
-    # Карта
-    card: Mapped["Card"] = relationship(
-        back_populates="card_bindings",
-        lazy="noload"
-    )
-
-    # Поставщиик услуг
+    # Система
     system_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.system.id"),
         nullable=False,
         comment="Поставщиик услуг"
-    )
-
-    # Поставщиик услуг
-    system: Mapped["System"] = relationship(
-        back_populates="card_bindings",
-        lazy="noload"
-    )
-
-    # Баланс
-    balance_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.balance.id"),
-        nullable=True,
-        init=False,
-        comment="Баланс"
-    )
-
-    # Баланс
-    balance: Mapped["Balance"] = relationship(
-        back_populates="card_bindings",
-        lazy="noload",
-        init=False
     )
 
     repr_cols = ("card_id",)
