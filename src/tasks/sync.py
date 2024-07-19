@@ -32,7 +32,7 @@ async def perform_khnp_operations(session: AsyncSession) -> Dict[str, Any]:
     await khnp.load_balance(need_authorization=True)
 
     # Прогружаем карты
-    # await khnp.load_cards(need_authorization=False)
+    await khnp.load_cards(need_authorization=False)
 
     # Прогружаем транзакции
     calc_balance_info = await khnp.load_transactions(need_authorization=False)
