@@ -1,6 +1,6 @@
 from typing import List, Tuple
 
-from sqlalchemy import select as sa_select
+from sqlalchemy import select as sa_select, and_
 from sqlalchemy.orm import joinedload, selectinload, aliased, load_only
 
 from src.database.models import (Company as CompanyOrm, Balance as BalanceOrm, AdminCompany as AdminCompanyOrm,
@@ -9,6 +9,7 @@ from src.database.models import (Company as CompanyOrm, Balance as BalanceOrm, A
 from src.repositories.base import BaseRepository
 from src.repositories.transaction import TransactionRepository
 from src.utils import enums
+from src.utils.enums import ContractScheme
 
 
 class CompanyRepository(BaseRepository):
@@ -23,7 +24,13 @@ class CompanyRepository(BaseRepository):
                     CompanyOrm.name,
                     CompanyOrm.inn,
                     CompanyOrm.personal_account,
-                    CompanyOrm.date_add
+                    CompanyOrm.date_add,
+                    CompanyOrm.contacts,
+                    CompanyOrm.overdraft_on,
+                    CompanyOrm.overdraft_sum,
+                    CompanyOrm.overdraft_days,
+                    CompanyOrm.overdraft_begin_date,
+                    CompanyOrm.overdraft_end_date
                 )
             )
             .options(
@@ -31,10 +38,7 @@ class CompanyRepository(BaseRepository):
                 .load_only(
                     BalanceOrm.id,
                     BalanceOrm.scheme,
-                    BalanceOrm.balance,
-                    BalanceOrm.min_balance,
-                    BalanceOrm.min_balance_period,
-                    BalanceOrm.min_balance_period_end_date
+                    BalanceOrm.balance
                 )
                 .selectinload(BalanceOrm.balance_system_tariff)
                 .joinedload(BalanceSystemTariffOrm.system)
@@ -93,7 +97,24 @@ class CompanyRepository(BaseRepository):
         return company
 
     async def get_companies(self) -> List[CompanyOrm]:
-        # Получаем сведения об организациях
+        helper_subquery = (
+            sa_select(CompanyOrm.id)
+            .outerjoin(BalanceOrm, and_(
+                BalanceOrm.company_id == CompanyOrm.id,
+                BalanceOrm.scheme == ContractScheme.OVERBOUGHT
+            ))
+            .distinct()
+        )
+
+        company_roles = [enums.Role.COMPANY_ADMIN.name, enums.Role.COMPANY_LOGIST.name, enums.Role.COMPANY_DRIVER]
+        if self.user.role.name == enums.Role.CARGO_MANAGER.name:
+            company_ids_subquery = self.user.company_ids_subquery()
+            helper_subquery = helper_subquery.join(company_ids_subquery, company_ids_subquery.c.id == CompanyOrm.id)
+
+        elif self.user.role.name in company_roles:
+            helper_subquery = helper_subquery.where(CompanyOrm.id == self.user.company_id)
+
+        helper_subquery = helper_subquery.subquery("helper_subquery")
         stmt = (
             sa_select(CompanyOrm)
             .options(
@@ -102,7 +123,13 @@ class CompanyRepository(BaseRepository):
                     CompanyOrm.name,
                     CompanyOrm.inn,
                     CompanyOrm.personal_account,
-                    CompanyOrm.date_add
+                    CompanyOrm.date_add,
+                    CompanyOrm.contacts,
+                    CompanyOrm.overdraft_on,
+                    CompanyOrm.overdraft_sum,
+                    CompanyOrm.overdraft_days,
+                    CompanyOrm.overdraft_begin_date,
+                    CompanyOrm.overdraft_end_date
                 )
             )
             .options(
@@ -110,10 +137,7 @@ class CompanyRepository(BaseRepository):
                 .load_only(
                     BalanceOrm.id,
                     BalanceOrm.scheme,
-                    BalanceOrm.balance,
-                    BalanceOrm.min_balance,
-                    BalanceOrm.min_balance_period,
-                    BalanceOrm.min_balance_period_end_date
+                    BalanceOrm.balance
                 )
                 .selectinload(BalanceOrm.balance_system_tariff)
                 .joinedload(BalanceSystemTariffOrm.system)
@@ -136,16 +160,11 @@ class CompanyRepository(BaseRepository):
                     UserOrm.phone
                 )
                 .joinedload(UserOrm.role)
-                .load_only(RoleOrm.id, RoleOrm.name,  RoleOrm.title,  RoleOrm.description)
+                .load_only(RoleOrm.id, RoleOrm.name, RoleOrm.title, RoleOrm.description)
             )
+            .select_from(CompanyOrm, helper_subquery)
+            .where(CompanyOrm.id == helper_subquery.c.id)
         )
-        company_roles = [enums.Role.COMPANY_ADMIN.name, enums.Role.COMPANY_LOGIST.name, enums.Role.COMPANY_DRIVER]
-        if self.user.role.name == enums.Role.CARGO_MANAGER.name:
-            company_ids_subquery = self.user.company_ids_subquery()
-            stmt = stmt.join(company_ids_subquery, company_ids_subquery.c.id == CompanyOrm.id)
-
-        elif self.user.role.name in company_roles:
-            stmt = stmt.where(CompanyOrm.id == self.user.company_id)
 
         companies = await self.select_all(stmt, scalars=True)
 
@@ -194,3 +213,12 @@ class CompanyRepository(BaseRepository):
         # Устанавливаем текущий баланс организации
         await self.update_object(company, update_data={"balance": last_transaction.company_balance})
         return company, last_transaction.company_balance
+
+    async def get_overbought_balance_by_company_id(self, company_id: str) -> BalanceOrm:
+        stmt = (
+            sa_select(BalanceOrm)
+            .where(BalanceOrm.company_id == company_id)
+            .where(BalanceOrm.scheme == ContractScheme.OVERBOUGHT)
+        )
+        balance = await self.select_first(stmt)
+        return balance

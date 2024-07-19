@@ -1,14 +1,15 @@
-import sqlalchemy as sa
-from sqlalchemy import MetaData, inspect, UniqueConstraint
-from sqlalchemy.orm import MappedAsDataclass, DeclarativeBase, Mapped, mapped_column, relationship
-from sqlalchemy.ext.asyncio import AsyncAttrs
 from datetime import date, datetime
-from typing import List, Dict, Any, Annotated, Tuple
+from typing import List, Dict, Any, Tuple
 
+import sqlalchemy as sa
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID
+from sqlalchemy import MetaData, inspect, UniqueConstraint
+from sqlalchemy.ext.asyncio import AsyncAttrs
+from sqlalchemy.orm import MappedAsDataclass, DeclarativeBase, Mapped, mapped_column, relationship
 
 from src.config import SCHEMA
 from src.utils import enums
+
 
 # pk = Annotated[
 #     str,
@@ -169,6 +170,43 @@ class Company(Base):
         comment="Дата создания/добавления записи в БД"
     )
 
+    overdraft_on: Mapped[bool] = mapped_column(
+        sa.Boolean,
+        nullable=False,
+        server_default=sa.sql.false(),
+        comment='Услуга "Овердрафт" подключена'
+    )
+
+    overdraft_sum: Mapped[float] = mapped_column(
+        sa.Numeric(12, 2, asdecimal=False),
+        nullable=False,
+        server_default=sa.text("0"),
+        init=False,
+        comment="Сумма овердрафта"
+    )
+
+    overdraft_days: Mapped[int] = mapped_column(
+        sa.Integer(),
+        nullable=False,
+        server_default=sa.text("0"),
+        init=False,
+        comment="Срок овердрафта, дни"
+    )
+
+    overdraft_begin_date: Mapped[date] = mapped_column(
+        sa.Date,
+        nullable=True,
+        init=False,
+        comment="Дата начала периода действия овердрафта"
+    )
+
+    overdraft_end_date: Mapped[date] = mapped_column(
+        sa.Date,
+        nullable=True,
+        init=False,
+        comment="Дата прекращения периода действия овердрафта"
+    )
+
     # Список автомобилей этой организации
     cars: Mapped[List["Car"]] = relationship(
         back_populates="company",
@@ -206,7 +244,8 @@ class Company(Base):
         back_populates="company",
         cascade="all, delete-orphan",
         lazy="noload",
-        init=False
+        init=False,
+        order_by='desc(Balance.scheme)'
     )
 
     repr_cols = ("name", "inn")
@@ -1451,6 +1490,49 @@ class MoneyReceipt(Base):
         back_populates="money_receipt",
         lazy="noload",
         init=False
+    )
+
+
+class OverdraftsHistory(Base):
+    __tablename__ = "overdrafts_history"
+    __table_args__ = {
+        'comment': 'История овердрафтов'
+    }
+
+    # Организация
+    company_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.company.id"),
+        nullable=False,
+        init=True,
+        comment="Организация"
+    )
+
+    overdraft_days: Mapped[int] = mapped_column(
+        sa.Integer(),
+        nullable=False,
+        init=True,
+        comment="Значение параметра [Срок овердрафта, дни] в период пользования услугой"
+    )
+
+    overdraft_sum: Mapped[float] = mapped_column(
+        sa.Numeric(12, 2, asdecimal=False),
+        nullable=False,
+        init=True,
+        comment="Значение параметра [Сумма овердрафта] в период пользования услугой"
+    )
+
+    overdraft_begin_date: Mapped[date] = mapped_column(
+        sa.Date,
+        nullable=False,
+        init=True,
+        comment='Дата начала пользования услугой "Овердрафт"'
+    )
+
+    overdraft_end_date: Mapped[date] = mapped_column(
+        sa.Date,
+        nullable=False,
+        init=True,
+        comment='Дата прекращения пользования услугой "Овердрафт"'
     )
 
 

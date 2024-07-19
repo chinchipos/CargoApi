@@ -6,9 +6,10 @@ from fastapi import APIRouter, Depends
 from src.database import models
 from src.depends import get_service_company
 from src.descriptions.company import company_tag_description, edit_company_description, get_company_description, \
-    get_companies_description, get_company_drivers_description, bind_manager_to_company_description
+    get_companies_description, get_company_drivers_description, bind_manager_to_company_description, \
+    edit_balance_description
 from src.schemas.common import SuccessSchema
-from src.schemas.company import CompanyReadSchema, CompanyEditSchema
+from src.schemas.company import CompanyReadSchema, CompanyEditSchema, CompanyBalanceEditSchema
 from src.schemas.driver import DriverReadSchema
 from src.services.company import CompanyService
 from src.utils import enums
@@ -40,7 +41,7 @@ async def get_companies(
     companies = await service.get_companies()
     return companies
 
-
+"""
 @router.get(
     path="/company/all/drivers",
     tags=["company"],
@@ -58,6 +59,7 @@ async def get_companies_drivers(
 
     drivers = await service.get_drivers()
     return drivers
+"""
 
 
 @router.get(
@@ -110,7 +112,7 @@ async def edit_company(
     company = await service.edit(id, data)
     return company
 
-"""
+
 @router.put(
     path="/company/{id}/balance/edit",
     tags=["company"],
@@ -127,7 +129,6 @@ async def edit_balance(
     id = str(id)
     await service.edit_company_balance(id, data)
     return {'success': True}
-"""
 
 
 @router.get(

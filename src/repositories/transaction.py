@@ -131,12 +131,12 @@ class TransactionRepository(BaseRepository):
         last_transaction = await self.select_first(stmt)
         return last_transaction
 
-    async def create_corrective_transaction(self, company_id: str, debit: bool, delta_sum: float) -> None:
+    async def create_corrective_transaction(self, balance: BalanceOrm, debit: bool, delta_sum: float) -> None:
         # Получаем последнюю транзакцию этой организации
-        last_transaction = await self.get_last_transaction(company_id)
+        last_transaction = await self.get_last_transaction(balance.id)
         
-        # Получаем текущий баланс организации
-        current_balance = last_transaction.company_balance if last_transaction else 0
+        # Получаем сумму на балансе
+        # current_balance_sum = last_transaction.company_balance if last_transaction else 0
 
         # Формируем корректирующую транзакцию
         if debit:
@@ -144,19 +144,17 @@ class TransactionRepository(BaseRepository):
             
         corrective_transaction = {
             "is_debit": debit,
-            "company_id": company_id,
+            "balance_id": balance.id,
             "transaction_sum": delta_sum,
             "total_sum": delta_sum,
-            "company_balance": current_balance + delta_sum,
+            "company_balance": balance.balance + delta_sum,
         }
         corrective_transaction = await self.insert(TransactionOrm, **corrective_transaction)
 
         # Получаем организацию
-        stmt = sa_select(CompanyOrm).where(CompanyOrm.id == company_id)
-        company = await self.select_first(stmt)
+        # stmt = sa_select(CompanyOrm).where(CompanyOrm.id == company_id)
+        # company = await self.select_first(stmt)
 
-        # Обновляем текущий баланс организации
-        update_data = {
-            'balance': corrective_transaction.company_balance,
-        }
-        await self.update_object(company, update_data)
+        # Обновляем сумму на балансе
+        update_data = {'balance': corrective_transaction.company_balance}
+        await self.update_object(balance, update_data)

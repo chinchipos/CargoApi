@@ -40,21 +40,6 @@ min_balance_period_end_date_ = Annotated[
 
 systems_ = Annotated[List[SystemWithTariffSchema], Field(description="Поставщики услуг")]
 
-"""
-class BalanceCreateSchema(BaseSchema):
-    scheme: scheme_ = None
-    min_balance: min_balance_ = None
-    min_balance_on_period: min_balance_on_period_ = None
-    min_balance_period_end_date: min_balance_period_end_date_ = None
-"""
-
-"""    
-class BalanceEditSchema(BaseSchema):
-    min_balance: min_balance_ = None
-    min_balance_on_period: min_balance_on_period_ = None
-    min_balance_period_end_date: min_balance_period_end_date_ = None
-"""
-
 
 class BalanceReadMinimumSchema(BaseSchema):
     id: id_
@@ -65,7 +50,7 @@ class BalanceReadSchema(BaseSchema):
     id: id_
     scheme: scheme_
     balance: balance_
-    min_balance: min_balance_
-    min_balance_period: min_balance_period_
-    min_balance_period_end_date: min_balance_period_end_date_
+    # min_balance: min_balance_
+    # min_balance_period: min_balance_period_
+    # min_balance_period_end_date: min_balance_period_end_date_
     systems: systems_ = []

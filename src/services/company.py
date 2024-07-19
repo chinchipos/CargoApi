@@ -2,8 +2,9 @@ from typing import List, Any
 
 from src.database.models import Company as CompanyOrm, User as UserOrm
 from src.repositories.company import CompanyRepository
+from src.repositories.transaction import TransactionRepository
 from src.repositories.user import UserRepository
-from src.schemas.company import CompanyEditSchema, CompanyReadSchema, CompanyReadMinimumSchema
+from src.schemas.company import CompanyEditSchema, CompanyReadSchema, CompanyReadMinimumSchema, CompanyBalanceEditSchema
 from src.utils import enums
 from src.utils.exceptions import BadRequestException, ForbiddenException
 
@@ -14,7 +15,7 @@ class CompanyService:
         self.repository = repository
         self.logger = repository.logger
 
-    async def edit(self, company_id: str, company_edit_schema: CompanyEditSchema) -> CompanyReadSchema:
+    async def edit(self, company_id: str, company_edit_schema: CompanyEditSchema) -> CompanyOrm:
         # Проверка прав доступа.
         # У суперадмина ПроАВТО полные права.
         # У Менеджера ПроАВТО права только в отношении своих организаций.
@@ -30,9 +31,7 @@ class CompanyService:
             raise ForbiddenException()
 
         # Получаем организацию из БД
-        company = await self.repository.session.get(CompanyOrm, company_id)
-        print('tariff_id 1', company.tariff_id)
-        print('tariff 1', company.tariff)
+        company = await self.repository.get_company(company_id)
         if not company:
             raise BadRequestException('Запись не найдена')
 
@@ -45,8 +44,9 @@ class CompanyService:
 
         # Формируем ответ
         company = await self.repository.get_company(company_id)
-        company_read_schema = CompanyReadSchema.model_validate(company)
-        return company_read_schema
+        # company_read_schema = CompanyReadSchema.model_validate(company)
+        # return company_read_schema
+        return company
 
     async def bind_manager(self, company_id: str, user_id: str) -> None:
         # Назначаемый менеджер обязан обладать соответствующей ролью
@@ -86,7 +86,6 @@ class CompanyService:
         drivers = await self.repository.get_drivers(company_id)
         return drivers
 
-    """
     async def edit_company_balance(self, company_id: str, edit_balance_schema: CompanyBalanceEditSchema) -> None:
         # Проверка прав доступа.
         # У суперадмина ПроАВТО полные права.
@@ -102,8 +101,9 @@ class CompanyService:
         else:
             raise ForbiddenException()
 
+        # Получаем перекупной баланс организации (он может быть всего 1 у организации)
+        balance = await self.repository.get_overbought_balance_by_company_id(company_id)
         # Создаем транзакцию
         transaction_repository = TransactionRepository(self.repository.session, self.repository.user)
         debit = True if edit_balance_schema.direction == enums.Finance.DEBIT.name else False
-        await transaction_repository.create_corrective_transaction(company_id, debit, edit_balance_schema.delta_sum)
-    """
+        await transaction_repository.create_corrective_transaction(balance, debit, edit_balance_schema.delta_sum)

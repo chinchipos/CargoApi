@@ -3,7 +3,6 @@ from typing import Annotated
 from pydantic import Field
 
 from src.schemas.base import BaseSchema
-from src.schemas.tariff import TariffMinimumReadSchema
 from src.schemas.validators import DateTimeNormalized
 
 id_ = Annotated[str, Field(description="UUID поставщика услуг", examples=["68425199-ac93-4733-becb-de2e89e85303"])]

@@ -6,6 +6,7 @@ from pydantic import Field
 from src.schemas.balance import BalanceReadSchema
 from src.schemas.base import BaseSchema
 from src.schemas.role import RoleReadMinimumSchema
+from src.utils.enums import Finance as FinanceEnum
 
 
 class CompanyUserSchema(BaseSchema):
@@ -46,11 +47,37 @@ balances_ = Annotated[List[BalanceReadSchema], Field(description="Список �
 
 cars_ = Annotated[List[CompanyCarSchema], Field(description="Список пользователей этой организации")]
 
+direction_ = Annotated[
+    FinanceEnum,
+    Field(description="Операция дебетования/кредитования", examples=[FinanceEnum.DEBIT.value])
+]
+
+delta_sum_ = Annotated[float, Field(description="Сумма корректировки, руб", examples=[5000.0], gt=0)]
+
+overdraft_on_ = Annotated[bool | None, Field(description='Услуга "Овердрафт" подключена', examples=[True])]
+
+overdraft_sum_ = Annotated[float | None, Field(description="Сумма овердрафта", examples=[20000.0])]
+
+overdraft_days_ = Annotated[int, Field(description="Срок овердрафта, дни", examples=[7])]
+
+overdraft_begin_date_ = Annotated[
+    date | None,
+    Field(description="Дата начала периода действия овердрафта", examples=["2023-05-17"])
+]
+
+overdraft_end_date_ = Annotated[
+    date | None,
+    Field(description="Дата прекращения периода действия овердрафта", examples=["2023-05-21"])
+]
+
 
 class CompanyEditSchema(BaseSchema):
-    contacts: contacts_ = None
     name: name_ = None
     inn: inn_ = None
+    contacts: contacts_ = None
+    overdraft_on: overdraft_on_ = None
+    overdraft_sum: overdraft_sum_ = None
+    overdraft_days: overdraft_days_ = None
 
 
 class CompanyReadMinimumSchema(BaseSchema):
@@ -65,26 +92,18 @@ class CompanyReadSchema(BaseSchema):
     inn: inn_
     personal_account: personal_account_
     date_add: date_add_
+    contacts: contacts_
     cards_amount: cards_amount_ = None
+    overdraft_on: overdraft_on_
+    overdraft_sum: overdraft_sum_
+    overdraft_days: overdraft_days_
+    overdraft_begin_date: overdraft_begin_date_
+    overdraft_end_date: overdraft_end_date_
     users: users_ = []
     balances: balances_ = []
     cars: cars_ = []
 
 
-"""
 class CompanyBalanceEditSchema(BaseSchema):
-
-    direction: Annotated[
-        enums.Finance,
-        Field(
-            description="Операция дебетования/кредитования",
-            examples=[enums.Finance.DEBIT.value])
-    ]
-
-    delta_sum:  Annotated[
-        float,
-        Field(
-            description="Сумма корректировки, руб",
-            examples=[5000.0], gt=0)
-    ]
-"""
+    direction: direction_
+    delta_sum:  delta_sum_
