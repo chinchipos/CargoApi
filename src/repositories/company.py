@@ -97,26 +97,8 @@ class CompanyRepository(BaseRepository):
         return company
 
     async def get_companies(self) -> List[CompanyOrm]:
-        helper_subquery = (
-            sa_select(CompanyOrm.id)
-            .outerjoin(BalanceOrm, and_(
-                BalanceOrm.company_id == CompanyOrm.id,
-                BalanceOrm.scheme == ContractScheme.OVERBOUGHT
-            ))
-            .distinct()
-        )
-
-        company_roles = [enums.Role.COMPANY_ADMIN.name, enums.Role.COMPANY_LOGIST.name, enums.Role.COMPANY_DRIVER]
-        if self.user.role.name == enums.Role.CARGO_MANAGER.name:
-            company_ids_subquery = self.user.company_ids_subquery()
-            helper_subquery = helper_subquery.join(company_ids_subquery, company_ids_subquery.c.id == CompanyOrm.id)
-
-        elif self.user.role.name in company_roles:
-            helper_subquery = helper_subquery.where(CompanyOrm.id == self.user.company_id)
-
-        helper_subquery = helper_subquery.subquery("helper_subquery")
         stmt = (
-            sa_select(CompanyOrm)
+            sa_select(CompanyOrm, BalanceOrm.balance)
             .options(
                 load_only(
                     CompanyOrm.id,
@@ -162,11 +144,26 @@ class CompanyRepository(BaseRepository):
                 .joinedload(UserOrm.role)
                 .load_only(RoleOrm.id, RoleOrm.name, RoleOrm.title, RoleOrm.description)
             )
-            .select_from(CompanyOrm, helper_subquery)
-            .where(CompanyOrm.id == helper_subquery.c.id)
+            .outerjoin(BalanceOrm, and_(
+                BalanceOrm.company_id == CompanyOrm.id,
+                BalanceOrm.scheme == ContractScheme.OVERBOUGHT
+            ))
+            .order_by(BalanceOrm.balance)
+            .distinct()
         )
 
-        companies = await self.select_all(stmt, scalars=True)
+        company_roles = [enums.Role.COMPANY_ADMIN.name, enums.Role.COMPANY_LOGIST.name, enums.Role.COMPANY_DRIVER]
+        if self.user.role.name == enums.Role.CARGO_MANAGER.name:
+            company_ids_subquery = self.user.company_ids_subquery()
+            stmt = stmt.join(company_ids_subquery, company_ids_subquery.c.id == CompanyOrm.id)
+
+        elif self.user.role.name in company_roles:
+            stmt = stmt.where(CompanyOrm.id == self.user.company_id)
+
+        dataset = await self.select_all(stmt, scalars=False)
+        for data in dataset:
+            print(data[1], data[0].name)
+        companies = [data[0] for data in dataset]
 
         def annotate(company: CompanyOrm) -> CompanyOrm:
             for balance in company.balances:
