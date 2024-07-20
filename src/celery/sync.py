@@ -8,7 +8,7 @@ from src.connectors.khnp.connector import KHNPConnector
 from src.connectors.khnp.exceptions import KHNPConnectorError, KHNPParserError
 from src.database.models import System
 from src.repositories.system import SystemRepository
-from src.tasks.init import sync_task_logger
+from src.celery.init import sync_task_logger
 
 import traceback
 

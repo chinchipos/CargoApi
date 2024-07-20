@@ -7,7 +7,7 @@ from datetime import datetime
 from src.database import models
 from src.repositories.base import BaseRepository
 from src.repositories.company import CompanyRepository
-from src.tasks.init import sync_task_logger
+from src.celery.init import sync_task_logger
 
 
 class CalcBalance(BaseRepository):
