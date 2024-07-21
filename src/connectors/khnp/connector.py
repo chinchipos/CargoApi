@@ -6,6 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, load_only, aliased
 
 from src.config import TZ
+from src.connectors.irrelevant_balances import IrrelevantBalances
+from src.connectors.khnp.config import SYSTEM_SHORT_NAME
 from src.connectors.khnp.exceptions import KHNPConnectorError, khnp_connector_logger
 from src.connectors.khnp.parser import KHNPParser
 from src.database.models import (User as UserOrm, Card as CardOrm, System as SystemOrm, CardType as CardTypeOrm, 
@@ -14,14 +16,16 @@ from src.database.models import (User as UserOrm, Card as CardOrm, System as Sys
                                  Tariff as TariffOrm, Balance as BalanceOrm, Company as CompanyOrm,
                                  BalanceSystemTariff as BalanceSystemTariffOrm)
 from src.repositories.base import BaseRepository
+from src.repositories.system import SystemRepository
+from src.utils.enums import ContractScheme
 
 
 class KHNPConnector(BaseRepository):
 
-    def __init__(self, session: AsyncSession, system: SystemOrm, user: UserOrm | None = None):
+    def __init__(self, session: AsyncSession, user: UserOrm | None = None):
         super().__init__(session, user)
         self.parser = KHNPParser()
-        self.system = system
+        self.system = None
         self.local_cards: List[CardOrm] = []
         self.provider_cards: List[Dict[str, Any]] = []
         self.outer_goods: List[OuterGoodsOrm] = []
@@ -29,6 +33,27 @@ class KHNPConnector(BaseRepository):
         self._bst_list: List[BalanceSystemTariffOrm] = []
         self._balance_card_relations: Dict[str, str] = {}
         self._local_cards: List[CardOrm] = []
+        self._irrelevant_balances = IrrelevantBalances()
+
+    async def sync(self) -> IrrelevantBalances:
+        # Прогружаем наш баланс
+        await self.load_balance(need_authorization=True)
+
+        # Прогружаем карты
+        await self.load_cards(need_authorization=False)
+
+        # Прогружаем транзакции
+        await self.load_transactions(need_authorization=False)
+
+        # Возвращаем объект со списком транзакций, начиная с которых требуется пересчитать балансы
+        return self._irrelevant_balances
+
+    async def init_system(self) -> None:
+        system_repository = SystemRepository(self.session)
+        self.system = await system_repository.get_system_by_short_name(
+            system_fhort_name=SYSTEM_SHORT_NAME,
+            scheme=ContractScheme.OVERBOUGHT
+        )
 
     async def load_balance(self, need_authorization: bool = True) -> None:
         if need_authorization:
@@ -324,22 +349,7 @@ class KHNPConnector(BaseRepository):
 
         return transaction_data
 
-    @staticmethod
-    def update_calculation_info(balance_id: str, transaction_date_time: datetime,
-                                calculation_info: Dict[str, Any] = None) -> Dict[str, Any]:
-        if not calculation_info:
-            calculation_info = {balance_id: transaction_date_time}
-
-        elif balance_id in calculation_info:
-            if calculation_info[balance_id] > transaction_date_time:
-                calculation_info[balance_id] = transaction_date_time
-        else:
-            calculation_info[balance_id] = transaction_date_time
-
-        return calculation_info
-
-    async def process_provider_transactions(self, provider_transactions: Dict[str, Any],
-                                            calculation_info: Dict[str, Any]) -> Dict[str, Any]:
+    async def process_provider_transactions(self, provider_transactions: Dict[str, Any]) -> None:
         # Получаем текущие тарифы
         self._bst_list = await self._get_balance_system_tariff_list()
 
@@ -361,16 +371,13 @@ class KHNPConnector(BaseRepository):
                 if transaction_data:
                     transactions_to_save.append(transaction_data)
                     if transaction_data['balance_id']:
-                        calculation_info = self.update_calculation_info(
+                        self._irrelevant_balances.add(
                             balance_id=str(transaction_data['balance_id']),
-                            transaction_date_time=transaction_data['date_time'],
-                            calculation_info=calculation_info
+                            irrelevancy_date_time=transaction_data['date_time']
                         )
 
         # Сохраняем транзакции в БД
         await self.bulk_insert_or_update(TransactionOrm, transactions_to_save)
-
-        return calculation_info
 
     async def _set_balance_card_relations(self, card_numbers: List[str]) -> None:
         stmt = (
@@ -384,7 +391,7 @@ class KHNPConnector(BaseRepository):
             .where(CompanyOrm.id == BalanceOrm.company_id)
             .where(CardOrm.company_id == CompanyOrm.id)
         )
-        self.statement(stmt)
+        # self.statement(stmt)
         dataset = await self.select_all(stmt, scalars=False)
         self._balance_card_relations = {data[0]: data[1] for data in dataset}
 
@@ -398,7 +405,7 @@ class KHNPConnector(BaseRepository):
         await self.session.execute(stmt)
         await self.session.commit()
 
-    async def load_transactions(self, need_authorization: bool = True) -> Dict[str, Any]:
+    async def load_transactions(self, need_authorization: bool = True):
         # Получаем список транзакций от поставщика услуг
         provider_transactions = await self.get_provider_transactions(need_authorization)
         counter = sum(list(map(
@@ -419,7 +426,6 @@ class KHNPConnector(BaseRepository):
         # полученном от системы.
         khnp_connector_logger.info('Приступаю к процедуре сравнения локальных транзакций с полученными от поставщика')
         to_delete = []
-        calculation_info = {}
         for local_transaction in local_transactions:
             if local_transaction.card:
                 system_transaction = self.get_equal_provider_transaction(local_transaction, provider_transactions)
@@ -428,10 +434,9 @@ class KHNPConnector(BaseRepository):
                     # Помечаем на удаление локальную транзакцию.
                     to_delete.append(local_transaction)
                     if local_transaction.balance_id:
-                        calculation_info = self.update_calculation_info(
+                        self._irrelevant_balances.add(
                             balance_id=str(local_transaction.balance_id),
-                            transaction_date_time=local_transaction.date_time,
-                            calculation_info=calculation_info
+                            irrelevancy_date_time=local_transaction.date_time
                         )
 
         # Удаляем помеченные транзакции из БД
@@ -456,12 +461,10 @@ class KHNPConnector(BaseRepository):
             khnp_connector_logger.info(
                 'Начинаю обработку транзакции от поставщика услуг, которые не обнаружены в локальной БД'
             )
-            calculation_info = await self.process_provider_transactions(provider_transactions, calculation_info)
+            await self.process_provider_transactions(provider_transactions)
 
         # Записываем в БД время последней успешной синхронизации
         await self.update_object(self.system, update_data={"transactions_sync_dt": datetime.now(tz=TZ)})
 
         # Обновляем время последней транзакции для карт
         await self.renew_cards_date_last_use()
-
-        return calculation_info

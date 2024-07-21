@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 import os
 from datetime import timedelta, timezone
+from pathlib import Path
 
 
 load_dotenv()
@@ -30,6 +31,7 @@ BUILTIN_ADMIN_LASTNAME = os.environ.get('BUILTIN_ADMIN_LASTNAME')
 BUILTIN_ADMIN_FIRSTNAME = os.environ.get('BUILTIN_ADMIN_FIRSTNAME')
 
 SQLALCHEMY_ECHO = False
-LOG_DIR = os.path.join(os.getcwd(), "log")
+ROOT_DIR = Path(__file__).parent.parent
+LOG_DIR = os.path.join(ROOT_DIR, "log")
 
 TZ = timezone(offset=timedelta(hours=3), name='МСК')

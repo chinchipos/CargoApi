@@ -1,108 +1,150 @@
-from typing import List, Dict
+import sys
+import traceback
+from typing import List
 
 import asyncio
 
 from celery import Celery, chord, chain
 
+from src.celery.exceptions import celery_logger, CeleryError
+from src.config import PROD_URI
+from src.connectors.calc_balance import CalcBalances
+from src.connectors.irrelevant_balances import IrrelevantBalances
+from src.connectors.khnp.connector import KHNPConnector
+from src.database.db import DatabaseSessionManager
+
 redis_server = 'redis://localhost:6379'
-celery = Celery('cargonomica', backend=redis_server, broker=f'{redis_server}/0')
+sa_result_backend = (PROD_URI.replace("postgresql+psycopg", "db+postgresql") +
+                     "?sslmode=verify-full&target_session_attrs=read-write")
+celery = Celery('cargonomica', backend=sa_result_backend, broker=f'{redis_server}/0')
 celery.conf.broker_connection_retry_on_startup = True
-
-
-async def async_task1():
-    await asyncio.sleep(5)
-    return {"tr_khnp1": 1}
-
-
-async def async_task2():
-    await asyncio.sleep(5)
-    return {"tr_noname": 1}
+celery.conf.broker_connection_max_retries = 10
+celery.conf.task_ignore_result = True
+celery.conf.task_store_errors_even_if_ignored = True
+celery.conf.timezone = 'Europe/Moscow'
 
 
 # ХНП
-@celery.task(name="SYNC_CARDS_KHNP")
-def sync_cards_khnp():
+async def sync_khnp_fn() -> IrrelevantBalances:
+    sessionmanager = DatabaseSessionManager()
+    sessionmanager.init(PROD_URI)
+
+    async with sessionmanager.session() as session:
+        khnp = KHNPConnector(session)
+        await khnp.init_system()
+        irrelevant_balances = await khnp.sync()
+
+    # Закрываем соединение с БД
+    await sessionmanager.close()
+
+    return irrelevant_balances
+
+
+@celery.task(name="SYNC_KHNP")
+def sync_khnp() -> IrrelevantBalances:
+    celery_logger.info("Запускаю синхронизацию с ХНП")
     try:
-        asyncio.run(async_task1())
-    except Exception:
-        pass
+        return asyncio.run(sync_khnp_fn())
+    except Exception as e:
+        trace_info = traceback.format_exc()
+        celery_logger.error(str(e))
+        celery_logger.error(trace_info)
+        celery_logger.info('Синхронизация с ХНП завершилась с ошибкой')
+        # Возвращаем пустой результат, чтобы последующие задачи могли обработать данные от других систем
+        return IrrelevantBalances()
 
 
-@celery.task(name="SYNC_TRANSACTIONS_KHNP")
-def sync_transactions_khnp():
+# Noname - методы, в которые можно будет добавить новую систему
+async def sync_noname_fn() -> IrrelevantBalances:
+    return IrrelevantBalances()
+
+
+@celery.task(name="SYNC_NONAME")
+def sync_noname() -> IrrelevantBalances:
     try:
-        return asyncio.run(async_task1())
-    except Exception:
-        pass
+        return asyncio.run(sync_noname_fn())
+    except Exception as e:
+        raise CeleryError(message=str(e))
 
 
-# Noname
-@celery.task(name="SYNC_CARDS_NONAME")
-def sync_cards_noname():
-    try:
-        asyncio.run(async_task2())
-    except Exception:
-        pass
+# Агрегирование результатов после синхронизации со всеми системами
+@celery.task(name="AGREGATE_SYNC_SYSTEMS_DATA")
+def agregate_sync_systems_data(irrelevant_balances_list: List[IrrelevantBalances]) -> IrrelevantBalances:
+    celery_logger.info("Агрегирую синхонизационные данные")
+    irrelevant_balances = IrrelevantBalances()
+    for ib in irrelevant_balances_list:
+        irrelevant_balances.extend(ib['data'])
+
+    return irrelevant_balances
 
 
-@celery.task(name="SYNC_TRANSACTIONS_NONAME")
-def sync_transactions_noname():
-    try:
-        return asyncio.run(async_task2())
-    except Exception:
-        pass
-
-
-# Агрегированные методы
-@celery.task(name="AGREGATE_SYNC_TRANSACTIONS")
-def agregate_sync_transactions(params: List[Dict[str, int]]):
-    new_dict = params[0] | params[1]
-    return new_dict
-
-
+# Задача пересчета овердрафтов
 @celery.task(name="CALC_OVERDRAFTS")
-def calc_overdrafts(x: Dict[str, int]):
-    return x
+def calc_overdrafts(irrelevant_balances: IrrelevantBalances) -> IrrelevantBalances:
+    celery_logger.info("Пересчитываю овердрафты")
+    return irrelevant_balances
+
+
+# Задача пересчета балансов
+async def calc_balances_fn(irrelevant_balances: IrrelevantBalances) -> str:
+    sessionmanager = DatabaseSessionManager()
+    sessionmanager.init(PROD_URI)
+
+    async with sessionmanager.session() as session:
+        cb = CalcBalances(session)
+        await cb.calculate(irrelevant_balances, celery_logger)
+
+    # Закрываем соединение с БД
+    await sessionmanager.close()
+
+    return "COMPLETE"
 
 
 @celery.task(name="CALC_BALANCES")
-def calc_balances(x: Dict[str, int]):
-    return x
+def calc_balances(irrelevant_balances: IrrelevantBalances) -> str:
+    if not irrelevant_balances['data']:
+        celery_logger.info("Пересчет балансов не требуется")
+    else:
+        celery_logger.info("Пересчитываю балансы")
+        try:
+            return asyncio.run(calc_balances_fn(irrelevant_balances))
+        except Exception as e:
+            trace_info = traceback.format_exc()
+            celery_logger.error(str(e))
+            celery_logger.error(trace_info)
+            celery_logger.info('Пересчет балансов завершился с ошибкой')
 
 
-# Модель запуска задач.
+# Модель запуска цепочек задач.
 
-# Этапы выполнения:
-# 1. Синхронизация карт.
-# 2. Синхронизация транзакций за период (зависит от п.1 этой же системы)
-# 3. Пересчет овердрафтов за период (запускается после выполнения п.2 по всем системам)
-# 4. Пересчет балансов за период (запускается после выполнения п.3)
-
-# Цепочка: "Синхронизация карт ХНП" <-> "Синхронизация транзакций ХНП"
-sync_cars_and_transactions_khnp = chain(
-    sync_cards_khnp.si(),
-    sync_transactions_khnp.si()
-)
-
-# Цепочка: "Синхронизация карт Noname" <-> "Синхронизация транзакций Noname"
-sync_cars_and_transactions_noname = chain(
-    sync_cards_noname.si(),
-    sync_transactions_noname.si()
-)
+# Этапы последовательного выполнения:
+# 1. Синхронизация (прогружаем наш баланс, карты, транзакции).
+# 2. Пересчет овердрафтов за период
+# 3. Пересчет балансов за период
 
 # Агрегирование цепочек "Синхронизация карт" <-> "Синхронизация транзакций"
-sync_cars_and_transactions = chord(
+sync_systems = chord(
     header=[
-        sync_cars_and_transactions_khnp,
-        sync_cars_and_transactions_noname
+        sync_khnp.si(),
+        sync_noname.si()
     ],
-    body=agregate_sync_transactions.s()
+    body=agregate_sync_systems_data.s()
 )
+
 
 # Результирующая цепочка:
 # "Агрегация (карты-транзакции)" <-> "Пересчет овердрафтов" <-> "Пересчет балансов"
 main_sync_chain = chain(
-    sync_cars_and_transactions,
+    sync_systems,
     calc_overdrafts.s(),
     calc_balances.s()
 )
+
+
+def run_sync_systems():
+    celery_logger.info('Запускаю процедуру синхронизации с системами поставщиков')
+
+    if sys.platform == 'win32':
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+    main_sync_chain()

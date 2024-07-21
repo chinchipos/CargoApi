@@ -15,6 +15,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from xls2xlsx import XLS2XLSX
 
+from src.config import ROOT_DIR
 from src.connectors.khnp.exceptions import KHNPParserError, khnp_parser_logger
 from src.connectors.khnp.config import KHNP_URL, SYSTEM_USERNAME, SYSTEM_PASSWORD
 
@@ -30,10 +31,10 @@ class KHNPParser:
         if self.site[-1] == '/':
             self.site = self.site[:-1]
 
-        base_dir = os.getcwd()
-
         # Папка Chrome
-        chrome_dir = os.path.join(base_dir, 'src', 'khnp', 'selenium')
+        chrome_dir = os.path.join(ROOT_DIR, 'selenium_profiles', 'khnp')
+        if not os.path.exists(chrome_dir):
+            os.makedirs(chrome_dir)
 
         # Папка для загрузок
         self.downloads_dir = os.path.join(str(Path.home()), 'Downloads')
@@ -63,9 +64,9 @@ class KHNPParser:
 
         # Указываем путь к chromedriver
         if sys.platform == 'win32':
-            chromedriver_path = os.path.join(base_dir, 'chromedriver.exe')
+            chromedriver_path = os.path.join(ROOT_DIR, 'chromedriver.exe')
         else:
-            chromedriver_path = os.path.join(base_dir, 'chromedriver')
+            chromedriver_path = os.path.join(ROOT_DIR, 'chromedriver')
 
         # Стартуем webdriver
         self.driver = driver.Chrome(service=ChromeService(chromedriver_path), options=options)

@@ -1,4 +1,3 @@
-from src.celery.tasks import main_sync_chain
+from src.celery.tasks import scheduled_sync
 
-
-main_sync_chain()
+scheduled_sync()

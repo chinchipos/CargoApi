@@ -3,7 +3,6 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from src import config
 from src.auth.auth import auth_backend, fastapi_users
 from src.config import PROD_URI
 from src.database.db import sessionmanager
@@ -12,19 +11,14 @@ from src.routing.card import router as card_routing, card_tag_metadata
 from src.routing.card_type import router as card_type_routing, card_type_tag_metadata
 from src.routing.company import router as company_routing, company_tag_metadata
 from src.routing.db import router as db_routing, db_tag_metadata
+from src.routing.goods import router as goods_routing, goods_tag_metadata
 from src.routing.role import router as role_routing, role_tag_metadata
 from src.routing.system import router as system_routing, system_tag_metadata
 from src.routing.tariff import router as tariff_routing, tariff_tag_metadata
 from src.routing.transaction import router as transaction_routing, transaction_tag_metadata
-from src.routing.goods import router as goods_routing, goods_tag_metadata
 from src.routing.user import router as user_routing, user_tag_metadata
 from src.utils.exceptions import BadRequestException, ForbiddenException, DBException, DBDuplicateException, ApiError
 from src.utils.log import logger
-
-# from fastapi_cache import FastAPICache
-# from fastapi_cache.backends.redis import RedisBackend
-
-# from redis import asyncio as aioredis
 
 
 def init_app(dsn: str, tests: bool = False):

@@ -1,11 +1,11 @@
 from typing import List, Tuple
 
-from sqlalchemy import select as sa_select, and_
+from sqlalchemy import select as sa_select, and_, func as sa_func
 from sqlalchemy.orm import joinedload, selectinload, aliased, load_only
 
 from src.database.models import (Company as CompanyOrm, Balance as BalanceOrm, AdminCompany as AdminCompanyOrm,
                                  User as UserOrm, Role as RoleOrm, BalanceSystemTariff as BalanceSystemTariffOrm,
-                                 System as SystemOrm, Car as CarOrm, Tariff as TariffOrm)
+                                 System as SystemOrm, Car as CarOrm, Tariff as TariffOrm, Card as CardOrm)
 from src.repositories.base import BaseRepository
 from src.repositories.transaction import TransactionRepository
 from src.utils import enums
@@ -97,8 +97,18 @@ class CompanyRepository(BaseRepository):
         return company
 
     async def get_companies(self) -> List[CompanyOrm]:
+        company_table = aliased(CompanyOrm, name="org")
+        helper_cards_amount = (
+            sa_select(
+                company_table.id.label('company_id'),
+                sa_func.count(CardOrm.id).label('cards_amount')
+            )
+            .join(CardOrm, CardOrm.company_id == company_table.id)
+            .group_by(company_table.id)
+            .subquery("helper_cards_amount")
+        )
         stmt = (
-            sa_select(CompanyOrm, BalanceOrm.balance)
+            sa_select(CompanyOrm, BalanceOrm.balance, helper_cards_amount.c.cards_amount)
             .options(
                 load_only(
                     CompanyOrm.id,
@@ -148,6 +158,7 @@ class CompanyRepository(BaseRepository):
                 BalanceOrm.company_id == CompanyOrm.id,
                 BalanceOrm.scheme == ContractScheme.OVERBOUGHT
             ))
+            .outerjoin(helper_cards_amount, helper_cards_amount.c.company_id == CompanyOrm.id)
             .order_by(BalanceOrm.balance)
             .distinct()
         )
@@ -161,9 +172,7 @@ class CompanyRepository(BaseRepository):
             stmt = stmt.where(CompanyOrm.id == self.user.company_id)
 
         dataset = await self.select_all(stmt, scalars=False)
-        for data in dataset:
-            print(data[1], data[0].name)
-        companies = [data[0] for data in dataset]
+        companies = [data[0].annotate({"cards_amount": data[2]}) for data in dataset]
 
         def annotate(company: CompanyOrm) -> CompanyOrm:
             for balance in company.balances:
