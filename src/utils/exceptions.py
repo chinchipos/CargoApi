@@ -28,7 +28,7 @@ api_logger = ColoredLogger(logfile_name='api.log', logger_name='API')
 
 class ApiError(Exception):
 
-    def __init__(self, trace: bool, message: str) -> None:
+    def __init__(self, trace: bool = True, message: str) -> None:
         if trace:
             trace_info = traceback.format_exc()
             self.message = message

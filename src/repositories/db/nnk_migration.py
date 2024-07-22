@@ -277,7 +277,7 @@ class NNKMigration(BaseRepository):
                 first_name='Admin',
                 last_name='Company',
                 email=user['email'],
-                phone=user['phone'][:12],
+                phone=str(user['phone'])[:12],
                 is_active=True,
                 role_id=company_admin_role.id,
                 company_id=self.company_ids[user['company_id']] if user['company_id'] else None

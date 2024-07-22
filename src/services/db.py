@@ -138,7 +138,6 @@ class DBService:
             await self.calculate_balance(balance, transactions)
 
     async def nnk_initial_sync(self, data: DBInitialSyncSchema) -> None:
-        print('YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY')
         # Проверка инициализационного токена
         if data.service_token != SERVICE_TOKEN:
             raise BadRequestException('Некорректный токен')
@@ -151,7 +150,7 @@ class DBService:
             self.logger.info('Завершено успешно')
 
         except Exception:
-            raise ApiError(trace=True, message='Ошибка выполнения процедуры первичной синхронизации')
+            raise ApiError(message='Ошибка выполнения процедуры первичной синхронизации. См. лог.')
 
     """
     async def regular_sync(self, data: DBRegularSyncSchema) -> str:
