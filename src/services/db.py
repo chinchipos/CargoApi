@@ -138,6 +138,7 @@ class DBService:
             await self.calculate_balance(balance, transactions)
 
     async def nnk_initial_sync(self, data: DBInitialSyncSchema) -> None:
+        print('YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY')
         # Проверка инициализационного токена
         if data.service_token != SERVICE_TOKEN:
             raise BadRequestException('Некорректный токен')
