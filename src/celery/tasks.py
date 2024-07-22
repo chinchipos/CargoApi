@@ -40,7 +40,7 @@ async def sync_khnp_fn() -> IrrelevantBalances:
     return irrelevant_balances
 
 
-@celery.task(name="SYNC_KHNP")
+@celery.task(name="SYNC_KHNP", max_retries=1)
 def sync_khnp() -> IrrelevantBalances:
     celery_logger.info("Запускаю синхронизацию с ХНП")
     try:
@@ -59,7 +59,7 @@ async def sync_noname_fn() -> IrrelevantBalances:
     return IrrelevantBalances()
 
 
-@celery.task(name="SYNC_NONAME")
+@celery.task(name="SYNC_NONAME", max_retries=1)
 def sync_noname() -> IrrelevantBalances:
     try:
         return asyncio.run(sync_noname_fn())
@@ -68,7 +68,7 @@ def sync_noname() -> IrrelevantBalances:
 
 
 # Агрегирование результатов после синхронизации со всеми системами
-@celery.task(name="AGREGATE_SYNC_SYSTEMS_DATA")
+@celery.task(name="AGREGATE_SYNC_SYSTEMS_DATA", max_retries=1)
 def agregate_sync_systems_data(irrelevant_balances_list: List[IrrelevantBalances]) -> IrrelevantBalances:
     celery_logger.info("Агрегирую синхонизационные данные")
     irrelevant_balances = IrrelevantBalances()
@@ -79,7 +79,7 @@ def agregate_sync_systems_data(irrelevant_balances_list: List[IrrelevantBalances
 
 
 # Задача пересчета овердрафтов
-@celery.task(name="CALC_OVERDRAFTS")
+@celery.task(name="CALC_OVERDRAFTS", max_retries=1)
 def calc_overdrafts(irrelevant_balances: IrrelevantBalances) -> IrrelevantBalances:
     celery_logger.info("Пересчитываю овердрафты")
     return irrelevant_balances
@@ -100,7 +100,7 @@ async def calc_balances_fn(irrelevant_balances: IrrelevantBalances) -> str:
     return "COMPLETE"
 
 
-@celery.task(name="CALC_BALANCES")
+@celery.task(name="CALC_BALANCES", max_retries=1)
 def calc_balances(irrelevant_balances: IrrelevantBalances) -> str:
     if not irrelevant_balances['data']:
         celery_logger.info("Пересчет балансов не требуется")
