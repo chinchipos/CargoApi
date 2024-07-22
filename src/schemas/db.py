@@ -4,19 +4,7 @@ from pydantic import Field
 
 from src.schemas.base import BaseSchema
 
-systems_ = List[Dict[str, Any]]
-
-tariffs_ = List[Dict[str, Any]]
-
-companies_ = List[Dict[str, Any]]
-
-cars_ = List[Dict[str, Any]]
-
-cards_ = List[Dict[str, Any]]
-
-goods_ = List[Dict[str, Any]]
-
-transactions_ = List[Dict[str, Any]]
+any_ = List[Dict[str, Any]]
 
 service_token_ = Annotated[
     str,
@@ -31,32 +19,23 @@ superuser_password_ = Annotated[
 ]
 
 
-class DBSyncSchema(BaseSchema):
-    systems: systems_
-    tariffs: tariffs_
-    companies: companies_
-    cars: cars_
-    cards: cards_
-    goods: goods_
-    transactions: transactions_
-
-
 class DBInitSchema(BaseSchema):
     service_token: service_token_
     superuser_password: superuser_password_
 
 
 class DBInitialSyncSchema(BaseSchema):
-    service_token: service_token_
-    systems: systems_
-    tariffs: tariffs_
-    companies: companies_
-    cars: cars_
-    cards: cards_
-    goods: goods_
-    transactions: transactions_
+    service_token: any_
+    systems: any_
+    tariffs: any_
+    companies: any_
+    cars: any_
+    cards: any_
+    goods: any_
+    transactions: any_
+    users: any_
 
 
 class DBRegularSyncSchema(BaseSchema):
     service_token: str
-    companies: companies_
+    companies: any_
