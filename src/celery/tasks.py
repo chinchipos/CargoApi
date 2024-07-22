@@ -105,6 +105,7 @@ async def calc_balances_fn(irrelevant_balances: IrrelevantBalances) -> str:
 def calc_balances(irrelevant_balances: IrrelevantBalances) -> str:
     if not irrelevant_balances['data']:
         celery_logger.info("Пересчет балансов не требуется")
+        return "COMPLETE"
     else:
         celery_logger.info("Пересчитываю балансы")
         try:
