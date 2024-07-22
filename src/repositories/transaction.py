@@ -74,7 +74,7 @@ class TransactionRepository(BaseRepository):
                     TransactionOrm.id,
                     TransactionOrm.date_time,
                     TransactionOrm.date_time_load,
-                    TransactionOrm.is_debit,
+                    TransactionOrm.transaction_type,
                     TransactionOrm.azs_code,
                     TransactionOrm.azs_address,
                     TransactionOrm.fuel_volume,
@@ -134,9 +134,6 @@ class TransactionRepository(BaseRepository):
     async def create_corrective_transaction(self, balance: BalanceOrm, debit: bool, delta_sum: float) -> None:
         # Получаем последнюю транзакцию этой организации
         last_transaction = await self.get_last_transaction(balance.id)
-        
-        # Получаем сумму на балансе
-        # current_balance_sum = last_transaction.company_balance if last_transaction else 0
 
         # Формируем корректирующую транзакцию
         if debit:
@@ -147,13 +144,9 @@ class TransactionRepository(BaseRepository):
             "balance_id": balance.id,
             "transaction_sum": delta_sum,
             "total_sum": delta_sum,
-            "company_balance": balance.balance + delta_sum,
+            "company_balance": last_transaction.company_balance + delta_sum,
         }
         corrective_transaction = await self.insert(TransactionOrm, **corrective_transaction)
-
-        # Получаем организацию
-        # stmt = sa_select(CompanyOrm).where(CompanyOrm.id == company_id)
-        # company = await self.select_first(stmt)
 
         # Обновляем сумму на балансе
         update_data = {'balance': corrective_transaction.company_balance}

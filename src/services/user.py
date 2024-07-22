@@ -139,7 +139,8 @@ class UserService:
 
         await self.repository.delete_object(models.User, user_id)
 
-    def create_access_token(self, data: Dict[str, Any], expires_delta: timedelta | None = None) -> str:
+    @staticmethod
+    def create_access_token(data: Dict[str, Any], expires_delta: timedelta | None = None) -> str:
         to_encode = data.copy()
         if expires_delta:
             expire = datetime.now(timezone.utc) + expires_delta
