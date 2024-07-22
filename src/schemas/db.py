@@ -25,7 +25,7 @@ class DBInitSchema(BaseSchema):
 
 
 class DBInitialSyncSchema(BaseSchema):
-    service_token: any_
+    service_token: service_token_
     systems: any_
     tariffs: any_
     companies: any_
