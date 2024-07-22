@@ -117,7 +117,7 @@ class TransactionRepository(BaseRepository):
             .order_by(TransactionOrm.date_time.desc())
         )
 
-        self.statement(stmt)
+        # self.statement(stmt)
         transactions = await self.select_all(stmt)
         return transactions
 
