@@ -208,18 +208,6 @@ class CompanyRepository(BaseRepository):
         new_company_nanager_link = AdminCompanyOrm(company_id = company_id, user_id = user_id)
         await self.save_object(new_company_nanager_link)
 
-    async def set_company_balance_by_last_transaction(self, balance_id: str) -> Tuple[CompanyOrm, float]:
-        # Получаем организацию
-        company = await self.get_company_by_balance_id(balance_id)
-
-        # Получаем последнюю транзакцию
-        transaction_repository = TransactionRepository(self.session, self.user)
-        last_transaction = await transaction_repository.get_last_transaction(balance_id)
-
-        # Устанавливаем текущий баланс организации
-        await self.update_object(company, update_data={"balance": last_transaction.company_balance})
-        return company, last_transaction.company_balance
-
     async def get_overbought_balance_by_company_id(self, company_id: str) -> BalanceOrm:
         stmt = (
             sa_select(BalanceOrm)

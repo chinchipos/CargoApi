@@ -5,7 +5,7 @@ from sqlalchemy import select as sa_select
 from datetime import datetime
 
 from src.connectors.irrelevant_balances import IrrelevantBalances
-from src.database.models import Transaction as TransactionOrm
+from src.database.models import Transaction as TransactionOrm, Balance as BalanceOrm
 from src.repositories.base import BaseRepository
 from src.repositories.company import CompanyRepository
 from src.utils.log import ColoredLogger
@@ -34,7 +34,7 @@ class CalcBalances(BaseRepository):
         transactions = await self.select_all(stmt)
         return transactions
 
-    async def calculate_transaction_balances(self, balance_id: str, from_date_time: datetime) -> None:
+    async def calculate_transaction_balances(self, balance_id: str, from_date_time: datetime) -> float:
         # Получаем транзакцию компании, которая предшествует указанному времени
         initial_transaction = await self.get_initial_transaction(balance_id, from_date_time)
 
@@ -56,7 +56,7 @@ class CalcBalances(BaseRepository):
         previous_company_balance = previous_transaction.company_balance if previous_transaction else 0
         for transaction in transactions_to_recalculate:
             transaction.company_balance = previous_company_balance + transaction.total_sum
-            previous_company_balance = transaction.company_balance
+            previous_company_balance = float(transaction.company_balance)
 
         # Сохраняем в БД
         dataset = []
@@ -82,12 +82,15 @@ class CalcBalances(BaseRepository):
 #
         # print(', '.join(list(map(lambda x: str(x), ids))))
 
+        return previous_company_balance
+
     async def calculate(self, irrelevant_balances: IrrelevantBalances, logger: ColoredLogger) -> None:
+        balances_dataset = []
         for balance_id, from_date_time in irrelevant_balances['data'].items():
             # Вычисляем и устанавливаем балансы в истории транзакций
-            await self.calculate_transaction_balances(balance_id, from_date_time)
+            company_balance = await self.calculate_transaction_balances(balance_id, from_date_time)
+            balances_dataset.append({"id": balance_id, "balance": company_balance})
 
-            # Устанавливаем текущий баланс организации
-            company_repository = CompanyRepository(self.session, self.user)
-            company, balance = await company_repository.set_company_balance_by_last_transaction(balance_id)
-            logger.info('Баланс организации {}: {} руб.'.format(company.name, balance))
+        # Обновляем текущие балансы
+        logger.info('Обновляю текущие значения балансов')
+        await self.bulk_update(BalanceOrm, balances_dataset)
