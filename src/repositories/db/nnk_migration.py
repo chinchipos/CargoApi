@@ -278,9 +278,12 @@ class NNKMigration(BaseRepository):
         company_admin_role = await self.select_first(stmt)
 
         # Создаем пользователей
+        self.logger("Создаю пользователей")
+        i = 1
         for user in users:
             if not list(filter(lambda sa: user['email'] == sa[0] + '@cargonomica.com', superadmins)):
                 username = user['email'].split('@')[0]
+                self.logger(f"{i}. username: {username}, email: {user['email']}")
                 user_schema = UserCreateSchema(
                     username=username,
                     password=user['password'],
