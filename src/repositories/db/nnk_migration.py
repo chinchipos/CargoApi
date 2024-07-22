@@ -298,16 +298,16 @@ class NNKMigration(BaseRepository):
             stmt = sa_select(RoleOrm).where(RoleOrm.name == enums.Role.CARGO_SUPER_ADMIN.name)
             superadmin_role = await self.select_first(stmt)
 
-            # Создаем суперадминов
-            for superadmin in superadmins:
-                user_schema = UserCreateSchema(
-                    username=superadmin[0],
-                    password='Five432!',
-                    first_name=superadmin[2],
-                    last_name=superadmin[1],
-                    email=superadmin[0] + '@cargonomica.com',
-                    phone='111',
-                    is_active=True,
-                    role_id=superadmin_role.id
-                )
-                await create_user(user_schema)
+        # Создаем суперадминов
+        for superadmin in superadmins:
+            user_schema = UserCreateSchema(
+                username=superadmin[0],
+                password='Five432!',
+                first_name=superadmin[2],
+                last_name=superadmin[1],
+                email=superadmin[0] + '@cargonomica.com',
+                phone='111',
+                is_active=True,
+                role_id=superadmin_role.id
+            )
+            await create_user(user_schema)
