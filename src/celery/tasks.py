@@ -19,8 +19,8 @@ sa_result_backend = (PROD_URI.replace("postgresql+psycopg", "db+postgresql") +
 celery = Celery('cargonomica', backend=sa_result_backend, broker=f'{redis_server}/0')
 celery.conf.broker_connection_retry_on_startup = True
 celery.conf.broker_connection_max_retries = 10
-celery.conf.task_ignore_result = True
-celery.conf.task_store_errors_even_if_ignored = True
+# celery.conf.task_ignore_result = True
+# celery.conf.task_store_errors_even_if_ignored = True
 celery.conf.timezone = 'Europe/Moscow'
 
 
@@ -36,11 +36,11 @@ async def sync_khnp_fn() -> IrrelevantBalances:
 
     # Закрываем соединение с БД
     await sessionmanager.close()
-
+    celery_logger.info('Синхронизация с ХНП успешно завершена')
     return irrelevant_balances
 
 
-@celery.task(name="SYNC_KHNP", max_retries=1)
+@celery.task(name="SYNC_KHNP")
 def sync_khnp() -> IrrelevantBalances:
     celery_logger.info("Запускаю синхронизацию с ХНП")
     try:
@@ -56,10 +56,11 @@ def sync_khnp() -> IrrelevantBalances:
 
 # Noname - методы, в которые можно будет добавить новую систему
 async def sync_noname_fn() -> IrrelevantBalances:
+    celery_logger.info('Синхронизация с Noname успешно завершена')
     return IrrelevantBalances()
 
 
-@celery.task(name="SYNC_NONAME", max_retries=1)
+@celery.task(name="SYNC_NONAME")
 def sync_noname() -> IrrelevantBalances:
     try:
         return asyncio.run(sync_noname_fn())
@@ -68,7 +69,7 @@ def sync_noname() -> IrrelevantBalances:
 
 
 # Агрегирование результатов после синхронизации со всеми системами
-@celery.task(name="AGREGATE_SYNC_SYSTEMS_DATA", max_retries=1)
+@celery.task(name="AGREGATE_SYNC_SYSTEMS_DATA")
 def agregate_sync_systems_data(irrelevant_balances_list: List[IrrelevantBalances]) -> IrrelevantBalances:
     celery_logger.info("Агрегирую синхонизационные данные")
     irrelevant_balances = IrrelevantBalances()
@@ -79,7 +80,7 @@ def agregate_sync_systems_data(irrelevant_balances_list: List[IrrelevantBalances
 
 
 # Задача пересчета овердрафтов
-@celery.task(name="CALC_OVERDRAFTS", max_retries=1)
+@celery.task(name="CALC_OVERDRAFTS")
 def calc_overdrafts(irrelevant_balances: IrrelevantBalances) -> IrrelevantBalances:
     celery_logger.info("Пересчитываю овердрафты")
     return irrelevant_balances
@@ -100,7 +101,7 @@ async def calc_balances_fn(irrelevant_balances: IrrelevantBalances) -> str:
     return "COMPLETE"
 
 
-@celery.task(name="CALC_BALANCES", max_retries=1)
+@celery.task(name="CALC_BALANCES")
 def calc_balances(irrelevant_balances: IrrelevantBalances) -> str:
     if not irrelevant_balances['data']:
         celery_logger.info("Пересчет балансов не требуется")
