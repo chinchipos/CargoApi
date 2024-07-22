@@ -10,9 +10,9 @@ from src.connectors.irrelevant_balances import IrrelevantBalances
 from src.connectors.khnp.config import SYSTEM_SHORT_NAME
 from src.connectors.khnp.exceptions import KHNPConnectorError, khnp_connector_logger
 from src.connectors.khnp.parser import KHNPParser
-from src.database.models import (User as UserOrm, Card as CardOrm, System as SystemOrm, CardType as CardTypeOrm, 
-                                 Transaction as TransactionOrm, OuterGoods as OuterGoodsOrm, 
-                                 CardSystem as CardSystemOrm, BalanceTariffHistory as BalanceTariffHistoryOrm, 
+from src.database.models import (User as UserOrm, Card as CardOrm, CardType as CardTypeOrm,
+                                 Transaction as TransactionOrm, OuterGoods as OuterGoodsOrm,
+                                 CardSystem as CardSystemOrm, BalanceTariffHistory as BalanceTariffHistoryOrm,
                                  Tariff as TariffOrm, Balance as BalanceOrm, Company as CompanyOrm,
                                  BalanceSystemTariff as BalanceSystemTariffOrm)
 from src.repositories.base import BaseRepository

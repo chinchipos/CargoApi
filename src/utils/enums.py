@@ -34,7 +34,6 @@ class Role(Enum):
 
 
 class Permition(StrEnum):
-
     DB_SYNC = 'DB_SYNC'
 
 
@@ -51,7 +50,6 @@ class LogType(StrEnum):
 
 
 class Finance(StrEnum):
-
     DEBIT = "DEBIT"
     CREDIT = "CREDIT"
 
@@ -76,3 +74,11 @@ class ContractScheme(Enum):
 
 class Bank(Enum):
     SBER = "Сбер"
+
+
+class TransactionType(Enum):
+    PURCHASE = "Покупка"
+    REFUND = "Возврат"
+    REFILL = "Пополнение"
+    DECREASE = "Уменьшение баланса"
+    OVERDRAFT_FEE = "Комиссия за овердрафт"

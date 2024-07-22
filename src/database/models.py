@@ -8,18 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy.orm import MappedAsDataclass, DeclarativeBase, Mapped, mapped_column, relationship
 
 from src.config import SCHEMA
-from src.utils import enums
-
-
-# pk = Annotated[
-#     str,
-#     mapped_column(
-#         sa.Uuid(as_uuid=False),
-#         primary_key=True,
-#         server_default=sa.text("uuid_generate_v4()"),
-#         init=False
-#     )
-# ]
+from src.utils.enums import (TransactionType as TransactionTypeEnum, ContractScheme as ContractScheme,
+                             Permition as PermitionEnum, ContractScheme as ContractSchemeEnum, Bank as BankEnum)
 
 
 class Base(AsyncAttrs, MappedAsDataclass, DeclarativeBase):
@@ -276,7 +266,7 @@ class Balance(Base):
         init=False
     )
 
-    scheme: Mapped[enums.ContractScheme] = mapped_column(
+    scheme: Mapped[ContractScheme] = mapped_column(
         comment="Схема работы (агентская, перекупная, ...). См. соответствующий public -> Types."
     )
 
@@ -330,6 +320,14 @@ class Balance(Base):
 
     # Список транзакций, привязанных к этому балансу
     transactions: Mapped[List["Transaction"]] = relationship(
+        back_populates="balance",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
+    # История овердрафтов этого баланса
+    overdrafts_history: Mapped[List["OverdraftsHistory"]] = relationship(
         back_populates="balance",
         cascade="all, delete-orphan",
         lazy="noload",
@@ -521,7 +519,7 @@ class Role(Base):
 
     repr_cols = ("title",)
 
-    def has_permition(self, permition: enums.Permition) -> bool:
+    def has_permition(self, permition: PermitionEnum) -> bool:
         if not self.role_permition:
             return False
 
@@ -1020,9 +1018,9 @@ class System(Base):
         comment="Период, за который запрашиваются транзакции при синхронизации"
     )
 
-    scheme: Mapped[enums.ContractScheme] = mapped_column(
+    scheme: Mapped[ContractSchemeEnum] = mapped_column(
         comment="Схема работы (агентская, перекупная, ...). См. соответствующий public -> Types.",
-        server_default=enums.ContractScheme.OVERBOUGHT.name
+        server_default=ContractSchemeEnum.OVERBOUGHT.name
     )
 
     transactions_sync_dt: Mapped[datetime] = mapped_column(
@@ -1238,10 +1236,8 @@ class Transaction(Base):
         comment="Время прогрузки в БД"
     )
 
-    is_debit: Mapped[bool] = mapped_column(
-        sa.Boolean,
-        nullable=False,
-        comment="Направление транзакции: покупка или возврат"
+    transaction_type: Mapped[TransactionTypeEnum] = mapped_column(
+        comment="Тип транзакции"
     )
 
     # Карта
@@ -1430,7 +1426,7 @@ class MoneyReceipt(Base):
         }
     )
 
-    bank: Mapped[enums.Bank] = mapped_column(
+    bank: Mapped[BankEnum] = mapped_column(
         comment="Банк",
         init=True,
     )
@@ -1499,12 +1495,19 @@ class OverdraftsHistory(Base):
         'comment': 'История овердрафтов'
     }
 
-    # Организация
-    company_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.company.id"),
+    # Баланс
+    balance_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.balance.id"),
         nullable=False,
         init=True,
-        comment="Организация"
+        comment="Баланс"
+    )
+
+    # Баланс
+    balance: Mapped["Balance"] = relationship(
+        back_populates="overdrafts_history",
+        lazy="noload",
+        init=False
     )
 
     overdraft_days: Mapped[int] = mapped_column(

@@ -4,9 +4,15 @@ from typing import Dict, Any
 
 from sqlalchemy import select as sa_select, null
 
-from src.database import models
+from src.database.models import (Role as RoleOrm, System as SystemOrm, Company as CompanyOrm, Balance as BalanceOrm,
+                                 Card as CardOrm, Tariff as TariffOrm, OuterGoods as OuterGoodsOrm, Car as CarOrm,
+                                 InnerGoods as InnerGoodsOrm, CardType as CardTypeOrm, CardSystem as CardSystemOrm,
+                                 BalanceSystemTariff as BalanceSystemTariffOrm, Transaction as TransactionOrm,
+                                 User as UserOrm)
 from src.repositories.base import BaseRepository
+from src.schemas.user import UserCreateSchema
 from src.utils import enums
+from src.utils.enums import TransactionType
 
 
 class NNKMigration(BaseRepository):
@@ -19,45 +25,45 @@ class NNKMigration(BaseRepository):
 
     async def _set_system_ids(self) -> None:
         system_ids = await self.select_all(
-            sa_select(models.System.master_db_id, models.System.id).where(models.System.master_db_id.is_not(null())),
+            sa_select(SystemOrm.master_db_id, SystemOrm.id).where(SystemOrm.master_db_id.is_not(null())),
             scalars=False
         )
         self.system_ids = {item[0]: item[1] for item in system_ids}
 
     async def _set_balance_ids(self) -> None:
         balance_ids = await self.select_all(
-            sa_select(models.Company.master_db_id, models.Balance.id)
-            .where(models.Company.master_db_id.is_not(null()))
-            .where(models.Company.id == models.Balance.company_id),
+            sa_select(CompanyOrm.master_db_id, BalanceOrm.id)
+            .where(CompanyOrm.master_db_id.is_not(null()))
+            .where(CompanyOrm.id == BalanceOrm.company_id),
             scalars=False
         )
         self.balance_ids = {item[0]: item[1] for item in balance_ids}
 
     async def _set_card_ids(self) -> None:
         card_numbers_related_to_card_ids = await self.select_all(
-            sa_select(models.Card.card_number, models.Card.id),
+            sa_select(CardOrm.card_number, CardOrm.id),
             scalars=False
         )
         self.card_ids = {item[0]: item[1] for item in card_numbers_related_to_card_ids}
 
     async def _set_company_ids(self) -> None:
         company_ids = await self.select_all(
-            sa_select(models.Company.master_db_id, models.Company.id).where(models.Company.master_db_id.is_not(null())),
+            sa_select(CompanyOrm.master_db_id, CompanyOrm.id).where(CompanyOrm.master_db_id.is_not(null())),
             scalars=False
         )
         self.company_ids = {item[0]: item[1] for item in company_ids}
 
     async def _set_tariff_ids(self) -> None:
         tariff_ids = await self.select_all(
-            sa_select(models.Tariff.master_db_id, models.Tariff.id).where(models.Tariff.master_db_id.is_not(null())),
+            sa_select(TariffOrm.master_db_id, TariffOrm.id).where(TariffOrm.master_db_id.is_not(null())),
             scalars=False
         )
         self.tariff_ids = {item[0]: item[1] for item in tariff_ids}
 
     async def _set_goods_ids(self) -> None:
         goods = await self.select_all(
-            sa_select(models.InnerGoods.name, models.OuterGoods.id)
-            .where(models.OuterGoods.inner_goods_id == models.InnerGoods.id),
+            sa_select(InnerGoodsOrm.name, OuterGoodsOrm.id)
+            .where(OuterGoodsOrm.inner_goods_id == InnerGoodsOrm.id),
             scalars=False
         )
         self.goods_ids = {item[0]: item[1] for item in goods}
@@ -71,7 +77,7 @@ class NNKMigration(BaseRepository):
                 transaction_days=system['transaction_days'],
             ) for system in systems
         ]
-        await self.bulk_insert_or_update(models.System, dataset, 'full_name')
+        await self.bulk_insert_or_update(SystemOrm, dataset, 'full_name')
         await self._set_system_ids()
 
     async def import_tariffs(self, tariffs: list[Dict[str, Any]]) -> None:
@@ -82,7 +88,7 @@ class NNKMigration(BaseRepository):
                 fee_percent=tariff['service_online'],
             ) for tariff in tariffs
         ]
-        await self.bulk_insert_or_update(models.Tariff, dataset, 'name')
+        await self.bulk_insert_or_update(TariffOrm, dataset, 'name')
         await self._set_tariff_ids()
 
     async def import_companies(self, companies: list[Dict[str, Any]]) -> None:
@@ -96,7 +102,7 @@ class NNKMigration(BaseRepository):
                 inn=company['inn']
             ) for company in companies
         ]
-        await self.bulk_insert_or_update(models.Company, dataset)
+        await self.bulk_insert_or_update(CompanyOrm, dataset)
         await self._set_company_ids()
 
     async def import_balances(self, companies: list[Dict[str, Any]]) -> None:
@@ -112,35 +118,8 @@ class NNKMigration(BaseRepository):
                 min_balance_on_period=company['min_balance_period'],
             ) for company in companies
         ]
-        await self.bulk_insert_or_update(models.Balance, dataset)
+        await self.bulk_insert_or_update(BalanceOrm, dataset)
         await self._set_balance_ids()
-
-    """
-    async def sync_companies(self, companies: list[Dict[str, Any]]) -> int:
-        # Получаем список идентификаторов, указывающих на организации из БД основной площадки
-        stmt = sa_select(models.Company.master_db_id)
-        dataset = await self.select_all(stmt, scalars=False)
-        excluded_master_db_ids = [row[0] for row in dataset]
-        dataset = [
-            dict(
-                master_db_id=company['id'],
-                name=company['name'],
-                date_add=company['date_add'],
-                tariff_id=None,
-                personal_account=('000000' + str(random.randint(1, 9999999)))[-7:],
-                inn=company['inn'],
-                balance=company['amount'],
-                min_balance=company['min_balance'],
-                min_balance_period_end_date=None if company['min_balance_date_to'] == '0000-00-00 00:00:00' else
-                company['min_balance_date_to'],
-                min_balance_on_period=company['min_balance_period'],
-            ) for company in companies if company['id'] not in excluded_master_db_ids
-        ]
-        if dataset:
-            await self.bulk_insert_or_update(models.Company, dataset)
-
-        return len(dataset)
-    """
 
     async def import_cars(self, cars: list[Dict[str, Any]]) -> None:
         dataset = [
@@ -150,15 +129,15 @@ class NNKMigration(BaseRepository):
                 company_id=self.company_ids[car['company_id']],
             ) for car in cars
         ]
-        await self.bulk_insert_or_update(models.Car, dataset)
+        await self.bulk_insert_or_update(CarOrm, dataset)
 
     async def import_cards(self, cards: list[Dict[str, Any]]) -> None:
         # Тип карты по умолчанию для вновь импортируемых карт
-        plastic_card_type = await self.insert_or_update(models.CardType, 'name', name="Пластиковая карта")
+        plastic_card_type = await self.insert_or_update(CardTypeOrm, 'name', name="Пластиковая карта")
 
         # Номера карт в привязке к типам (для существующих карт)
         card_numbers_related_to_card_type_ids = await self.select_all(
-            sa_select(models.Card.card_number, models.Card.card_type_id),
+            sa_select(CardOrm.card_number, CardOrm.card_type_id),
             scalars=False
         )
         card_numbers_related_to_card_type_ids = {
@@ -167,7 +146,7 @@ class NNKMigration(BaseRepository):
 
         # Автомобиль. Сопоставление id записи на боевом сервере с id на новом сервере.
         car_ids = await self.select_all(
-            sa_select(models.Car.master_db_id, models.Car.id).where(models.Car.master_db_id.is_not(null())),
+            sa_select(CarOrm.master_db_id, CarOrm.id).where(CarOrm.master_db_id.is_not(null())),
             scalars=False
         )
         car_ids = {item[0]: item[1] for item in car_ids}
@@ -182,7 +161,7 @@ class NNKMigration(BaseRepository):
                 manual_lock=card['manual_lock'],
             ) for card in cards
         ]
-        await self.bulk_insert_or_update(models.Card, dataset, 'card_number')
+        await self.bulk_insert_or_update(CardOrm, dataset, 'card_number')
         await self._set_card_ids()
 
     async def bind_cards_with_systems(self, cards: list[Dict[str, Any]]) -> None:
@@ -195,7 +174,7 @@ class NNKMigration(BaseRepository):
                 system_id=self.system_ids[card['system_id']]
             ) for card in cards if card['system_id']
         ]
-        await self.bulk_insert_or_update(models.CardSystem, dataset)
+        await self.bulk_insert_or_update(CardSystemOrm, dataset)
 
     async def import_tariffs_history(self, companies: list[Dict[str, Any]]) -> None:
         # Создаем записи в таблице balance_system_tariff
@@ -205,8 +184,8 @@ class NNKMigration(BaseRepository):
         # Привязку выполняем только для ННК, так как на данный момент работа ведется только в этой системе.
 
         # ННК
-        nnk_system = await self.select_first(sa_select(models.System).where(
-            models.System.full_name == "АО «ННК-Хабаровскнефтепродукт»")
+        nnk_system = await self.select_first(sa_select(SystemOrm).where(
+            SystemOrm.full_name == "АО «ННК-Хабаровскнефтепродукт»")
         )
         dataset = [
             dict(
@@ -215,29 +194,11 @@ class NNKMigration(BaseRepository):
                 tariff_id=self.tariff_ids[company['tariff_id']],
             ) for company in companies
         ]
-        await self.bulk_insert_or_update(models.BalanceSystemTariff, dataset)
-
-        """
-        # Остальные системы (Роснефть)
-        systems = await self.select_all(sa_select(models.System))
-        for system in systems:
-            if system.id != nnk_system.id:
-                dataset = [
-                    dict(
-                        tariff_id=self.tariff_ids[company['tariff_id']],
-                        balance_id=self.balance_ids[company['id']],
-                        system_id=system.id,
-                        start_date=datetime.fromisoformat(company['date_add']).date(),
-                        end_date=date.today(),
-                        current=False,
-                    ) for company in companies
-                ]
-                await self.bulk_insert_or_update(models.TariffHistory, dataset)
-        """
+        await self.bulk_insert_or_update(BalanceSystemTariffOrm, dataset)
 
     async def import_inner_goods(self, goods: list[Dict[str, Any]]) -> None:
         dataset = [{'name': good['inner_goods']} for good in goods if good['inner_goods']]
-        await self.bulk_insert_or_update(models.InnerGoods, dataset)
+        await self.bulk_insert_or_update(InnerGoodsOrm, dataset)
 
     async def import_outer_goods(self, goods: list[Dict[str, Any]]) -> None:
         # Пример входной строки goods:
@@ -249,7 +210,7 @@ class NNKMigration(BaseRepository):
 
         # Наименования товаров в привязке к id
         inner_goods_ids = await self.select_all(
-            sa_select(models.InnerGoods.name, models.InnerGoods.id),
+            sa_select(InnerGoodsOrm.name, InnerGoodsOrm.id),
             scalars=False
         )
         inner_goods_ids = {item[0]: item[1] for item in inner_goods_ids}
@@ -262,7 +223,7 @@ class NNKMigration(BaseRepository):
             ) for good in goods if good['system_id'] in self.system_ids
         ]
 
-        await self.bulk_insert_or_update(models.OuterGoods, dataset)
+        await self.bulk_insert_or_update(OuterGoodsOrm, dataset)
         await self._set_goods_ids()
 
     async def import_transactions(self, transactions: list[Dict[str, Any]]) -> None:
@@ -272,7 +233,7 @@ class NNKMigration(BaseRepository):
                 external_id=transaction['id'],
                 date_time=datetime.fromisoformat(transaction['date']),
                 date_time_load=datetime.fromisoformat(transaction['date_load']),
-                is_debit=True if transaction['sum'] < 0 else False,
+                transaction_type=self.get_transaction_type(transaction),
                 card_id=self.card_ids[str(transaction['card_num'])] if transaction['card_num']
                 else None,
                 balance_id=self.balance_ids[transaction['company_id']] if transaction['company_id'] else None,
@@ -291,4 +252,33 @@ class NNKMigration(BaseRepository):
             ) for transaction in transactions
         ]
 
-        await self.bulk_insert_or_update(models.Transaction, dataset)
+        await self.bulk_insert_or_update(TransactionOrm, dataset)
+
+    @staticmethod
+    def get_transaction_type(transaction: Dict[str, Any]) -> TransactionType:
+        if transaction['sum'] < 0:
+            # Дебетование: покупка или ручное уменьшение
+            return TransactionType.PURCHASE if transaction['sum_service'] else TransactionType.DECREASE
+        else:
+            # Кредитование: возврат или пополнение
+            return TransactionType.REFUND if transaction['sum_service'] else TransactionType.REFILL
+
+    async def import_users(self, users: list[Dict[str, Any]]) -> None:
+        # Получаем роль администратора организации
+        stmt = sa_select(RoleOrm).where(RoleOrm.name == enums.Role.COMPANY_ADMIN.name)
+        company_admin_role = await self.select_first(stmt)
+        for user in users:
+            username = user['email'].split('@')[0]
+            user_schema = UserCreateSchema(
+                username=username,
+                password=user['password'],
+                first_name='Admin',
+                last_name='Company',
+                email=user['email'],
+                phone=user['phone'][:12],
+                is_active=True,
+                role_id=company_admin_role.id,
+                company_id=self.company_ids[user['company_id']] if user['company_id'] else None
+            )
+            new_user = UserOrm(**user_schema.model_dump())
+            await self.save_object(new_user)

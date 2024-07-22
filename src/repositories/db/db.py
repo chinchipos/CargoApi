@@ -71,6 +71,9 @@ class DBRepository(BaseRepository):
         self.logger.info('Импортирую транзакции')
         await nnk.import_transactions(data.transactions)
 
+        self.logger.info('Импортирую пользователей')
+        await nnk.import_users(data.users)
+
     async def get_cargo_superadmin_role(self) -> models.Role:
         try:
             stmt = sa_select(models.Role).where(models.Role.name == enums.Role.CARGO_SUPER_ADMIN.name).limit(1)

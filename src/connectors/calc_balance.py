@@ -1,13 +1,11 @@
+from datetime import datetime
 from typing import List
 
 from sqlalchemy import select as sa_select
 
-from datetime import datetime
-
 from src.connectors.irrelevant_balances import IrrelevantBalances
 from src.database.models import Transaction as TransactionOrm, Balance as BalanceOrm
 from src.repositories.base import BaseRepository
-from src.repositories.company import CompanyRepository
 from src.utils.log import ColoredLogger
 
 
@@ -40,16 +38,6 @@ class CalcBalances(BaseRepository):
 
         # Получаем все транзакции компании по указанному балансу, начиная с указанного времени
         transactions_to_recalculate = await self.get_transactions_to_recalculate(balance_id, from_date_time)
-        # print('====================================')
-        # print('Транзакции для пересчета:')
-        # for transaction in transactions_to_recalculate:
-        #     print("ID: {}, Время: {}, Сумма: {}, Баланс: {}".format(
-        #         transaction.id,
-        #         transaction.date_time.isoformat().replace('T', ' '),
-        #         transaction.total_sum,
-        #         transaction.company_balance
-        #     ))
-        #     print('-----------')
 
         # Пересчитываем балансы
         previous_transaction = initial_transaction
@@ -66,21 +54,6 @@ class CalcBalances(BaseRepository):
                 'company_balance_after': transaction.company_balance,
             })
             await self.bulk_update(TransactionOrm, dataset)
-
-        # print('====================================')
-        # print('Пересчитанные транзакции:')
-        # ids = []
-        # for transaction in transactions_to_recalculate:
-        #     print("ID: {}, Время: {}, Сумма: {}, Баланс: {}".format(
-        #         transaction.id,
-        #         transaction.date_time.isoformat().replace('T', ' '),
-        #         transaction.total_sum,
-        #         transaction.company_balance
-        #     ))
-        #     print('-----------')
-        #     ids.append(transaction.id)
-#
-        # print(', '.join(list(map(lambda x: str(x), ids))))
 
         return previous_company_balance
 
