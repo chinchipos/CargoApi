@@ -294,9 +294,9 @@ class NNKMigration(BaseRepository):
                 )
                 await create_user(user_schema)
 
-            # Получаем роль суперадмина
-            stmt = sa_select(RoleOrm).where(RoleOrm.name == enums.Role.CARGO_SUPER_ADMIN.name)
-            superadmin_role = await self.select_first(stmt)
+        # Получаем роль суперадмина
+        stmt = sa_select(RoleOrm).where(RoleOrm.name == enums.Role.CARGO_SUPER_ADMIN.name)
+        superadmin_role = await self.select_first(stmt)
 
         # Создаем суперадминов
         for superadmin in superadmins:
