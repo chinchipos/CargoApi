@@ -292,7 +292,7 @@ class NNKMigration(BaseRepository):
                     phone=str(user['phone'])[:12],
                     is_active=True,
                     role_id=company_admin_role.id,
-                    company_id=self.company_ids[user['company_id']] if user['company_id'] else None
+                    company_id=self.company_ids.get(user['company_id'], None) if user['company_id'] else None
                 )
                 await create_user(user_schema)
 
