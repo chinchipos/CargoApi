@@ -267,6 +267,8 @@ class NNKMigration(BaseRepository):
         # Получаем роль администратора организации
         stmt = sa_select(RoleOrm).where(RoleOrm.name == enums.Role.COMPANY_ADMIN.name)
         company_admin_role = await self.select_first(stmt)
+
+        # Создаем пользователей
         for user in users:
             username = user['email'].split('@')[0]
             user_schema = UserCreateSchema(
@@ -282,3 +284,30 @@ class NNKMigration(BaseRepository):
             )
             new_user = UserOrm(**user_schema.model_dump())
             await self.save_object(new_user)
+
+            # Получаем роль суперадмина
+            stmt = sa_select(RoleOrm).where(RoleOrm.name == enums.Role.CARGO_SUPER_ADMIN.name)
+            superadmin_role = await self.select_first(stmt)
+
+            # Создаем суперадминов
+            superadmins = [
+                ('admin', 'Администратор', 'Cargonomica'),
+                ('a.voskresenskiy', 'А.', 'Воскресенский'),
+                ('a.ivanov', 'А.', 'Иванов'),
+                ('v.romm', 'В.', 'Ромм'),
+                ('a.ermakova', 'А.', 'Ермакова'),
+            ]
+
+            for superadmin in superadmins:
+                user_schema = UserCreateSchema(
+                    username=superadmin[0],
+                    password='Five432!',
+                    first_name=superadmin[2],
+                    last_name=superadmin[1],
+                    email=superadmin[0] + '@cargonomica.com',
+                    phone='111',
+                    is_active=True,
+                    role_id=superadmin_role.id
+                )
+                new_user = UserOrm(**user_schema.model_dump())
+                await self.save_object(new_user)
