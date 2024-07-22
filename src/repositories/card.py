@@ -2,7 +2,7 @@ import traceback
 from typing import List
 
 from sqlalchemy import select as sa_select, delete as sa_delete, func as sa_func
-from sqlalchemy.orm import joinedload, selectinload, load_only
+from sqlalchemy.orm import joinedload, selectinload, load_only, aliased
 
 from src.database.models import (Card as CardOrm, User as UserOrm, Transaction as TransactionOrm, System as SystemOrm,
                                  CardType as CardTypeOrm, Company as CompanyOrm, CardSystem as CardSystemOrm,
@@ -62,6 +62,7 @@ class CardRepository(BaseRepository):
         return card
 
     async def get_cards(self, card_numbers: List[str] = None) -> List[CardOrm]:
+        company_table = aliased(CompanyOrm, name="org")
         stmt = (
             sa_select(CardOrm)
             .options(
@@ -93,6 +94,8 @@ class CardRepository(BaseRepository):
                 joinedload(CardOrm.belongs_to_driver)
                 .load_only(UserOrm.id, UserOrm.first_name, UserOrm.last_name)
             )
+            .outerjoin(company_table, company_table.id == CardOrm.company_id)
+            .order_by(company_table.name, CardOrm.card_number)
         )
 
         if card_numbers:
@@ -112,7 +115,7 @@ class CardRepository(BaseRepository):
                 .where(CardOrm.company_id == self.user.company_id)
                 .where(CardOrm.belongs_to_driver_id == self.user.id)
             )
-
+        # self.statement(stmt)
         cards = await self.select_all(stmt)
         return cards
 
