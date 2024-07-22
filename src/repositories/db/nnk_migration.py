@@ -4,6 +4,7 @@ from typing import Dict, Any
 
 from sqlalchemy import select as sa_select, null
 
+from src.auth.manager import create_user
 from src.database.models import (Role as RoleOrm, System as SystemOrm, Company as CompanyOrm, Balance as BalanceOrm,
                                  Card as CardOrm, Tariff as TariffOrm, OuterGoods as OuterGoodsOrm, Car as CarOrm,
                                  InnerGoods as InnerGoodsOrm, CardType as CardTypeOrm, CardSystem as CardSystemOrm,
@@ -282,8 +283,7 @@ class NNKMigration(BaseRepository):
                 role_id=company_admin_role.id,
                 company_id=self.company_ids[user['company_id']] if user['company_id'] else None
             )
-            new_user = UserOrm(**user_schema.model_dump())
-            await self.save_object(new_user)
+            await create_user(user_schema)
 
             # Получаем роль суперадмина
             stmt = sa_select(RoleOrm).where(RoleOrm.name == enums.Role.CARGO_SUPER_ADMIN.name)
@@ -309,5 +309,4 @@ class NNKMigration(BaseRepository):
                     is_active=True,
                     role_id=superadmin_role.id
                 )
-                new_user = UserOrm(**user_schema.model_dump())
-                await self.save_object(new_user)
+                await create_user(user_schema)

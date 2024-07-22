@@ -39,9 +39,12 @@ async def create(
             description="Администрируемые организации (для роли <Менеджер ПроАВТО>)",
             examples=[["20f06bf0-ae28-4f32-b2ca-f57796103a71", "56d06bf0-ae28-4f32-b2ca-f57796103a45"]]
         )
-    ] = [],
+    ] = None,
     service: UserService = Depends(get_service_user)
 ) -> models.User:
+    if not managed_companies:
+        managed_companies = []
+
     # Создавать пользователей может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()

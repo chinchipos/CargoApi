@@ -151,16 +151,3 @@ class DBService:
 
         except Exception:
             raise ApiError(message='Ошибка выполнения процедуры первичной синхронизации. См. лог.')
-
-    """
-    async def regular_sync(self, data: DBRegularSyncSchema) -> str:
-        # Проверка инициализационного токена
-        if data.service_token != SERVICE_TOKEN:
-            raise BadRequestException('Некорректный токен')
-
-        self.logger.info('Импортирую организации')
-        companies_amount = await self.repository.sync_companies(data.companies)
-
-        message = f'Импортировано новых организаций: {companies_amount} шт'
-        return message
-    """
