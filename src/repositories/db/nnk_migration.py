@@ -282,10 +282,9 @@ class NNKMigration(BaseRepository):
         i = 1
         for user in users:
             if not list(filter(lambda sa: user['email'] == sa[0] + '@cargonomica.com', superadmins)):
-                username = user['email'].split('@')[0]
-                self.logger.info(f"{i}. username: {username}, email: {user['email']}")
+                self.logger.info(f"{i}. email: {user['email']}")
                 user_schema = UserCreateSchema(
-                    username=username,
+                    username=user['email'],
                     password=user['password'],
                     first_name='Admin',
                     last_name='Company',
