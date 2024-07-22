@@ -265,39 +265,40 @@ class NNKMigration(BaseRepository):
             return TransactionType.REFUND if transaction['sum_service'] else TransactionType.REFILL
 
     async def import_users(self, users: list[Dict[str, Any]]) -> None:
+        superadmins = [
+            ('admin', 'Администратор', 'Cargonomica'),
+            ('a.voskresenskiy', 'А.', 'Воскресенский'),
+            ('a.ivanov', 'А.', 'Иванов'),
+            ('v.romm', 'В.', 'Ромм'),
+            ('a.ermakova', 'А.', 'Ермакова'),
+        ]
+
         # Получаем роль администратора организации
         stmt = sa_select(RoleOrm).where(RoleOrm.name == enums.Role.COMPANY_ADMIN.name)
         company_admin_role = await self.select_first(stmt)
 
         # Создаем пользователей
         for user in users:
-            username = user['email'].split('@')[0]
-            user_schema = UserCreateSchema(
-                username=username,
-                password=user['password'],
-                first_name='Admin',
-                last_name='Company',
-                email=user['email'],
-                phone=str(user['phone'])[:12],
-                is_active=True,
-                role_id=company_admin_role.id,
-                company_id=self.company_ids[user['company_id']] if user['company_id'] else None
-            )
-            await create_user(user_schema)
+            if not list(filter(lambda sa: user['email'] == sa[0] + '@cargonomica.com', superadmins)):
+                username = user['email'].split('@')[0]
+                user_schema = UserCreateSchema(
+                    username=username,
+                    password=user['password'],
+                    first_name='Admin',
+                    last_name='Company',
+                    email=user['email'],
+                    phone=str(user['phone'])[:12],
+                    is_active=True,
+                    role_id=company_admin_role.id,
+                    company_id=self.company_ids[user['company_id']] if user['company_id'] else None
+                )
+                await create_user(user_schema)
 
             # Получаем роль суперадмина
             stmt = sa_select(RoleOrm).where(RoleOrm.name == enums.Role.CARGO_SUPER_ADMIN.name)
             superadmin_role = await self.select_first(stmt)
 
             # Создаем суперадминов
-            superadmins = [
-                ('admin', 'Администратор', 'Cargonomica'),
-                ('a.voskresenskiy', 'А.', 'Воскресенский'),
-                ('a.ivanov', 'А.', 'Иванов'),
-                ('v.romm', 'В.', 'Ромм'),
-                ('a.ermakova', 'А.', 'Ермакова'),
-            ]
-
             for superadmin in superadmins:
                 user_schema = UserCreateSchema(
                     username=superadmin[0],
