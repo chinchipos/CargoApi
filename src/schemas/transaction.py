@@ -9,6 +9,7 @@ from src.schemas.goods import OuterGoodsReadSchema
 from src.schemas.system import SystemReadMinimumSchema
 from src.schemas.tariff import TariffMinimumReadSchema
 from src.schemas.validators import CompanyFromBalance
+from src.utils.enums import TransactionType
 
 id_ = Annotated[str, Field(description="UUID транзакции", examples=["c39e5c5c-b980-45eb-a192-585e6823faa7"])]
 
@@ -22,7 +23,7 @@ date_time_load_ = Annotated[
     Field(description="Время прогрузки в БД (МСК)", examples=["2024-03-20 17:19:03"])
 ]
 
-is_debit_ = Annotated[bool, Field(description="Операция дебетования/кредитования", examples=[True])]
+transaction_type_ = Annotated[TransactionType, Field(description="Тип транзакции", examples=[True])]
 
 system_ = Annotated[SystemReadMinimumSchema | None, Field(description="Поставщик услуг")]
 
@@ -68,7 +69,7 @@ class TransactionReadSchema(BaseSchema):
     id: id_
     date_time: date_time_
     date_time_load: date_time_load_
-    is_debit: is_debit_
+    transaction_type: transaction_type_
     system: system_ = None
     card: card_ = None
     company: company_ = None
