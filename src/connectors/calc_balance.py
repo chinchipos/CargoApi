@@ -53,9 +53,10 @@ class CalcBalances(BaseRepository):
 
         # Пересчитываем балансы
         previous_transaction = initial_transaction
+        previous_company_balance = previous_transaction.company_balance if previous_transaction else 0
         for transaction in transactions_to_recalculate:
-            transaction.company_balance = previous_transaction.company_balance + transaction.total_sum
-            previous_transaction = transaction
+            transaction.company_balance = previous_company_balance + transaction.total_sum
+            previous_company_balance = transaction.company_balance
 
         # Сохраняем в БД
         dataset = []
