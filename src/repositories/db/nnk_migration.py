@@ -283,13 +283,14 @@ class NNKMigration(BaseRepository):
         for user in users:
             if not list(filter(lambda sa: user['email'] == sa[0] + '@cargonomica.com', superadmins)):
                 self.logger.info(f"{i}. email: {user['email']}")
+                phone = ''.join([num for num in str(user['phone']) if num.isdecimal()])
                 user_schema = UserCreateSchema(
                     username=user['email'],
                     password=user['password'],
                     first_name='Admin',
                     last_name='Company',
                     email=user['email'],
-                    phone=str(user['phone'])[:12],
+                    phone=phone[:12],
                     is_active=True,
                     role_id=company_admin_role.id,
                     company_id=self.company_ids.get(user['company_id'], None) if user['company_id'] else None
