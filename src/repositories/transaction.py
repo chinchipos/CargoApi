@@ -141,7 +141,7 @@ class TransactionRepository(BaseRepository):
             delta_sum = -delta_sum
             
         corrective_transaction = {
-            "transaction_type": TransactionType.PURCHASE if debit else TransactionType.REFUND,
+            "transaction_type": TransactionType.DECREASE if debit else TransactionType.REFILL,
             "balance_id": balance.id,
             "transaction_sum": delta_sum,
             "total_sum": delta_sum,
