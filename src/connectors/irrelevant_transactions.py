@@ -1,4 +1,3 @@
-from datetime import date
 from typing import Dict, List
 
 from sqlalchemy import select as sa_select

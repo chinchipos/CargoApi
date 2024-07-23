@@ -64,12 +64,7 @@ class Overdraft(BaseRepository):
                 # Вычисляем размер комиссии за пользование овердрафтом в текущей дате
                 calculated_overdraft_fee = daily_transactions.calc_overdraft_fee(day)
 
-        # Удаляем из БД лишние транзакции
-        # В БД записываем новые и обновляем измененные транзакции.
-
-        # В БД обновляем текущие остатки ДС по каждому балансу
-
-        pass
+        # Синхронизируем получившиеся транзакции с БД
 
     async def get_overdrafts_history(self, irrelevant_balances: IrrelevantBalances) \
             -> Dict[str, List[OverdraftsHistoryOrm]]:

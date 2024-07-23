@@ -27,6 +27,9 @@ class WrappedTransaction:
     def mark_to_delete(self) -> None:
         self._data["action"] = Action.DELETE
 
+    def mark_to_update(self) -> None:
+        self._data["action"] = Action.UPDATE
+
     def update_overdraft_transaction(self, fee: float) -> None:
         self._data["obj"].transaction_sum = fee
         self._data["obj"].total_sum = fee

@@ -2,7 +2,7 @@ import traceback
 from typing import List
 
 from sqlalchemy import select as sa_select, delete as sa_delete, and_
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, aliased
 
 from src.database.models import User as UserOrm, AdminCompany as AdminCompanyOrm, Role as RoleOrm, Company as CompanyOrm
 from src.repositories.base import BaseRepository
@@ -35,25 +35,17 @@ class UserRepository(BaseRepository):
 
     async def get_companies_users(self) -> List[UserOrm]:
         roles = [enums.Role.COMPANY_ADMIN.name, enums.Role.COMPANY_LOGIST.name, enums.Role.COMPANY_DRIVER.name]
-        stmt = (
-            sa_select(UserOrm)
-            .options(
-                joinedload(UserOrm.company),
-                joinedload(UserOrm.role)
-            )
-            .join(RoleOrm, and_(
-                RoleOrm.id == UserOrm.role_id,
-                RoleOrm.name.in_(roles)
-            ))
-            .order_by(
-                CompanyOrm.name,
-                UserOrm.last_name,
-                UserOrm.first_name
-            )
+        user_table = aliased(UserOrm, name="user_tbl")
+        role_table = aliased(RoleOrm, name="role_tbl")
+        helper_subquery = (
+            sa_select(user_table.id, CompanyOrm.name.label("company_name"))
+            .select_from(user_table, role_table)
+            .where(role_table.id == user_table.role_id)
+            .where(role_table.name.in_(roles))
         )
 
         if self.user.role.name == enums.Role.CARGO_SUPER_ADMIN.name:
-            stmt = stmt.outerjoin(CompanyOrm, CompanyOrm.id == UserOrm.company_id)
+            helper_subquery = helper_subquery.outerjoin(CompanyOrm, CompanyOrm.id == user_table.company_id)
 
         elif self.user.role.name == enums.Role.CARGO_MANAGER.name:
             company_ids_stmt = (
@@ -62,15 +54,35 @@ class UserRepository(BaseRepository):
             )
             company_ids = await self.select_all(company_ids_stmt, scalars=False)
 
-            stmt = stmt.join(CompanyOrm, and_(
-                CompanyOrm.id == UserOrm.company_id,
+            helper_subquery = helper_subquery.join(CompanyOrm, and_(
+                CompanyOrm.id == user_table.company_id,
                 CompanyOrm.id.in_(company_ids)
             ))
 
         elif self.user.role.name == enums.Role.COMPANY_ADMIN.name:
-            stmt = stmt.where(CompanyOrm.id == self.user.company_id)
+            helper_subquery = helper_subquery.join(CompanyOrm, and_(
+                CompanyOrm.id == user_table.company_id,
+                CompanyOrm.id == self.user.company_id
+            ))
 
-        users = await self.select_all(stmt)
+        helper_subquery = helper_subquery.subquery()
+        stmt = (
+            sa_select(UserOrm, helper_subquery.c.company_name)
+            .options(
+                joinedload(UserOrm.company),
+                joinedload(UserOrm.role)
+            )
+            .select_from(UserOrm, helper_subquery)
+            .where(UserOrm.id == helper_subquery.c.id)
+            .order_by(
+                helper_subquery.c.company_name,
+                UserOrm.last_name,
+                UserOrm.first_name
+            )
+        )
+        self.statement(stmt)
+        dataset = await self.select_all(stmt, scalars=False)
+        users = [data[0] for data in dataset]
         return users
 
     async def get_cargo_users(self) -> List[UserOrm]:

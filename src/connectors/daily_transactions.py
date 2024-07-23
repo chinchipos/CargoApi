@@ -1,6 +1,7 @@
 from datetime import date
 from typing import Dict, List
 
+from src.config import OVERDRAFT_FEE_PERCENT
 from src.connectors.wrapped_transaction import WrappedTransaction, Action
 from src.database.models import Transaction as TransactionOrm
 from src.utils.enums import TransactionType
@@ -65,12 +66,24 @@ class DailyTransactions:
         dates = [day_ for day_ in self._data if day_ < day]
         if dates:
             last_date = dates[-1]
-            last_transaction = self._data[last_date][-1]
+            previous_transaction = self._data[last_date][-1]
         else:
-            last_transaction = self._initial_relevant_transaction
+            previous_transaction = self._initial_relevant_transaction
 
-        ...
+        for current_transaction in self._data[day]:
+            calculated_balance = (previous_transaction.transaction().company_balance +
+                                  current_transaction.transaction().total_sum)
+            if current_transaction.transaction().company_balance != calculated_balance:
+                current_transaction.transaction().company_balance = calculated_balance
+                current_transaction.mark_to_update()
+
+            previous_transaction = current_transaction
 
     def calc_overdraft_fee(self, day: data) -> float:
         daily_transactions = self._data[day]
-
+        if daily_transactions:
+            last_transaction = daily_transactions[-1].transaction()
+            fee_base = last_transaction.company_balance - last_transaction.balance.min_balance
+            return fee_base * OVERDRAFT_FEE_PERCENT / 100 if fee_base < 0 else 0.0
+        else:
+            return 0.0
