@@ -19,8 +19,6 @@ sa_result_backend = (PROD_URI.replace("postgresql+psycopg", "db+postgresql") +
 celery = Celery('cargonomica', backend=sa_result_backend, broker=f'{redis_server}/0')
 celery.conf.broker_connection_retry_on_startup = True
 celery.conf.broker_connection_max_retries = 10
-# celery.conf.task_ignore_result = True
-# celery.conf.task_store_errors_even_if_ignored = True
 celery.conf.timezone = 'Europe/Moscow'
 
 

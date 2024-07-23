@@ -15,8 +15,8 @@ class CalcBalances(BaseRepository):
         stmt = (
             sa_select(TransactionOrm)
             .where(TransactionOrm.balance_id == balance_id)
-            .where(TransactionOrm.date_time < from_date_time)
-            .order_by(TransactionOrm.date_time.desc())
+            .where(TransactionOrm.date_time_load < from_date_time)
+            .order_by(TransactionOrm.date_time_load.desc())
             .limit(1)
         )
         transaction = await self.select_first(stmt)
@@ -26,8 +26,8 @@ class CalcBalances(BaseRepository):
         stmt = (
             sa_select(TransactionOrm)
             .where(TransactionOrm.balance_id == balance_id)
-            .where(TransactionOrm.date_time >= from_date_time)
-            .order_by(TransactionOrm.date_time)
+            .where(TransactionOrm.date_time_load >= from_date_time)
+            .order_by(TransactionOrm.date_time_load)
         )
         transactions = await self.select_all(stmt)
         return transactions

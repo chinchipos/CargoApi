@@ -330,6 +330,7 @@ class KHNPConnector(BaseRepository):
 
         transaction_data = dict(
             date_time=provider_transaction['date_time'],
+            date_time_load=datetime.now(),
             transaction_type=TransactionType.PURCHASE if debit else TransactionType.REFUND,
             system_id=self.system.id,
             card_id=card.id,
@@ -373,7 +374,7 @@ class KHNPConnector(BaseRepository):
                     if transaction_data['balance_id']:
                         self._irrelevant_balances.add(
                             balance_id=str(transaction_data['balance_id']),
-                            irrelevancy_date_time=transaction_data['date_time']
+                            irrelevancy_date_time=transaction_data['date_time_load']
                         )
 
         # Сохраняем транзакции в БД
@@ -436,7 +437,7 @@ class KHNPConnector(BaseRepository):
                     if local_transaction.balance_id:
                         self._irrelevant_balances.add(
                             balance_id=str(local_transaction.balance_id),
-                            irrelevancy_date_time=local_transaction.date_time
+                            irrelevancy_date_time=local_transaction.date_time_load
                         )
 
         # Удаляем помеченные транзакции из БД

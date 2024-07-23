@@ -115,7 +115,7 @@ class TransactionRepository(BaseRepository):
             )
             .select_from(base_subquery, TransactionOrm)
             .where(TransactionOrm.id == base_subquery.c.id)
-            .order_by(TransactionOrm.date_time.desc())
+            .order_by(TransactionOrm.date_time_load.desc())
         )
 
         # self.statement(stmt)
@@ -126,7 +126,7 @@ class TransactionRepository(BaseRepository):
         stmt = (
             sa_select(TransactionOrm)
             .where(TransactionOrm.balance_id == balance_id)
-            .order_by(TransactionOrm.date_time.desc())
+            .order_by(TransactionOrm.date_time_load.desc())
             .limit(1)
         )
         last_transaction = await self.select_first(stmt)
@@ -148,9 +148,6 @@ class TransactionRepository(BaseRepository):
             "company_balance": last_transaction.company_balance + delta_sum,
         }
         corrective_transaction = await self.insert(TransactionOrm, **corrective_transaction)
-
-        # Пересчитываем транзакционные балансы, следующие за этой транзакцией
-
 
         # Обновляем сумму на балансе
         update_data = {'balance': corrective_transaction.company_balance}
