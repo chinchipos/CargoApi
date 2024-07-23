@@ -1,19 +1,20 @@
 import random
+import traceback
 from datetime import datetime
 from typing import Dict, Any
 
-from sqlalchemy import select as sa_select, null
+from sqlalchemy import select as sa_select, delete as sa_delete, null
 
 from src.auth.manager import create_user
 from src.database.models import (Role as RoleOrm, System as SystemOrm, Company as CompanyOrm, Balance as BalanceOrm,
                                  Card as CardOrm, Tariff as TariffOrm, OuterGoods as OuterGoodsOrm, Car as CarOrm,
                                  InnerGoods as InnerGoodsOrm, CardType as CardTypeOrm, CardSystem as CardSystemOrm,
-                                 BalanceSystemTariff as BalanceSystemTariffOrm, Transaction as TransactionOrm,
-                                 User as UserOrm)
+                                 BalanceSystemTariff as BalanceSystemTariffOrm, Transaction as TransactionOrm)
 from src.repositories.base import BaseRepository
 from src.schemas.user import UserCreateSchema
 from src.utils import enums
 from src.utils.enums import TransactionType
+from src.utils.exceptions import DBException
 
 
 class NNKMigration(BaseRepository):
@@ -86,7 +87,7 @@ class NNKMigration(BaseRepository):
             dict(
                 master_db_id=tariff['id'],
                 name=tariff['title'],
-                fee_percent=tariff['service_online'],
+                fee_percent=tariff['service_online'] if tariff['title'] != 'РН-ННК1.5' else 1.5,
             ) for tariff in tariffs
         ]
         await self.bulk_insert_or_update(TariffOrm, dataset, 'name')
@@ -176,6 +177,43 @@ class NNKMigration(BaseRepository):
             ) for card in cards if card['system_id']
         ]
         await self.bulk_insert_or_update(CardSystemOrm, dataset)
+
+        # Карты Роснефти открепляем от организаций
+        stmt = sa_select(SystemOrm).where(SystemOrm.short_name == 'РН')
+        rosneft_system = await self.select_first(stmt)
+
+        stmt = (
+            sa_select(CardOrm)
+            .select_from(CardOrm, CardSystemOrm)
+            .where(CardSystemOrm.system_id == rosneft_system.id)
+            .where(CardOrm.id == CardSystemOrm.card_id)
+        )
+        cards = await self.select_all(stmt)
+        dataset = [
+            {
+                "id": card.id,
+                "company_id": None,
+                "belongs_to_car_id": None,
+                "belongs_to_driver_id": None,
+                "is_active": False,
+            } for card in cards
+        ]
+        await self.bulk_update(CardOrm, dataset)
+
+        # Карты Роснефти открепляем от системы
+        card_ids = [card.id for card in cards]
+        stmt = (
+            sa_delete(CardSystemOrm)
+            .where(CardSystemOrm.card_id.in_(card_ids))
+            .where(CardSystemOrm.system_id == rosneft_system.id)
+        )
+        try:
+            await self.session.execute(stmt)
+            await self.session.commit()
+
+        except Exception:
+            self.logger.error(traceback.format_exc())
+            raise DBException()
 
     async def import_tariffs_history(self, companies: list[Dict[str, Any]]) -> None:
         # Создаем записи в таблице balance_system_tariff
@@ -284,11 +322,12 @@ class NNKMigration(BaseRepository):
             if not list(filter(lambda sa: user['email'] == sa[0] + '@cargonomica.com', superadmins)):
                 self.logger.info(f"{i}. email: {user['email']}")
                 phone = ''.join([num for num in str(user['phone']) if num.isdecimal()])
+                fio = user['fio'].split()
                 user_schema = UserCreateSchema(
                     username=user['email'],
                     password=user['password'],
-                    first_name='Admin',
-                    last_name='Company',
+                    first_name=fio[1] if len(fio) > 1 else "",
+                    last_name=fio[0],
                     email=user['email'],
                     phone=phone[:12],
                     is_active=True,
