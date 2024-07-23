@@ -149,6 +149,9 @@ class TransactionRepository(BaseRepository):
         }
         corrective_transaction = await self.insert(TransactionOrm, **corrective_transaction)
 
+        # Пересчитываем транзакционные балансы, следующие за этой транзакцией
+
+
         # Обновляем сумму на балансе
         update_data = {'balance': corrective_transaction.company_balance}
         await self.update_object(balance, update_data)
