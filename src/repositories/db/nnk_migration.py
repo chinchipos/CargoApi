@@ -322,7 +322,7 @@ class NNKMigration(BaseRepository):
             if not list(filter(lambda sa: user['email'] == sa[0] + '@cargonomica.com', superadmins)):
                 self.logger.info(f"{i}. email: {user['email']}")
                 phone = ''.join([num for num in str(user['phone']) if num.isdecimal()])
-                fio = user['fio'].split()
+                fio = user['fio'].split(maxsplit=1)
                 user_schema = UserCreateSchema(
                     username=user['email'],
                     password=user['password'],

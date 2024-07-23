@@ -17,14 +17,18 @@ class UserRepository(BaseRepository):
         stmt = (
             sa_select(UserOrm)
             .options(
-                joinedload(UserOrm.admin_company).joinedload(AdminCompanyOrm.company),
+                joinedload(UserOrm.admin_company).joinedload(AdminCompanyOrm.company)
+            )
+            .options(
                 joinedload(UserOrm.role)
+            )
+            .options(
+                joinedload(UserOrm.company)
             )
             .where(UserOrm.id == user_id)
             .limit(1)
         )
-        dataset = await self.session.scalars(stmt)
-        user = dataset.first()
+        user = await self.select_first(stmt)
         return user
 
     async def create_user(self, user: UserCreateSchema) -> UserOrm:

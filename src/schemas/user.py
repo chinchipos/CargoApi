@@ -73,6 +73,7 @@ class UserReadSchema(BaseSchema):
     phone: phone_
     is_active: is_active_
     role: role_ = None
+    company: company_ = None
 
 
 class UserCompanyReadSchema(BaseSchema):

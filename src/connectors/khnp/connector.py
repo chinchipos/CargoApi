@@ -348,6 +348,9 @@ class KHNPConnector(BaseRepository):
             company_balance_after=0,
             comments='',
         )
+
+        # Это нужно, чтобы в БД у транзакций отличалось время и можно было корректно выбрать транзакцию,
+        # которая предшествовала измененной
         sleep(0.001)
 
         return transaction_data
