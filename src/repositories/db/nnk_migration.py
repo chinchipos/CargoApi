@@ -231,7 +231,7 @@ class NNKMigration(BaseRepository):
                 balance_id=self.balance_ids[company['id']],
                 system_id=nnk_system.id,
                 tariff_id=self.tariff_ids[company['tariff_id']],
-            ) for company in companies
+            ) for company in companies if company['tariff_id']
         ]
         await self.bulk_insert_or_update(BalanceSystemTariffOrm, dataset)
 
