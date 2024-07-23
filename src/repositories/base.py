@@ -139,7 +139,9 @@ class BaseRepository:
                     stmt = stmt.on_conflict_do_update(index_elements=index_elements, set_=values_set)
                 else:
                     stmt = stmt.on_conflict_do_nothing()
-
+                print('UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU')
+                print(dataset)
+                self.statement(stmt)
                 await self.session.execute(stmt, dataset)
                 await self.session.commit()
 

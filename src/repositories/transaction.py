@@ -1,10 +1,11 @@
-from datetime import date
+from datetime import date, datetime
 from typing import List
 
 from sqlalchemy import select as sa_select, and_
 from sqlalchemy.orm import joinedload, load_only, aliased
 
-from src.database.models import (Transaction as TransactionOrm, Card as CardOrm, System as SystemOrm, 
+from src.config import TZ
+from src.database.models import (Transaction as TransactionOrm, Card as CardOrm, System as SystemOrm,
                                  OuterGoods as OuterGoodsOrm, Tariff as TariffOrm, Company as CompanyOrm,
                                  Balance as BalanceOrm)
 from src.repositories.base import BaseRepository
@@ -120,6 +121,9 @@ class TransactionRepository(BaseRepository):
 
         # self.statement(stmt)
         transactions = await self.select_all(stmt)
+        for transaction in transactions:
+            if 'БулаА' in transaction.company.company.name and transaction.date_time_load > datetime(2024, 7, 22):
+                print(transaction.date_time_load)
         return transactions
 
     async def get_last_transaction(self, balance_id: str) -> TransactionOrm:
@@ -139,8 +143,10 @@ class TransactionRepository(BaseRepository):
         # Формируем корректирующую транзакцию
         if debit:
             delta_sum = -delta_sum
-            
+        now = datetime.now(tz=TZ)
         corrective_transaction = {
+            "date_time": now,
+            "date_time_load": now,
             "transaction_type": TransactionType.DECREASE if debit else TransactionType.REFILL,
             "balance_id": balance.id,
             "transaction_sum": delta_sum,

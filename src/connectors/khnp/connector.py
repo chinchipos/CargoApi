@@ -1,4 +1,5 @@
 from datetime import datetime, date, timedelta
+from time import sleep
 from typing import Dict, Any, List
 
 from sqlalchemy import select as sa_select, update as sa_update, func
@@ -330,7 +331,7 @@ class KHNPConnector(BaseRepository):
 
         transaction_data = dict(
             date_time=provider_transaction['date_time'],
-            date_time_load=datetime.now(),
+            date_time_load=datetime.now(tz=TZ),
             transaction_type=TransactionType.PURCHASE if debit else TransactionType.REFUND,
             system_id=self.system.id,
             card_id=card.id,
@@ -347,6 +348,7 @@ class KHNPConnector(BaseRepository):
             company_balance_after=0,
             comments='',
         )
+        sleep(0.001)
 
         return transaction_data
 
