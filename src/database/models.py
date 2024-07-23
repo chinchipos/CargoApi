@@ -700,9 +700,16 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
         return self.company_id == company_id
 
     def company_ids_subquery(self) -> sa.Subquery:
+        """
         stmt = (
             sa.select(Company.id)
             .join(Company.admin_company)
+            .where(AdminCompany.user_id == self.id)
+            .subquery()
+        )
+        """
+        stmt = (
+            sa.select(AdminCompany.id)
             .where(AdminCompany.user_id == self.id)
             .subquery()
         )

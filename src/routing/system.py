@@ -30,10 +30,6 @@ system_tag_metadata = {
 async def get_systems(
     service: SystemService = Depends(get_service_system)
 ):
-    # Проверка прав доступа. Получить список систем может только суперадмин.
-    if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
-        raise ForbiddenException()
-
     systems = await service.get_systems()
     return systems
 

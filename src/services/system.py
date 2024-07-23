@@ -2,7 +2,8 @@ from typing import List
 
 from src.database.models import System as SystemOrm
 from src.repositories.system import SystemRepository
-from src.schemas.system import SystemReadSchema, SystemEditSchema
+from src.schemas.system import SystemReadSchema, SystemEditSchema, SystemReadMinimumSchema
+from src.utils import enums
 from src.utils.exceptions import BadRequestException
 
 
@@ -59,9 +60,19 @@ class SystemService:
         system.annotate({"cards_amount": cards_amount})
         return system
 
-    async def get_systems(self) -> List[SystemOrm]:
+    async def get_systems(self) -> List[SystemReadSchema] | List[SystemReadMinimumSchema]:
         systems = await self.repository.get_systems()
-        return systems
+
+        # Проверка прав доступа.
+        # Сотрудникам ПроАВТО отдаем список систем с расширенными данными.
+        # Сотрудникам организаций отдаем список систем с минимальным количеством информации.
+        major_roles = [enums.Role.CARGO_SUPER_ADMIN.name, enums.Role.CARGO_MANAGER.name, enums.Role.COMPANY_ADMIN.name]
+        if self.repository.user.role.name in major_roles:
+            system_read_schemas = [SystemReadSchema.model_validate(system) for system in systems]
+        else:
+            system_read_schemas = [SystemReadMinimumSchema.model_validate(system) for system in systems]
+
+        return system_read_schemas
 
     """
     async def delete(self, system_id: str) -> None:

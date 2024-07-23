@@ -110,10 +110,6 @@ class CardService:
 
         # Получаем карту из БД
         card = await self.get_card(card_id)
-
-        # Формируем ответ
-        # card_read_schema = CardReadSchema.model_validate(card_obj)
-        # return card_read_schema
         return card
 
     async def get_cards(self) -> List[CardOrm]:

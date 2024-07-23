@@ -123,9 +123,11 @@ async def get_cargo_users(
 async def edit(
     id: uuid.UUID,
     user: UserEditSchema,
-    managed_companies: Optional[List[uuid.UUID]] = [],
+    managed_companies: Optional[List[uuid.UUID]] = None,
     service: UserService = Depends(get_service_user)
 ) -> UserReadSchema:
+    if not managed_companies:
+        managed_companies = []
     id = str(id)
     # Проверка прав доступа. Редактировать записи может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:

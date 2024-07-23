@@ -44,8 +44,6 @@ class CompanyService:
 
         # Формируем ответ
         company = await self.repository.get_company(company_id)
-        # company_read_schema = CompanyReadSchema.model_validate(company)
-        # return company_read_schema
         return company
 
     async def bind_manager(self, company_id: str, user_id: str) -> None:
