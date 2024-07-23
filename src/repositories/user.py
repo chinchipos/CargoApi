@@ -57,6 +57,9 @@ class UserRepository(BaseRepository):
         elif self.user.role.name == enums.Role.CARGO_MANAGER.name:
             stmt = stmt.where(models.Company.id.in_(self.user.company_ids_subquery()))
 
+        elif self.user.role.name == enums.Role.COMPANY_ADMIN.name:
+            stmt = stmt.where(models.Company.id == self.user.id)
+
         users = await self.select_all(stmt)
         return users
 
