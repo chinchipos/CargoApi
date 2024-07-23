@@ -46,7 +46,7 @@ class IrrelevantTransactions(BaseRepository):
                 balance_id,
                 last_relevant_transactions
             )
-            self._data[balance_id] = DailyTransactions(ir_transactions, initial_relevant_transaction)
+            self._data[balance_id] = DailyTransactions(ir_transactions, initial_relevant_transaction, self.logger)
 
     def data(self) -> Dict[balance_id_type, DailyTransactions]:
         return self._data

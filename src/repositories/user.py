@@ -45,7 +45,6 @@ class UserRepository(BaseRepository):
                 RoleOrm.id == UserOrm.role_id,
                 RoleOrm.name.in_(roles)
             ))
-            .outerjoin(UserOrm.company, )
             .order_by(
                 CompanyOrm.name,
                 UserOrm.last_name,
