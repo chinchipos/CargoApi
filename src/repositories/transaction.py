@@ -9,6 +9,7 @@ from src.database.models import (Transaction as TransactionOrm, Card as CardOrm,
                                  Balance as BalanceOrm)
 from src.repositories.base import BaseRepository
 from src.utils import enums
+from src.utils.enums import TransactionType
 from src.utils.exceptions import ForbiddenException
 
 
@@ -140,7 +141,7 @@ class TransactionRepository(BaseRepository):
             delta_sum = -delta_sum
             
         corrective_transaction = {
-            "is_debit": debit,
+            "transaction_type": TransactionType.PURCHASE if debit else TransactionType.REFUND,
             "balance_id": balance.id,
             "transaction_sum": delta_sum,
             "total_sum": delta_sum,

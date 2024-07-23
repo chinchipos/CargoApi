@@ -19,9 +19,9 @@ class ColoredLogger:
 
         formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s", '%Y-%m-%d %H:%M:%S')
 
-        # handler = logging.StreamHandler()
-        # handler.setFormatter(formatter)
-        # self.logger.addHandler(handler)
+        handler = logging.StreamHandler()
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
 
         handler = RotatingFileHandler(filename=logfile_path, maxBytes=1048576, backupCount=3)
         handler.setFormatter(formatter)

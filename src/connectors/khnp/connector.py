@@ -17,7 +17,7 @@ from src.database.models import (User as UserOrm, Card as CardOrm, CardType as C
                                  BalanceSystemTariff as BalanceSystemTariffOrm)
 from src.repositories.base import BaseRepository
 from src.repositories.system import SystemRepository
-from src.utils.enums import ContractScheme
+from src.utils.enums import ContractScheme, TransactionType
 
 
 class KHNPConnector(BaseRepository):
@@ -330,7 +330,7 @@ class KHNPConnector(BaseRepository):
 
         transaction_data = dict(
             date_time=provider_transaction['date_time'],
-            is_debit=debit,
+            transaction_type=TransactionType.PURCHASE if debit else TransactionType.REFUND,
             system_id=self.system.id,
             card_id=card.id,
             balance_id=balance_id,

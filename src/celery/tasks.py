@@ -43,15 +43,17 @@ async def sync_khnp_fn() -> IrrelevantBalances:
 @celery.task(name="SYNC_KHNP")
 def sync_khnp() -> IrrelevantBalances:
     celery_logger.info("Запускаю синхронизацию с ХНП")
-    try:
-        return asyncio.run(sync_khnp_fn())
-    except Exception as e:
-        trace_info = traceback.format_exc()
-        celery_logger.error(str(e))
-        celery_logger.error(trace_info)
-        celery_logger.info('Синхронизация с ХНП завершилась с ошибкой')
-        # Возвращаем пустой результат, чтобы последующие задачи могли обработать данные от других систем
-        return IrrelevantBalances()
+    return asyncio.run(sync_khnp_fn())
+
+    # try:
+    #     return asyncio.run(sync_khnp_fn())
+    # except Exception as e:
+    #     trace_info = traceback.format_exc()
+    #     celery_logger.error(str(e))
+    #     celery_logger.error(trace_info)
+    #     celery_logger.info('Синхронизация с ХНП завершилась с ошибкой')
+    #     # Возвращаем пустой результат, чтобы последующие задачи могли обработать данные от других систем
+    #     return IrrelevantBalances()
 
 
 # Noname - методы, в которые можно будет добавить новую систему
