@@ -138,7 +138,7 @@ class TransactionRepository(BaseRepository):
 
         # Формируем корректирующую транзакцию
         if debit:
-            delta_sum = -delta_sum
+            delta_sum = -delta_sum 
             
         corrective_transaction = {
             "transaction_type": TransactionType.DECREASE if debit else TransactionType.REFILL,
