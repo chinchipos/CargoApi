@@ -145,9 +145,9 @@ class DBService:
         try:
             await self.repository.nnk_initial_sync(data)
 
-            self.logger.info('Пересчитываю балансы')
-            await self.calculate_balances()
-            self.logger.info('Завершено успешно')
+            # self.logger.info('Пересчитываю балансы')
+            # await self.calculate_balances()
+            # self.logger.info('Завершено успешно')
 
         except Exception:
             raise ApiError(message='Ошибка выполнения процедуры первичной синхронизации. См. лог.')

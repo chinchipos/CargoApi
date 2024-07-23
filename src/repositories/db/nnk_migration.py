@@ -286,7 +286,7 @@ class NNKMigration(BaseRepository):
                 tariff_id=None,
                 fee_sum=transaction['sum_service'],
                 total_sum=transaction['total'],
-                company_balance=0,  # После импорта будет выполнен пересчет балансов, поле примет новые значения
+                company_balance=transaction['balance'],
                 comments=transaction['comment'],
             ) for transaction in transactions
         ]
