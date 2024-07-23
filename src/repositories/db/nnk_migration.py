@@ -76,7 +76,7 @@ class NNKMigration(BaseRepository):
                 master_db_id=system['id'],
                 full_name=system['full_name'],
                 short_name=system['short_name'],
-                transaction_days=system['transaction_days'],
+                transaction_days=system['transaction_days'] if system['transaction_days'] else 30,
             ) for system in systems
         ]
         await self.bulk_insert_or_update(SystemOrm, dataset, 'full_name')
