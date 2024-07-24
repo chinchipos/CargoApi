@@ -1545,6 +1545,13 @@ class OverdraftsHistory(Base):
         comment='Дата прекращения пользования услугой "Овердрафт"'
     )
 
+    overdue: Mapped[bool] = mapped_column(
+        sa.Boolean,
+        nullable=False,
+        server_default=sa.sql.false(),
+        comment="Задолженность просрочена"
+    )
+
 
 class LogType(Base):
     __tablename__ = "log_type"

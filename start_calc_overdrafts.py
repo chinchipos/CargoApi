@@ -1,3 +1,3 @@
-from src.celery.tasks import calc_overdrafts
+from src.celery.tasks import run_calc_overdrafts
 
-calc_overdrafts.delay()
+run_calc_overdrafts()

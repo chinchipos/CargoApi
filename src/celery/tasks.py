@@ -100,13 +100,39 @@ def calc_balances(irrelevant_balances: IrrelevantBalances) -> str:
 
 
 # Задача пересчета овердрафтов
-async def calc_overdrafts_fn() -> str:
+balance_id_str_type = str
+
+
+async def calc_overdrafts_fn() -> List[balance_id_str_type]:
     sessionmanager = DatabaseSessionManager()
     sessionmanager.init(PROD_URI)
 
     async with sessionmanager.session() as session:
         overdraft = Overdraft(session)
-        await overdraft.calculate()
+        balances_to_block_cards = await overdraft.calculate()
+
+    # Закрываем соединение с БД
+    await sessionmanager.close()
+
+    return balances_to_block_cards
+
+
+@celery.task(name="CALC_OVERDRAFTS")
+def calc_overdrafts() -> List[balance_id_str_type]:
+    celery_logger.info('Запускаю задачу расчета овердрафтов')
+
+    if sys.platform == 'win32':
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+    return asyncio.run(calc_overdrafts_fn())
+
+
+async def block_cards_fn(balances_to_block_cards: List[balance_id_str_type]) -> str:
+    sessionmanager = DatabaseSessionManager()
+    sessionmanager.init(PROD_URI)
+
+    async with sessionmanager.session() as session:
+        pass
 
     # Закрываем соединение с БД
     await sessionmanager.close()
@@ -114,14 +140,14 @@ async def calc_overdrafts_fn() -> str:
     return "COMPLETE"
 
 
-@celery.task(name="CALC_OVERDRAFTS")
-def calc_overdrafts() -> str:
-    celery_logger.info('Запускаю задачу расчета овердрафтов')
+@celery.task(name="BLOCK_CARDS")
+def block_cards(balances_to_block_cards: List[balance_id_str_type]) -> str:
+    celery_logger.info('Запускаю задачу блокировки карт')
 
     if sys.platform == 'win32':
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-    return asyncio.run(calc_overdrafts_fn())
+    return asyncio.run(block_cards_fn(balances_to_block_cards))
 
 
 # Модель запуска цепочек задач.
@@ -141,11 +167,19 @@ sync_systems = chord(
 )
 
 
-# Результирующая цепочка:
-# "Агрегация (карты-транзакции)" <-> "Пересчет овердрафтов" <-> "Пересчет балансов"
-main_sync_chain = chain(
+# Цепочка:
+# "Агрегация (карты-транзакции)" <-> "Пересчет балансов" <-> "Блокировка/разблокировка карт"
+sync_chain = chain(
     sync_systems,
     calc_balances.s()
+)
+
+
+# Цепочка:
+# "Расчет овердрафтов" <-> "Блокировка/разблокировка карт"
+overdraft_chain = chain(
+    calc_overdrafts.si(),
+    block_cards.s()
 )
 
 
@@ -155,4 +189,13 @@ def run_sync_systems():
     if sys.platform == 'win32':
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-    main_sync_chain()
+    sync_chain()
+
+
+def run_calc_overdrafts():
+    celery_logger.info('Запускаю задачу рачсета овердрафтов')
+
+    if sys.platform == 'win32':
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+    overdraft_chain()
