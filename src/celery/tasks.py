@@ -6,7 +6,8 @@ import asyncio
 
 from celery import Celery, chord, chain
 
-from src.celery.exceptions import celery_logger, CeleryError
+from src.celery.exceptions import celery_logger
+from src.celery.overdraft import Overdraft
 from src.config import PROD_URI
 from src.connectors.calc_balance import CalcBalances
 from src.connectors.irrelevant_balances import IrrelevantBalances
@@ -43,16 +44,6 @@ def sync_khnp() -> IrrelevantBalances:
     celery_logger.info("Запускаю синхронизацию с ХНП")
     return asyncio.run(sync_khnp_fn())
 
-    # try:
-    #     return asyncio.run(sync_khnp_fn())
-    # except Exception as e:
-    #     trace_info = traceback.format_exc()
-    #     celery_logger.error(str(e))
-    #     celery_logger.error(trace_info)
-    #     celery_logger.info('Синхронизация с ХНП завершилась с ошибкой')
-    #     # Возвращаем пустой результат, чтобы последующие задачи могли обработать данные от других систем
-    #     return IrrelevantBalances()
-
 
 # Noname - методы, в которые можно будет добавить новую систему
 async def sync_noname_fn() -> IrrelevantBalances:
@@ -62,10 +53,8 @@ async def sync_noname_fn() -> IrrelevantBalances:
 
 @celery.task(name="SYNC_NONAME")
 def sync_noname() -> IrrelevantBalances:
-    try:
-        return asyncio.run(sync_noname_fn())
-    except Exception as e:
-        raise CeleryError(message=str(e))
+    celery_logger.info("Запускаю синхронизацию с Noname")
+    return asyncio.run(sync_noname_fn())
 
 
 # Агрегирование результатов после синхронизации со всеми системами
@@ -76,13 +65,6 @@ def agregate_sync_systems_data(irrelevant_balances_list: List[IrrelevantBalances
     for ib in irrelevant_balances_list:
         irrelevant_balances.extend(ib['data'])
 
-    return irrelevant_balances
-
-
-# Задача пересчета овердрафтов
-@celery.task(name="CALC_OVERDRAFTS")
-def calc_overdrafts(irrelevant_balances: IrrelevantBalances) -> IrrelevantBalances:
-    celery_logger.info("Пересчитываю овердрафты")
     return irrelevant_balances
 
 
@@ -117,6 +99,31 @@ def calc_balances(irrelevant_balances: IrrelevantBalances) -> str:
             celery_logger.info('Пересчет балансов завершился с ошибкой')
 
 
+# Задача пересчета овердрафтов
+async def calc_overdrafts_fn() -> str:
+    sessionmanager = DatabaseSessionManager()
+    sessionmanager.init(PROD_URI)
+
+    async with sessionmanager.session() as session:
+        overdraft = Overdraft(session)
+        await overdraft.calculate()
+
+    # Закрываем соединение с БД
+    await sessionmanager.close()
+
+    return "COMPLETE"
+
+
+@celery.task(name="CALC_OVERDRAFTS")
+def calc_overdrafts() -> str:
+    celery_logger.info('Запускаю задачу расчета овердрафтов')
+
+    if sys.platform == 'win32':
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+    return asyncio.run(calc_overdrafts_fn())
+
+
 # Модель запуска цепочек задач.
 
 # Этапы последовательного выполнения:
@@ -138,13 +145,12 @@ sync_systems = chord(
 # "Агрегация (карты-транзакции)" <-> "Пересчет овердрафтов" <-> "Пересчет балансов"
 main_sync_chain = chain(
     sync_systems,
-    calc_overdrafts.s(),
     calc_balances.s()
 )
 
 
 def run_sync_systems():
-    celery_logger.info('Запускаю процедуру синхронизации с системами поставщиков')
+    celery_logger.info('Запускаю задачу синхронизации с системами поставщиков')
 
     if sys.platform == 'win32':
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())

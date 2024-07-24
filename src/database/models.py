@@ -1517,31 +1517,31 @@ class OverdraftsHistory(Base):
         init=False
     )
 
-    overdraft_days: Mapped[int] = mapped_column(
+    days: Mapped[int] = mapped_column(
         sa.Integer(),
         nullable=False,
         init=True,
         comment="Значение параметра [Срок овердрафта, дни] в период пользования услугой"
     )
 
-    overdraft_sum: Mapped[float] = mapped_column(
+    sum: Mapped[float] = mapped_column(
         sa.Numeric(12, 2, asdecimal=False),
         nullable=False,
         init=True,
         comment="Значение параметра [Сумма овердрафта] в период пользования услугой"
     )
 
-    overdraft_begin_date: Mapped[date] = mapped_column(
+    begin_date: Mapped[date] = mapped_column(
         sa.Date,
         nullable=False,
         init=True,
         comment='Дата начала пользования услугой "Овердрафт"'
     )
 
-    overdraft_end_date: Mapped[date] = mapped_column(
+    end_date: Mapped[date] = mapped_column(
         sa.Date,
-        nullable=False,
-        init=True,
+        nullable=True,
+        init=False,
         comment='Дата прекращения пользования услугой "Овердрафт"'
     )
 

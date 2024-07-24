@@ -114,7 +114,7 @@ class NNKMigration(BaseRepository):
                 company_id=self.company_ids[company['id']],
                 scheme=enums.ContractScheme.OVERBOUGHT.name,
                 balance=company['amount'],
-                min_balance=company['min_balance'],
+                min_balance=company['min_balance'] if company['min_balance'] < 0 else company['min_balance'] * -1,
                 min_balance_period_end_date=None if company['min_balance_date_to'] == '0000-00-00 00:00:00' else
                 company['min_balance_date_to'],
                 min_balance_on_period=company['min_balance_period'],

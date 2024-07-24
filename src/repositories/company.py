@@ -38,7 +38,8 @@ class CompanyRepository(BaseRepository):
                 .load_only(
                     BalanceOrm.id,
                     BalanceOrm.scheme,
-                    BalanceOrm.balance
+                    BalanceOrm.balance,
+                    BalanceOrm.min_balance
                 )
                 .selectinload(BalanceOrm.balance_system_tariff)
                 .joinedload(BalanceSystemTariffOrm.system)
@@ -129,7 +130,8 @@ class CompanyRepository(BaseRepository):
                 .load_only(
                     BalanceOrm.id,
                     BalanceOrm.scheme,
-                    BalanceOrm.balance
+                    BalanceOrm.balance,
+                    BalanceOrm.min_balance
                 )
                 .selectinload(BalanceOrm.balance_system_tariff)
                 .joinedload(BalanceSystemTariffOrm.system)

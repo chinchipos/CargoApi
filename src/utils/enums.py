@@ -81,4 +81,4 @@ class TransactionType(Enum):
     REFUND = "Возврат"
     REFILL = "Пополнение"
     DECREASE = "Уменьшение баланса"
-    OVERDRAFT_FEE = "Комиссия за овердрафт"
+    OVERDRAFT_FEE = "Оплата за услугу «Отложенный платеж»"
