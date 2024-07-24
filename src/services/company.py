@@ -6,6 +6,7 @@ from src.repositories.transaction import TransactionRepository
 from src.repositories.user import UserRepository
 from src.schemas.company import CompanyEditSchema, CompanyReadSchema, CompanyReadMinimumSchema, CompanyBalanceEditSchema
 from src.utils import enums
+from src.utils.enums import TransactionType
 from src.utils.exceptions import BadRequestException, ForbiddenException
 
 
@@ -117,5 +118,6 @@ class CompanyService:
         balance = await self.repository.get_overbought_balance_by_company_id(company_id)
         # Создаем транзакцию
         transaction_repository = TransactionRepository(self.repository.session, self.repository.user)
-        debit = True if edit_balance_schema.direction == enums.Finance.DEBIT.name else False
-        await transaction_repository.create_corrective_transaction(balance, debit, edit_balance_schema.delta_sum)
+        transaction_type = TransactionType.DECREASE if edit_balance_schema.direction == enums.Finance.DEBIT.name \
+            else TransactionType.REFILL
+        await transaction_repository.create_corrective_transaction(balance, transaction_type, edit_balance_schema.delta_sum)

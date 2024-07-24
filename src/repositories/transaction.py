@@ -136,18 +136,20 @@ class TransactionRepository(BaseRepository):
         last_transaction = await self.select_first(stmt)
         return last_transaction
 
-    async def create_corrective_transaction(self, balance: BalanceOrm, debit: bool, delta_sum: float) -> None:
+    async def create_corrective_transaction(self, balance: BalanceOrm, transaction_type: TransactionType,
+                                            delta_sum: float) -> None:
         # Получаем последнюю транзакцию этой организации
         last_transaction = await self.get_last_transaction(balance.id)
 
         # Формируем корректирующую транзакцию
-        if not debit:
+        if transaction_type == TransactionType.DECREASE:
             delta_sum = -delta_sum
+
         now = datetime.now(tz=TZ)
         corrective_transaction = {
             "date_time": now,
             "date_time_load": now,
-            "transaction_type": TransactionType.DECREASE if debit else TransactionType.REFILL,
+            "transaction_type": transaction_type,
             "balance_id": balance.id,
             "transaction_sum": delta_sum,
             "total_sum": delta_sum,
