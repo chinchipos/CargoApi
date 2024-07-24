@@ -50,7 +50,7 @@ class BalanceReadSchema(BaseSchema):
     id: id_
     scheme: scheme_
     balance: balance_
-    min_balance: min_balance_
+    # min_balance: min_balance_
     # min_balance_period: min_balance_period_
     # min_balance_period_end_date: min_balance_period_end_date_
     systems: systems_ = []

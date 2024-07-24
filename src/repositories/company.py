@@ -23,6 +23,7 @@ class CompanyRepository(BaseRepository):
                     CompanyOrm.id,
                     CompanyOrm.name,
                     CompanyOrm.inn,
+                    CompanyOrm.min_balance,
                     CompanyOrm.personal_account,
                     CompanyOrm.date_add,
                     CompanyOrm.contacts,
@@ -38,8 +39,7 @@ class CompanyRepository(BaseRepository):
                 .load_only(
                     BalanceOrm.id,
                     BalanceOrm.scheme,
-                    BalanceOrm.balance,
-                    BalanceOrm.min_balance
+                    BalanceOrm.balance
                 )
                 .selectinload(BalanceOrm.balance_system_tariff)
                 .joinedload(BalanceSystemTariffOrm.system)
@@ -115,6 +115,7 @@ class CompanyRepository(BaseRepository):
                     CompanyOrm.id,
                     CompanyOrm.name,
                     CompanyOrm.inn,
+                    CompanyOrm.min_balance,
                     CompanyOrm.personal_account,
                     CompanyOrm.date_add,
                     CompanyOrm.contacts,
@@ -130,8 +131,7 @@ class CompanyRepository(BaseRepository):
                 .load_only(
                     BalanceOrm.id,
                     BalanceOrm.scheme,
-                    BalanceOrm.balance,
-                    BalanceOrm.min_balance
+                    BalanceOrm.balance
                 )
                 .selectinload(BalanceOrm.balance_system_tariff)
                 .joinedload(BalanceSystemTariffOrm.system)

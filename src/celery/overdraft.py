@@ -92,7 +92,7 @@ class Overdraft(BaseRepository):
         for overdraft, last_transaction in opened_overdrafts:
             # Если баланс последней вчерашней транзакции ниже значения min_balance, то берем плату.
             # Если выше, то погашаем овер.
-            fee_base = last_transaction.company_balance - overdraft.balance.min_balance
+            fee_base = last_transaction.company_balance - overdraft.balance.company.min_balance
             fee = round(fee_base * OVERDRAFT_FEE_PERCENT / 100, 0) if fee_base < 0 else 0.0
             now = datetime.now(tz=TZ)
             if fee:
@@ -104,7 +104,6 @@ class Overdraft(BaseRepository):
                     balance_id = overdraft.balance_id,
                     fee_sum = fee,
                     company_balance = last_transaction.company_balance + fee,
-                    min_balance=overdraft.balance.min_balance,
                     company=overdraft.balance.company
                 )
 
@@ -150,14 +149,14 @@ class Overdraft(BaseRepository):
             self.logger.info(
                 f"{last_transaction.balance.company.name} | "
                 f"sum: {last_transaction.total_sum} | "
-                f"min_balance: {last_transaction.balance.min_balance} | "
+                f"min_balance: {last_transaction.balance.company.min_balance} | "
                 f"balance: {last_transaction.company_balance}"
             )
             # Если баланс последней вчерашней транзакции ниже значения min_balance, то при подключенном овере
             # берем плату и открываем овер, а при отключенном помечаем клиентов на блокировку карт.
             # Если выше, то ничего не делаем
             # min_balance - всегда меньше, либо равно нуля
-            fee_base = last_transaction.company_balance - last_transaction.balance.min_balance
+            fee_base = last_transaction.company_balance - last_transaction.balance.company.min_balance
             fee = round(fee_base * OVERDRAFT_FEE_PERCENT / 100, 2) if fee_base < 0 else 0.0
             now = datetime.now(tz=TZ)
             if fee:
@@ -171,7 +170,6 @@ class Overdraft(BaseRepository):
                         balance_id=last_transaction.balance_id,
                         fee_sum=fee,
                         company_balance=last_transaction.company_balance + fee,
-                        min_balance=last_transaction.balance.min_balance,
                         company=last_transaction.balance.company
                     )
 
@@ -191,8 +189,7 @@ class Overdraft(BaseRepository):
                     )
 
     def add_fee_transaction(self, date_time: datetime, date_time_load: datetime, transaction_type: TransactionType,
-                            balance_id: str, fee_sum: float, company_balance: float, min_balance: float,
-                            company: CompanyOrm) -> None:
+                            balance_id: str, fee_sum: float, company_balance: float, company: CompanyOrm) -> None:
         fee_transaction = {
             "date_time": date_time,
             "date_time_load": date_time_load,
@@ -207,7 +204,7 @@ class Overdraft(BaseRepository):
         self.logger.info(f'{company.name}: сформирована комиссия за пользование овердрафтом | '
                          f'fee_sum: {fee_sum} | '
                          f'balance: {company_balance} | '
-                         f'min_balance: {min_balance}')
+                         f'min_balance: {company.min_balance}')
 
     async def save_fee_transactions_to_db(self) -> None:
         await self.bulk_insert_or_update(TransactionOrm, self.fee_transactions)

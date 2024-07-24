@@ -6,6 +6,7 @@ from pydantic import Field
 from src.schemas.balance import BalanceReadSchema
 from src.schemas.base import BaseSchema
 from src.schemas.role import RoleReadMinimumSchema
+from src.schemas.validators import NegativeToPositive, PositiveToNegative
 from src.utils.enums import Finance as FinanceEnum
 
 
@@ -30,6 +31,11 @@ name_ = Annotated[str | None, Field(description="Наименование", exam
 
 inn_ = Annotated[str | None, Field(description="ИНН", examples=["77896534678800"])]
 
+min_balance_ = Annotated[
+    PositiveToNegative | None,
+    Field(description="Минимальный баланс, руб.", examples=[20000.0])
+]
+
 contacts_ = Annotated[str | None, Field(description="Контактные данные", examples=[""])]
 
 personal_account_ = Annotated[str | None, Field(description="Лицевой счет", examples=["6590100"])]
@@ -52,13 +58,19 @@ direction_ = Annotated[
     Field(description="Операция дебетования/кредитования", examples=[FinanceEnum.DEBIT.value])
 ]
 
-delta_sum_ = Annotated[float, Field(description="Сумма корректировки, руб", examples=[5000.0], gt=0)]
+delta_sum_ = Annotated[NegativeToPositive, Field(description="Сумма корректировки, руб", examples=[5000.0], gt=0)]
 
 overdraft_on_ = Annotated[bool | None, Field(description='Услуга "Овердрафт" подключена', examples=[True])]
 
-overdraft_sum_ = Annotated[float | None, Field(description="Сумма овердрафта", examples=[20000.0])]
+overdraft_sum_in_ = Annotated[
+    PositiveToNegative | None,
+    Field(description="Сумма овердрафта, руб.", examples=[20000.0])]
 
-overdraft_days_ = Annotated[int, Field(description="Срок овердрафта, дни", examples=[7])]
+overdraft_sum_out_ = Annotated[
+    NegativeToPositive | None,
+    Field(description="Сумма овердрафта, руб.", examples=[20000.0])]
+
+overdraft_days_ = Annotated[NegativeToPositive, Field(description="Срок овердрафта, дни", examples=[7])]
 
 overdraft_begin_date_ = Annotated[
     date | None,
@@ -74,9 +86,10 @@ overdraft_end_date_ = Annotated[
 class CompanyEditSchema(BaseSchema):
     name: name_ = None
     inn: inn_ = None
+    min_balance: min_balance_ = None
     contacts: contacts_ = None
     overdraft_on: overdraft_on_ = None
-    overdraft_sum: overdraft_sum_ = None
+    overdraft_sum: overdraft_sum_in_ = None
     overdraft_days: overdraft_days_ = None
 
 
@@ -90,12 +103,13 @@ class CompanyReadSchema(BaseSchema):
     id: id_
     name: name_
     inn: inn_
+    min_balance: min_balance_
     personal_account: personal_account_
     date_add: date_add_
     contacts: contacts_
     cards_amount: cards_amount_ = None
     overdraft_on: overdraft_on_
-    overdraft_sum: overdraft_sum_
+    overdraft_sum: overdraft_sum_out_
     overdraft_days: overdraft_days_
     overdraft_begin_date: overdraft_begin_date_
     overdraft_end_date: overdraft_end_date_

@@ -30,6 +30,17 @@ class CompanyService:
         else:
             raise ForbiddenException()
 
+        # Проверяем входные данные
+        if company_edit_schema.overdraft_on:
+            # Если активирован овердрафт, то обязательно должны быть заполнены поля: сумма, дни
+            if company_edit_schema.overdraft_sum is None:
+                raise BadRequestException("Не указана сумма овердрафта")
+
+        else:
+            company_edit_schema.overdraft_on = False
+            company_edit_schema.overdraft_sum = 0
+            company_edit_schema.overdraft_days = 0
+
         # Получаем организацию из БД
         company = await self.repository.get_company(company_id)
         if not company:

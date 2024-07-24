@@ -474,3 +474,19 @@ class KHNPConnector(BaseRepository):
 
         # Обновляем время последней транзакции для карт
         await self.renew_cards_date_last_use()
+
+    async def block_cards(self, cards: List[CardOrm], need_authorization: bool = True) -> None:
+        # Из полученного списка выбираем номера карт, принадлежащих этой системе
+        khnp_card_numbers = set()
+        for card in cards:
+            for system in card.systems:
+                if system.is_dml == self.system.id:
+                    khnp_card_numbers.add(card.card_number)
+
+        khnp_card_numbers = list(khnp_card_numbers)
+
+        if khnp_card_numbers:
+            if need_authorization:
+                self.parser.login()
+
+            self.parser.bulk_lock_cards(khnp_card_numbers)

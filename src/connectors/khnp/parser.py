@@ -1,4 +1,4 @@
-# chromedriver нужной версии можно скачать отсюда:
+# CHROMEDRIVER НУЖНОЙ ВЕРСИИ МОЖНО СКАЧАТЬ ОТСЮДА:
 # https://googlechromelabs.github.io/chrome-for-testing/#stable
 
 import os
@@ -291,7 +291,7 @@ class KHNPParser:
         except Exception:
             raise KHNPParserError(trace=True, message='Не удалось обработать отчет по транзакциям')
 
-    def get_transactions(self, start_date: date, end_date: date = date.today()):
+    def get_transactions(self, start_date: date, end_date: date = date.today()) -> Dict[str, Any]:
         if 'info.html' not in self.driver.current_url:
             self.open_cards_page()
 
@@ -379,11 +379,13 @@ class KHNPParser:
         except Exception:
             self.error(trace=traceback.format_exc(), message='Не удалось открыть страницу "Сообщения".')
             return {"success": False, "message": self.internal_error_msg}
-    
-    def get_card_lock_element(self, card_num_tail, cards_all_block):
+    """
+
+    @staticmethod
+    def get_card_lock_element(card_num_tail, cards_all_block) -> Any:
         try:
             # cards_all_block = WebDriverWait(self.driver, 5).until(
-                lambda x: x.find_element(By.CSS_SELECTOR, 'article.cards-all'))
+            # lambda x: x.find_element(By.CSS_SELECTOR, 'article.cards-all'))
             if card_num_tail in cards_all_block.get_attribute('innerHTML'):
                 container_table_block = WebDriverWait(cards_all_block, 5).until(
                     lambda x: x.find_element(By.CSS_SELECTOR, 'section.table'))
@@ -396,53 +398,44 @@ class KHNPParser:
                         td = tr.find_element(By.CSS_SELECTOR, 'td:nth-child(3)')
                         card_lock_element = WebDriverWait(td, 5).until(
                             lambda x: x.find_element(By.CSS_SELECTOR, 'span.blockcard'))
-                        khnp_logger.info('Карта найдена.')
-                        return {"success": True, "obj": card_lock_element}
+                        khnp_parser_logger.info('Карта найдена.')
+                        return card_lock_element
 
-            error = 'Карта не найдена.'
-            self.error(message=error)
-            return {"success": False, "message": error}
+        except Exception as e:
+            raise KHNPParserError(trace=True, message=str(e))
 
-        except Exception:
-            self.error(trace=traceback.format_exc(), message=self.internal_error_msg)
-            return {"success": False, "message": self.internal_error_msg}
-
-    def get_card_state_modal(self):
+    def get_card_state_modal(self) -> Any:
         try:
             modal = WebDriverWait(self.driver, 5).until(lambda x: x.find_element(By.ID, 'blockcard'))
             section = WebDriverWait(modal, 5).until(lambda x: x.find_element(By.CSS_SELECTOR, 'section.container'))
             modal_message = WebDriverWait(section, 5).until(
                 lambda x: x.find_element(By.ID, 'card-operation')).get_attribute('innerText')
-            return {"success": True, "modal": modal, "text": modal_message}
+            return modal
 
         except Exception:
-            self.error(trace=traceback.format_exc(), message='Не удалось сменить статус карты.')
-            return {"success": False, "message": self.internal_error_msg}
+            raise KHNPParserError(trace=True, message='Не удалось сменить статус карты')
 
-    def get_card_state(self, card_num):
-        get_cards_result = self.get_cards()
-        if not get_cards_result['success']:
-            return {"success": False, "message": get_cards_result['message']}
-
-        cn = str(card_num)
-        for card_data in get_cards_result['cards']:
-            if card_data['cardNo'] == cn:
+    def is_card_active(self, card_num: str) -> bool:
+        cards = self.get_cards()
+        for card_data in cards:
+            if card_data['cardNo'] == card_num:
                 if card_data['cardBlockRequest'] == 'block':
-                    return {"success": True, "active": True}
+                    return True
                 elif card_data['cardBlockRequest'] == 'cancelUnblock':
-                    return {"success": True, "active": False}
+                    return False
                 elif card_data['cardBlockRequest'] == 'unblock':
-                    return {"success": True, "active": False}
+                    return False
                 elif card_data['cardBlockRequest'] == 'cancelBlock':
-                    return {"success": True, "active": True}
+                    return True
                 elif card_data['cardBlockRequest'] == 'sent':
-                    return {"success": False,
-                            "message": "Сайт поставщика не позволяет выполнить запрос, так как еще не обработана \
-                                предыдущая операция по смене статуса."
-                            }
+                    khnp_parser_logger.info("Сайт поставщика не позволяет выполнить запрос, так как еще не обработана "
+                                            f"предыдущая операция по смене статуса карты {card_num}")
+                    return False
 
-        return {"success": False, "message": "Не удалось определить статус карты."}
+        khnp_parser_logger.info(f"Не удалось определить статус карты {card_num}")
+        return False
 
+    """
     def lock_card(self, params):
         if 'info.html' not in self.driver.current_url:
             cards_page_open_result = self.cards_page_open()
@@ -495,71 +488,49 @@ class KHNPParser:
         except Exception:
             self.error(trace=traceback.format_exc(), message='Не удалось заблокировать карту.')
             return {"success": False, "message": self.internal_error_msg}
+    """
 
-    def bulk_lock_cards(self, params):
-        cards = json.loads(params['cards'])
-        if not cards:
-            return {"success": True}
+    def bulk_lock_cards(self, card_numbers: List[str]) -> None:
+        if not card_numbers:
+            return None
 
         if 'info.html' not in self.driver.current_url:
-            cards_page_open_result = self.cards_page_open()
-            if not cards_page_open_result['success']:
-                return {"success": False, "message": cards_page_open_result['message']}
+            self.open_cards_page()
 
-        try:
-            # Отображаем на экране все карты
-            clear_card_filters_result = self.clear_card_filters()
-            if not clear_card_filters_result['success']:
-                return {"success": False, "message": clear_card_filters_result['message']}
+        # Отображаем на экране все карты
+        self.clear_card_filters()
 
-            cards_all_block = None
-            if cards:
-                cards_all_block = WebDriverWait(self.driver, 5).until(
-                    lambda x: x.find_element(By.CSS_SELECTOR, 'article.cards-all')
-                )
+        cards_all_block = WebDriverWait(self.driver, 5).until(
+            lambda x: x.find_element(By.CSS_SELECTOR, 'article.cards-all')
+        )
 
-            for card_num in cards:
-                khnp_logger.info(f'Обработка карты {card_num}')
-                # Получаем статус карты
-                get_card_state_result = self.get_card_state(card_num)
-                if not get_card_state_result['success']:
-                    return {"success": False, "message": get_card_state_result['message']}
+        for card_num in card_numbers:
+            khnp_parser_logger.info(f'Обработка карты {card_num}')
+            # Получаем статус карты
+            card_active = self.is_card_active(card_num)
 
-                # В зависимости от состояния карты выполняем необходимое действие
-                if get_card_state_result['active']:
-                    # Блокируем
-                    # Выполняем поиск "замка", при нажатии на который можно заблокировать/разблокировать карту
-                    khnp_logger.info('Начинаю поиск "замка" карты.')
-                    get_lock_element_result = self.get_card_lock_element(card_num[-6:], cards_all_block)
-                    if get_lock_element_result['success']:
-                        # Карта найдена
-                        khnp_logger.info('Приступаю к блокировке.')
-                        get_lock_element_result['obj'].click()
-                        card_state_modal_result = self.get_card_state_modal()
-                        if card_state_modal_result['success']:
-                            footer = WebDriverWait(card_state_modal_result['modal'], 5).until(
-                                lambda x: x.find_element(By.CSS_SELECTOR, 'footer.container'))
-                            ok_btn = WebDriverWait(footer, 5).until(
-                                lambda x: x.find_element(By.CSS_SELECTOR, 'span.btn'))
-                            ok_btn.click()
-                            khnp_logger.info('Карта заблокирована.')
-                            time.sleep(1)
-                            return {"success": True}
+            # В зависимости от состояния карты выполняем необходимое действие
+            if not card_active:
+                khnp_parser_logger.info('Карта уже была заблокирована ранее. Прекращаю выполнение.')
+                return None
 
-                        else:
-                            return {"success": False, "message": card_state_modal_result['message']}
+            # Блокируем
+            # Выполняем поиск "замка", при нажатии на который можно заблокировать/разблокировать карту
+            khnp_parser_logger.info('Начинаю поиск "замка" карты.')
+            card_lock_element = self.get_card_lock_element(card_num[-6:], cards_all_block)
+            khnp_parser_logger.info('Приступаю к блокировке.')
+            card_lock_element.click()
+            card_state_modal = self.get_card_state_modal()
+            footer = WebDriverWait(card_state_modal, 5).until(
+                lambda x: x.find_element(By.CSS_SELECTOR, 'footer.container'))
+            ok_btn = WebDriverWait(footer, 5).until(
+                lambda x: x.find_element(By.CSS_SELECTOR, 'span.btn'))
+            ok_btn.click()
+            khnp_parser_logger.info('Карта заблокирована.')
+            time.sleep(1)
+            return None
 
-                    else:
-                        return {"success": False, "message": get_lock_element_result['message']}
-                else:
-                    # Ничего не делаем
-                    khnp_logger.info('Карта уже была заблокирована ранее. Прекращаю выполнение.')
-                    return {"success": True}
-
-        except Exception:
-            self.error(trace=traceback.format_exc(), message='Не удалось заблокировать карту.')
-            return {"success": False, "message": self.internal_error_msg}
-
+    """
     def unlock_card(self, params):
         if 'info.html' not in self.driver.current_url:
             cards_page_open_result = self.cards_page_open()

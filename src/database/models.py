@@ -160,6 +160,14 @@ class Company(Base):
         comment="Дата создания/добавления записи в БД"
     )
 
+    min_balance: Mapped[float] = mapped_column(
+        sa.Numeric(12, 2, asdecimal=False),
+        nullable=False,
+        server_default=sa.text("0"),
+        init=False,
+        comment="Минимальный баланс (бесплатный овердрафт)"
+    )
+
     overdraft_on: Mapped[bool] = mapped_column(
         sa.Boolean,
         nullable=False,

@@ -141,7 +141,7 @@ class TransactionRepository(BaseRepository):
         last_transaction = await self.get_last_transaction(balance.id)
 
         # Формируем корректирующую транзакцию
-        if debit:
+        if not debit:
             delta_sum = -delta_sum
         now = datetime.now(tz=TZ)
         corrective_transaction = {
