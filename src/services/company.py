@@ -36,6 +36,9 @@ class CompanyService:
             if company_edit_schema.overdraft_sum is None:
                 raise BadRequestException("Не указана сумма овердрафта")
 
+            if not company_edit_schema.overdraft_days:
+                raise BadRequestException("Не указан срок овердрафта")
+
         else:
             company_edit_schema.overdraft_on = False
             company_edit_schema.overdraft_sum = 0
