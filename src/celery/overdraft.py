@@ -92,18 +92,17 @@ class Overdraft(BaseRepository):
         for overdraft, last_transaction in opened_overdrafts:
             # Если баланс последней вчерашней транзакции ниже значения min_balance, то берем плату.
             # Если выше, то погашаем овер.
-            fee_base = last_transaction.company_balance - overdraft.balance.company.min_balance
-            fee = round(fee_base * OVERDRAFT_FEE_PERCENT / 100, 0) if fee_base < 0 else 0.0
-            now = datetime.now(tz=TZ)
-            if fee:
+            trigger = True if last_transaction.company_balance < overdraft.balance.company.min_balance else False
+            if trigger:
+                fee_base = last_transaction.company_balance - overdraft.balance.company.min_balance
+                fee_sum = round(fee_base * OVERDRAFT_FEE_PERCENT / 100, 0) if fee_base < 0 else 0.0
+
                 # создаем транзакцию (плата за овер)
                 self.add_fee_transaction(
-                    date_time = now,
-                    date_time_load = now,
                     transaction_type = TransactionType.OVERDRAFT_FEE,
                     balance_id = overdraft.balance_id,
-                    fee_sum = fee,
-                    company_balance = last_transaction.company_balance + fee,
+                    fee_sum = fee_sum,
+                    company_balance = last_transaction.company_balance + fee_sum,
                     company=overdraft.balance.company
                 )
 
@@ -155,21 +154,22 @@ class Overdraft(BaseRepository):
             # Если баланс последней вчерашней транзакции ниже значения min_balance, то при подключенном овере
             # берем плату и открываем овер, а при отключенном помечаем клиентов на блокировку карт.
             # Если выше, то ничего не делаем
-            # min_balance - всегда меньше, либо равно нуля
-            fee_base = last_transaction.company_balance - last_transaction.balance.company.min_balance
-            fee = round(fee_base * OVERDRAFT_FEE_PERCENT / 100, 2) if fee_base < 0 else 0.0
-            now = datetime.now(tz=TZ)
-            if fee:
-                # Попадаем сюда, если fee меньше нуля, то есть текущий баланс ниже значения min_balance
+            # min_balance - всегда меньше, либо равно нулю
+            # fee_base = last_transaction.company_balance - last_transaction.balance.company.min_balance
+            trigger = True if last_transaction.company_balance < last_transaction.balance.company.min_balance \
+                else False
+
+            if trigger:
                 if last_transaction.balance.company.overdraft_on:
+                    fee_base = last_transaction.company_balance
+                    fee_sum = round(fee_base * OVERDRAFT_FEE_PERCENT / 100, 2) if fee_base < 0 else 0.0
+
                     # создаем транзакцию (плата за овер)
                     self.add_fee_transaction(
-                        date_time=now,
-                        date_time_load=now,
                         transaction_type=TransactionType.OVERDRAFT_FEE,
                         balance_id=last_transaction.balance_id,
-                        fee_sum=fee,
-                        company_balance=last_transaction.company_balance + fee,
+                        fee_sum=fee_sum,
+                        company_balance=last_transaction.company_balance + fee_sum,
                         company=last_transaction.balance.company
                     )
 
@@ -188,11 +188,12 @@ class Overdraft(BaseRepository):
                         company=last_transaction.balance.company
                     )
 
-    def add_fee_transaction(self, date_time: datetime, date_time_load: datetime, transaction_type: TransactionType,
-                            balance_id: str, fee_sum: float, company_balance: float, company: CompanyOrm) -> None:
+    def add_fee_transaction(self, transaction_type: TransactionType, balance_id: str, fee_sum: float,
+                            company_balance: float, company: CompanyOrm) -> None:
+        now = datetime.now(tz=TZ)
         fee_transaction = {
-            "date_time": date_time,
-            "date_time_load": date_time_load,
+            "date_time": now,
+            "date_time_load": now,
             "transaction_type": transaction_type,
             "balance_id": balance_id,
             "transaction_sum": fee_sum,
