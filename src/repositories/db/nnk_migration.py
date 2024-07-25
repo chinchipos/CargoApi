@@ -103,7 +103,7 @@ class NNKMigration(BaseRepository):
                 date_add=company['date_add'],
                 personal_account=make_personal_account(),
                 inn=company['inn'],
-                min_balance=company['min_balance']
+                min_balance=0,
             ) for company in companies
         ]
         await self.bulk_insert_or_update(CompanyOrm, dataset)
