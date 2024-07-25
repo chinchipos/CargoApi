@@ -267,9 +267,9 @@ class NNKMigration(BaseRepository):
         await self._set_goods_ids()
 
     async def import_transactions(self, transactions: list[Dict[str, Any]]) -> None:
-        print('YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY')
-        print(transactions[-1]['date_load_2'])
-        print(datetime.fromtimestamp(transactions[-1]['date_load_2']))
+        self.logger.info('YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY')
+        self.logger.info(transactions[-1]['date_load_2'])
+        self.logger.info(datetime.fromtimestamp(transactions[-1]['date_load_2']))
         dataset = [
             dict(
                 master_db_id=transaction['id'],
