@@ -267,9 +267,6 @@ class NNKMigration(BaseRepository):
         await self._set_goods_ids()
 
     async def import_transactions(self, transactions: list[Dict[str, Any]]) -> None:
-        self.logger.info('YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY')
-        self.logger.info(transactions[-1]['date_load_2'])
-        self.logger.info(datetime.fromtimestamp(transactions[-1]['date_load_2']))
         dataset = [
             dict(
                 master_db_id=transaction['id'],
@@ -325,7 +322,6 @@ class NNKMigration(BaseRepository):
         i = 1
         for user in users:
             if not list(filter(lambda sa: user['email'] == sa[0] + '@cargonomica.com', superadmins)):
-                self.logger.info(f"{i}. email: {user['email']}")
                 phone = ''.join([num for num in str(user['phone']) if num.isdecimal()])
                 fio = user['fio'].split(maxsplit=1)
                 user_schema = UserCreateSchema(
