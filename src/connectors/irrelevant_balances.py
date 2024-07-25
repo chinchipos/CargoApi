@@ -1,7 +1,5 @@
-import json
 from datetime import datetime
 from typing import Dict
-from json import JSONEncoder
 
 
 class IrrelevantBalances(dict):

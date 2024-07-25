@@ -272,7 +272,8 @@ class NNKMigration(BaseRepository):
                 master_db_id=transaction['id'],
                 external_id=transaction['id'],
                 date_time=datetime.fromisoformat(transaction['date']),
-                date_time_load=datetime.fromisoformat(transaction['date_load']),
+                # date_time_load=datetime.fromisoformat(transaction['date_load']),
+                date_time_load=datetime.fromtimestamp(transaction['date_load_2']),
                 transaction_type=self.get_transaction_type(transaction),
                 card_id=self.card_ids[str(transaction['card_num'])] if transaction['card_num']
                 else None,
