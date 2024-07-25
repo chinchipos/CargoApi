@@ -83,6 +83,16 @@ overdraft_end_date_ = Annotated[
 ]
 
 
+class CompanyCreateSchema(BaseSchema):
+    name: name_
+    inn: inn_
+    min_balance: min_balance_ = 0
+    contacts: contacts_ = None
+    overdraft_on: overdraft_on_ = False
+    overdraft_sum: overdraft_sum_in_ = 0
+    overdraft_days: overdraft_days_ = 0
+
+
 class CompanyEditSchema(BaseSchema):
     name: name_ = None
     inn: inn_ = None
@@ -111,8 +121,8 @@ class CompanyReadSchema(BaseSchema):
     overdraft_on: overdraft_on_
     overdraft_sum: overdraft_sum_out_
     overdraft_days: overdraft_days_
-    overdraft_begin_date: overdraft_begin_date_
-    overdraft_end_date: overdraft_end_date_
+    # overdraft_begin_date: overdraft_begin_date_
+    # overdraft_end_date: overdraft_end_date_
     users: users_ = []
     balances: balances_ = []
     cars: cars_ = []

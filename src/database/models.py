@@ -141,7 +141,6 @@ class Company(Base):
         sa.String(),
         nullable=False,
         server_default="",
-        init=False,
         comment="Контактные данные (имена, телефоны, email)"
     )
 
@@ -164,7 +163,6 @@ class Company(Base):
         sa.Numeric(12, 2, asdecimal=False),
         nullable=False,
         server_default=sa.text("0"),
-        init=False,
         comment="Минимальный баланс (бесплатный овердрафт)"
     )
 
@@ -179,7 +177,6 @@ class Company(Base):
         sa.Numeric(12, 2, asdecimal=False),
         nullable=False,
         server_default=sa.text("0"),
-        init=False,
         comment="Сумма овердрафта"
     )
 
@@ -187,22 +184,7 @@ class Company(Base):
         sa.Integer(),
         nullable=False,
         server_default=sa.text("0"),
-        init=False,
         comment="Срок овердрафта, дни"
-    )
-
-    overdraft_begin_date: Mapped[date] = mapped_column(
-        sa.Date,
-        nullable=True,
-        init=False,
-        comment="Дата начала периода действия овердрафта"
-    )
-
-    overdraft_end_date: Mapped[date] = mapped_column(
-        sa.Date,
-        nullable=True,
-        init=False,
-        comment="Дата прекращения периода действия овердрафта"
     )
 
     # Список автомобилей этой организации

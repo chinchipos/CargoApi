@@ -20,7 +20,7 @@ balance_id_str_type = str
 card_number_str_type = str
 
 
-class Cards(BaseRepository):
+class CardMgr(BaseRepository):
 
     def __init__(self, session: AsyncSession, user: UserOrm | None = None):
         super().__init__(session, user)
@@ -28,12 +28,19 @@ class Cards(BaseRepository):
 
     async def block_cards(self, balance_ids: List[balance_id_str_type]) -> None:
         # Получаем список карт
-        cards = await self.get_cards(balance_ids)
+        cards = await self._get_cards(balance_ids)
 
         # Блокируем карты в ХНП
-        await self.block_cards_khnp(cards)
+        await self._block_cards_khnp(cards)
 
-    async def get_cards(self, balance_ids: List[balance_id_str_type]) -> List[CardOrm]:
+    async def activate_cards(self, balance_ids: List[balance_id_str_type]) -> None:
+        # Получаем список карт
+        cards = await self._get_cards(balance_ids)
+
+        # Разблокируем карты в ХНП
+        await self._activate_cards_khnp(cards)
+
+    async def _get_cards(self, balance_ids: List[balance_id_str_type]) -> List[CardOrm]:
         card_system_table = aliased(CardSystemOrm, name="cs_tbl")
         system_table = aliased(SystemOrm, name="system_tbl")
         stmt = (
@@ -50,9 +57,15 @@ class Cards(BaseRepository):
             .where(system_table.scheme == ContractScheme.OVERBOUGHT)
         )
         cards = await self.select_all(stmt)
+        print(cards)
         return cards
 
-    async def block_cards_khnp(self, cards: List[CardOrm]) -> None:
+    async def _block_cards_khnp(self, cards: List[CardOrm]) -> None:
         khnp = KHNPConnector(self.session)
         await khnp.init_system()
         await khnp.block_cards(cards)
+
+    async def _activate_cards_khnp(self, cards: List[CardOrm]) -> None:
+        khnp = KHNPConnector(self.session)
+        await khnp.init_system()
+        await khnp.activate_cards(cards)

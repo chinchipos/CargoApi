@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List
 
 from sqlalchemy import select as sa_select, and_, func as sa_func
 from sqlalchemy.orm import joinedload, selectinload, aliased, load_only
@@ -7,12 +7,31 @@ from src.database.models import (Company as CompanyOrm, Balance as BalanceOrm, A
                                  User as UserOrm, Role as RoleOrm, BalanceSystemTariff as BalanceSystemTariffOrm,
                                  System as SystemOrm, Car as CarOrm, Tariff as TariffOrm, Card as CardOrm)
 from src.repositories.base import BaseRepository
-from src.repositories.transaction import TransactionRepository
+from src.schemas.company import CompanyCreateSchema
 from src.utils import enums
+from src.utils.common import make_personal_account
 from src.utils.enums import ContractScheme
 
 
 class CompanyRepository(BaseRepository):
+
+    async def create(self, company_create_schema: CompanyCreateSchema) -> CompanyOrm:
+        # Создаем организацию
+        personal_account = make_personal_account()
+        company = CompanyOrm(**company_create_schema.model_dump(), personal_account=personal_account)
+        await self.save_object(company)
+        await self.session.refresh(company)
+
+        # Создаем перекупной баланс
+        balance = BalanceOrm(
+            company_id=company.id,
+            scheme=enums.ContractScheme.OVERBOUGHT.name
+        )
+        await self.save_object(balance)
+
+        # Получаем организацию из БД
+        company = await self.get_company(company.id)
+        return company
 
     async def get_company(self, company_id: str) -> CompanyOrm:
         # Получаем полные сведения об организации
@@ -29,9 +48,7 @@ class CompanyRepository(BaseRepository):
                     CompanyOrm.contacts,
                     CompanyOrm.overdraft_on,
                     CompanyOrm.overdraft_sum,
-                    CompanyOrm.overdraft_days,
-                    CompanyOrm.overdraft_begin_date,
-                    CompanyOrm.overdraft_end_date
+                    CompanyOrm.overdraft_days
                 )
             )
             .options(
@@ -121,9 +138,7 @@ class CompanyRepository(BaseRepository):
                     CompanyOrm.contacts,
                     CompanyOrm.overdraft_on,
                     CompanyOrm.overdraft_sum,
-                    CompanyOrm.overdraft_days,
-                    CompanyOrm.overdraft_begin_date,
-                    CompanyOrm.overdraft_end_date
+                    CompanyOrm.overdraft_days
                 )
             )
             .options(

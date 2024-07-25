@@ -7,9 +7,9 @@ from src.database import models
 from src.depends import get_service_company
 from src.descriptions.company import company_tag_description, edit_company_description, get_company_description, \
     get_companies_description, get_company_drivers_description, bind_manager_to_company_description, \
-    edit_balance_description
+    edit_balance_description, create_company_description
 from src.schemas.common import SuccessSchema
-from src.schemas.company import CompanyReadSchema, CompanyEditSchema, CompanyBalanceEditSchema
+from src.schemas.company import CompanyReadSchema, CompanyEditSchema, CompanyBalanceEditSchema, CompanyCreateSchema
 from src.schemas.driver import DriverReadSchema
 from src.services.company import CompanyService
 from src.utils import enums
@@ -93,6 +93,26 @@ async def get_company(
 
     company = await service.get_company(id)
     return company
+
+
+@router.post(
+    path="/company/create",
+    tags=["company"],
+    responses = {400: {'model': MessageSchema, "description": "Bad request"}},
+    response_model = CompanyReadSchema,
+    summary = 'Создание организации',
+    description = create_company_description
+)
+async def create(
+    data: CompanyCreateSchema,
+    service: CompanyService = Depends(get_service_company)
+):
+    # Проверка прав доступа. Создавать системы может только суперадмин.
+    if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
+        raise ForbiddenException()
+
+    system = await service.create(data)
+    return system
 
 
 @router.put(

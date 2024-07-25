@@ -13,6 +13,7 @@ from src.database.models import (Role as RoleOrm, System as SystemOrm, Company a
 from src.repositories.base import BaseRepository
 from src.schemas.user import UserCreateSchema
 from src.utils import enums
+from src.utils.common import make_personal_account
 from src.utils.enums import TransactionType
 from src.utils.exceptions import DBException
 
@@ -100,8 +101,9 @@ class NNKMigration(BaseRepository):
                 master_db_id=company['id'],
                 name=company['name'],
                 date_add=company['date_add'],
-                personal_account=('000000' + str(random.randint(1, 9999999)))[-7:],
-                inn=company['inn']
+                personal_account=make_personal_account(),
+                inn=company['inn'],
+                min_balance=company['min_balance']
             ) for company in companies
         ]
         await self.bulk_insert_or_update(CompanyOrm, dataset)
@@ -114,7 +116,6 @@ class NNKMigration(BaseRepository):
                 company_id=self.company_ids[company['id']],
                 scheme=enums.ContractScheme.OVERBOUGHT.name,
                 balance=company['amount'],
-                min_balance=company['min_balance'] if company['min_balance'] < 0 else company['min_balance'] * -1,
                 min_balance_period_end_date=None if company['min_balance_date_to'] == '0000-00-00 00:00:00' else
                 company['min_balance_date_to'],
                 min_balance_on_period=company['min_balance_period'],

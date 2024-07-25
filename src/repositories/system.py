@@ -1,7 +1,6 @@
 from typing import List
 
 from sqlalchemy import select as sa_select, func as sa_func, null
-from sqlalchemy.orm import aliased
 
 from src.database.models import System as SystemOrm, CardSystem as CardSystemOrm, Card as CardOrm
 from src.repositories.base import BaseRepository

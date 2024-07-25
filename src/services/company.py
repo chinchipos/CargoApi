@@ -4,7 +4,8 @@ from src.database.models import Company as CompanyOrm, User as UserOrm
 from src.repositories.company import CompanyRepository
 from src.repositories.transaction import TransactionRepository
 from src.repositories.user import UserRepository
-from src.schemas.company import CompanyEditSchema, CompanyReadSchema, CompanyReadMinimumSchema, CompanyBalanceEditSchema
+from src.schemas.company import CompanyEditSchema, CompanyReadSchema, CompanyReadMinimumSchema, \
+    CompanyBalanceEditSchema, CompanyCreateSchema
 from src.utils import enums
 from src.utils.enums import TransactionType
 from src.utils.exceptions import BadRequestException, ForbiddenException
@@ -15,6 +16,10 @@ class CompanyService:
     def __init__(self, repository: CompanyRepository) -> None:
         self.repository = repository
         self.logger = repository.logger
+
+    async def create(self, company_create_schema: CompanyCreateSchema) -> CompanyOrm:
+        company = await self.repository.create(company_create_schema)
+        return company
 
     async def edit(self, company_id: str, company_edit_schema: CompanyEditSchema) -> CompanyOrm:
         # Проверка прав доступа.

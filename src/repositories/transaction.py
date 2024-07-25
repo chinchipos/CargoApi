@@ -140,6 +140,7 @@ class TransactionRepository(BaseRepository):
                                             delta_sum: float) -> None:
         # Получаем последнюю транзакцию этой организации
         last_transaction = await self.get_last_transaction(balance.id)
+        previous_balance_sum = last_transaction.company_balance if last_transaction else balance.balance
 
         # Формируем корректирующую транзакцию
         if transaction_type == TransactionType.DECREASE:
@@ -153,7 +154,7 @@ class TransactionRepository(BaseRepository):
             "balance_id": balance.id,
             "transaction_sum": delta_sum,
             "total_sum": delta_sum,
-            "company_balance": last_transaction.company_balance + delta_sum,
+            "company_balance": previous_balance_sum + delta_sum,
         }
         corrective_transaction = await self.insert(TransactionOrm, **corrective_transaction)
 

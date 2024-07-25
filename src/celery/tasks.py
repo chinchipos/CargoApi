@@ -6,6 +6,7 @@ import asyncio
 
 from celery import Celery, chord, chain
 
+from src.celery.card_manager import CardMgr
 from src.celery.exceptions import celery_logger
 from src.celery.overdraft import Overdraft
 from src.config import PROD_URI
@@ -148,6 +149,30 @@ def block_cards(balances_to_block_cards: List[balance_id_str_type]) -> str:
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
     return asyncio.run(block_cards_fn(balances_to_block_cards))
+
+
+async def block_cards_test_fn(balances_to_block_cards: List[balance_id_str_type]) -> str:
+    sessionmanager = DatabaseSessionManager()
+    sessionmanager.init(PROD_URI)
+
+    async with sessionmanager.session() as session:
+        card_mgr = CardMgr(session=session)
+        await card_mgr.activate_cards(balances_to_block_cards)
+
+    # Закрываем соединение с БД
+    await sessionmanager.close()
+
+    return "COMPLETE"
+
+
+@celery.task(name="BLOCK_CARDS_TEST")
+def block_cards_test(balances_to_block_cards: List[balance_id_str_type]) -> str:
+    celery_logger.info('Запускаю задачу блокировки карт')
+
+    if sys.platform == 'win32':
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+    return asyncio.run(block_cards_test_fn(balances_to_block_cards))
 
 
 # Модель запуска цепочек задач.
