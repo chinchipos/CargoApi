@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import List, Any
 
 from fastapi import Depends, APIRouter
@@ -17,7 +17,7 @@ transaction_tag_metadata = {
 
 
 @router.get(
-    path="/transaction/month",
+    path="/transaction/list",
     tags=["transaction"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
     response_model = List[TransactionReadSchema],
@@ -25,10 +25,13 @@ transaction_tag_metadata = {
     description = get_transactions_description
 )
 async def get_transactions(
-    end_date: date = date.today(),
+    company_id: str | None = None,
+    from_dt: datetime | None = None,
+    to_dt: datetime | None = None,
     service: TransactionService = Depends(get_service_transaction)
 ):
+    print(from_dt, to_dt)
     # Получать сведения может пользователь с любой ролью, но состав списка зависит от роли
     # пользователя. Проверка будет выполнена при формировании списка.
-    transaction = await service.get_transactions(end_date)
+    transaction = await service.get_transactions(company_id, from_dt, to_dt)
     return transaction

@@ -39,17 +39,25 @@ class UserRepository(BaseRepository):
 
     async def get_companies_users(self) -> List[UserOrm]:
         roles = [enums.Role.COMPANY_ADMIN.name, enums.Role.COMPANY_LOGIST.name, enums.Role.COMPANY_DRIVER.name]
-        user_table = aliased(UserOrm, name="user_tbl")
         role_table = aliased(RoleOrm, name="role_tbl")
-        helper_subquery = (
-            sa_select(user_table.id, CompanyOrm.name.label("company_name"))
-            .select_from(user_table, role_table)
-            .where(role_table.id == user_table.role_id)
+        stmt = (
+            sa_select(UserOrm)
+            .options(
+                joinedload(UserOrm.company)
+            )
+            .options(
+                joinedload(UserOrm.role)
+            )
+            .where(role_table.id == UserOrm.role_id)
             .where(role_table.name.in_(roles))
+            .order_by(
+                UserOrm.last_name,
+                UserOrm.first_name
+            )
         )
 
         if self.user.role.name == enums.Role.CARGO_SUPER_ADMIN.name:
-            helper_subquery = helper_subquery.outerjoin(CompanyOrm, CompanyOrm.id == user_table.company_id)
+            pass
 
         elif self.user.role.name == enums.Role.CARGO_MANAGER.name:
             company_ids_stmt = (
@@ -58,35 +66,18 @@ class UserRepository(BaseRepository):
             )
             company_ids = await self.select_all(company_ids_stmt, scalars=False)
 
-            helper_subquery = helper_subquery.join(CompanyOrm, and_(
-                CompanyOrm.id == user_table.company_id,
-                CompanyOrm.id.in_(company_ids)
-            ))
+            stmt = stmt.where(UserOrm.company_id.in_(company_ids))
 
         elif self.user.role.name == enums.Role.COMPANY_ADMIN.name:
-            helper_subquery = helper_subquery.join(CompanyOrm, and_(
-                CompanyOrm.id == user_table.company_id,
-                CompanyOrm.id == self.user.company_id
-            ))
+            stmt = stmt.where(UserOrm.company_id == self.user.company_id)
 
-        helper_subquery = helper_subquery.subquery()
-        stmt = (
-            sa_select(UserOrm, helper_subquery.c.company_name)
-            .options(
-                joinedload(UserOrm.company),
-                joinedload(UserOrm.role)
-            )
-            .select_from(UserOrm, helper_subquery)
-            .where(UserOrm.id == helper_subquery.c.id)
-            .order_by(
-                helper_subquery.c.company_name,
-                UserOrm.last_name,
-                UserOrm.first_name
-            )
-        )
         self.statement(stmt)
-        dataset = await self.select_all(stmt, scalars=False)
-        users = [data[0] for data in dataset]
+        users = await self.select_all(stmt)
+
+        def sorting(user):
+            return user.company.name if user.company else ""
+
+        users = sorted(users, key=sorting)
         return users
 
     async def get_cargo_users(self) -> List[UserOrm]:

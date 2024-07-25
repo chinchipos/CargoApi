@@ -15,49 +15,58 @@ from src.utils.exceptions import ForbiddenException
 
 
 class TransactionRepository(BaseRepository):
-    async def get_transactions(self, start_date: date, end_date: date) -> List[TransactionOrm]:
+    async def get_transactions(self, company_id: str | None, from_dt: datetime, to_dt: datetime) \
+            -> List[TransactionOrm]:
         # Суперадмин ПроАВТО имеет полные права.
         # Менеджер ПроАВТО может получать информацию только по своим организациям.
         # Администратор и логист компании могут получать информацию только по своей организации.
         # Водитель может получать только транзакции по своим картам.
         # Состав списка зависит от роли пользователя.
         transaction_table = aliased(TransactionOrm, name="transaction_table")
+        balance_table = aliased(BalanceOrm, name="balance_table")
         base_subquery = (
             sa_select(transaction_table.id)
-            .where(transaction_table.date_time >= start_date)
-            .where(transaction_table.date_time < end_date)
+            .where(transaction_table.date_time >= from_dt)
+            .where(transaction_table.date_time < to_dt)
         )
+
+        if company_id:
+            base_subquery = (
+                base_subquery
+                .where(balance_table.id == transaction_table.balance_id)
+                .where(balance_table.company_id == company_id)
+            )
 
         if self.user.role.name == enums.Role.CARGO_SUPER_ADMIN.name:
             pass
 
         elif self.user.role.name == enums.Role.CARGO_MANAGER.name:
-            balance_table = aliased(BalanceOrm, name="balance_table")
+            balance_table2 = aliased(BalanceOrm, name="balance_table2")
             company_ids_subquery = self.user.company_ids_subquery()
             base_subquery = (
                 base_subquery
-                .join(balance_table, balance_table.id == transaction_table.balance_id)
-                .join(company_ids_subquery, company_ids_subquery.c.id == balance_table.company_id)
+                .join(balance_table2, balance_table2.id == transaction_table.balance_id)
+                .join(company_ids_subquery, company_ids_subquery.c.id == balance_table2.company_id)
             )
 
         elif self.user.role.name in [enums.Role.COMPANY_ADMIN.name, enums.Role.COMPANY_LOGIST.name]:
-            balance_table = aliased(BalanceOrm, name="balance_table")
+            balance_table2 = aliased(BalanceOrm, name="balance_table2")
             base_subquery = (
                 base_subquery
-                .join(balance_table, and_(
-                    balance_table.id == transaction_table.balance_id,
-                    balance_table.company_id == self.user.company_id
+                .join(balance_table2, and_(
+                    balance_table2.id == transaction_table.balance_id,
+                    balance_table2.company_id == self.user.company_id
                 ))
             )
 
         elif self.user.role.name == enums.Role.COMPANY_DRIVER.name:
-            balance_table = aliased(BalanceOrm, name="balance_table")
+            balance_table2 = aliased(BalanceOrm, name="balance_table2")
             card_table = aliased(CardOrm, name="card_table")
             base_subquery = (
                 base_subquery
-                .join(balance_table, and_(
-                    balance_table.id == transaction_table.balance_id,
-                    balance_table.company_id == self.user.company_id
+                .join(balance_table2, and_(
+                    balance_table2.id == transaction_table.balance_id,
+                    balance_table2.company_id == self.user.company_id
                 ))
                 .join(card_table, and_(
                     card_table.id == transaction_table.card_id,
@@ -121,9 +130,6 @@ class TransactionRepository(BaseRepository):
 
         # self.statement(stmt)
         transactions = await self.select_all(stmt)
-        for transaction in transactions:
-            if 'БулаА' in transaction.company.company.name and transaction.date_time_load > datetime(2024, 7, 22):
-                print(transaction.date_time_load)
         return transactions
 
     async def get_last_transaction(self, balance_id: str) -> TransactionOrm:

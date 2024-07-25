@@ -465,7 +465,7 @@ class KHNPConnector(BaseRepository):
 
         if counter:
             khnp_connector_logger.info(
-                'Начинаю обработку транзакции от поставщика услуг, которые не обнаружены в локальной БД'
+                'Начинаю обработку транзакций от поставщика услуг, которые не обнаружены в локальной БД'
             )
             await self.process_provider_transactions(provider_transactions)
 
