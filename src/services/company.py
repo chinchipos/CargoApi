@@ -45,10 +45,14 @@ class CompanyService:
             if not company_edit_schema.overdraft_days:
                 raise BadRequestException("Не указан срок овердрафта")
 
+            if not company_edit_schema.overdraft_fee_percent:
+                raise BadRequestException("Не указан размер комиссии за овердрафт")
+
         else:
             company_edit_schema.overdraft_on = False
             company_edit_schema.overdraft_sum = 0
             company_edit_schema.overdraft_days = 0
+            company_edit_schema.overdraft_fee_percent = 0.074
 
         # Получаем организацию из БД
         company = await self.repository.get_company(company_id)
@@ -61,6 +65,25 @@ class CompanyService:
             raise BadRequestException('Отсутствуют данные для обновления')
 
         await self.repository.update_object(company, update_data)
+
+        company = await self.repository.get_company(company_id)
+
+        # Получаем перекупной баланс
+        balance = None
+        for cb in company.balances:
+            if cb.scheme == enums.ContractScheme.OVERBOUGHT:
+                balance = cb
+                break
+
+        # Получаем систему ХНП
+        khnp_system = await self.repository.get_khnp_system()
+
+        # Устанавливаем тариф
+        await self.repository.set_tariff(
+            balance_id=balance.id,
+            system_id=khnp_system.id,
+            tariff_id=company_edit_schema.tariff_id
+        )
 
         # Формируем ответ
         company = await self.repository.get_company(company_id)
@@ -90,7 +113,6 @@ class CompanyService:
     async def get_companies(self) -> List[CompanyReadSchema] | List[CompanyReadMinimumSchema]:
         # Получаем организации
         companies = await self.repository.get_companies()
-
         # Отдаем пользователю только ту информацию, которая соответствует его роли
         major_roles = [enums.Role.CARGO_SUPER_ADMIN.name, enums.Role.CARGO_MANAGER.name, enums.Role.COMPANY_ADMIN.name]
         if self.repository.user.role.name in major_roles:

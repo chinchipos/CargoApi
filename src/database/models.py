@@ -1,3 +1,4 @@
+import copy
 from datetime import date, datetime
 from typing import List, Dict, Any, Tuple
 
@@ -54,7 +55,7 @@ class Base(AsyncAttrs, MappedAsDataclass, DeclarativeBase):
 
     def annotate(self, data: Dict[str, Any]) -> Any:
         for field, value in data.items():
-            setattr(self, field, value)
+            setattr(self, field, copy.deepcopy(value))
         return self
 
 
@@ -185,6 +186,13 @@ class Company(Base):
         nullable=False,
         server_default=sa.text("0"),
         comment="Срок овердрафта, дни"
+    )
+
+    overdraft_fee_percent: Mapped[float] = mapped_column(
+        sa.Numeric(5, 3, asdecimal=False),
+        nullable=False,
+        server_default=sa.text("0.074"),
+        comment="Комиссия за овердрафт, %"
     )
 
     # Список автомобилей этой организации
@@ -351,6 +359,7 @@ class BalanceSystemTariff(Base):
     # Баланс
     balance: Mapped["Balance"] = relationship(
         back_populates="balance_system_tariff",
+        init=False,
         lazy="noload"
     )
 
@@ -364,6 +373,7 @@ class BalanceSystemTariff(Base):
     # Поставщиик услуг
     system: Mapped["System"] = relationship(
         back_populates="balance_system_tariff",
+        init=False,
         lazy="noload"
     )
 
@@ -376,6 +386,7 @@ class BalanceSystemTariff(Base):
     # Тариф
     tariff: Mapped["Tariff"] = relationship(
         back_populates="balance_system_tariff",
+        init=False,
         lazy="noload"
     )
 

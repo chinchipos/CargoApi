@@ -1,12 +1,15 @@
+import copy
 from typing import List
 
 from sqlalchemy import select as sa_select, and_, func as sa_func
 from sqlalchemy.orm import joinedload, selectinload, aliased, load_only
 
+from src.connectors.khnp.config import SYSTEM_SHORT_NAME
 from src.database.models import (Company as CompanyOrm, Balance as BalanceOrm, AdminCompany as AdminCompanyOrm,
                                  User as UserOrm, Role as RoleOrm, BalanceSystemTariff as BalanceSystemTariffOrm,
                                  System as SystemOrm, Car as CarOrm, Tariff as TariffOrm, Card as CardOrm)
 from src.repositories.base import BaseRepository
+from src.repositories.system import SystemRepository
 from src.schemas.company import CompanyCreateSchema
 from src.utils import enums
 from src.utils.common import make_personal_account
@@ -18,7 +21,9 @@ class CompanyRepository(BaseRepository):
     async def create(self, company_create_schema: CompanyCreateSchema) -> CompanyOrm:
         # Создаем организацию
         personal_account = make_personal_account()
-        company = CompanyOrm(**company_create_schema.model_dump(), personal_account=personal_account)
+        company_data = company_create_schema.model_dump()
+        tariff_id = company_data.pop("tariff_id") if "tariff_id" in company_data else None
+        company = CompanyOrm(**company_data, personal_account=personal_account)
         await self.save_object(company)
         await self.session.refresh(company)
 
@@ -29,9 +34,41 @@ class CompanyRepository(BaseRepository):
         )
         await self.save_object(balance)
 
+        # Получаем систему ХНП
+        khnp_system = await self.get_khnp_system()
+
+        # Привязываем систему ХНП к балансу и устанавливаем тариф
+        balance_sys_tariff = BalanceSystemTariffOrm(
+            balance_id=balance.id,
+            system_id=khnp_system.id,
+            tariff_id=tariff_id
+        )
+
+        await self.save_object(balance_sys_tariff)
+
         # Получаем организацию из БД
         company = await self.get_company(company.id)
         return company
+
+    async def get_khnp_system(self) -> SystemOrm:
+        system_repository = SystemRepository(self.session)
+        khnp_system = await system_repository.get_system_by_short_name(
+            system_fhort_name=SYSTEM_SHORT_NAME,
+            scheme=ContractScheme.OVERBOUGHT
+        )
+        return khnp_system
+
+    async def set_tariff(self, balance_id: str, system_id: str, tariff_id: str) -> None:
+        stmt = (
+            sa_select(BalanceSystemTariffOrm)
+            .where(BalanceSystemTariffOrm.balance_id == balance_id)
+            .where(BalanceSystemTariffOrm.system_id == system_id)
+        )
+        self.statement(stmt)
+        bst = await self.select_first(stmt)
+        if bst.tariff_id != tariff_id:
+            bst.tariff_id = tariff_id
+            await self.save_object(bst)
 
     async def get_company(self, company_id: str) -> CompanyOrm:
         # Получаем полные сведения об организации
@@ -48,7 +85,8 @@ class CompanyRepository(BaseRepository):
                     CompanyOrm.contacts,
                     CompanyOrm.overdraft_on,
                     CompanyOrm.overdraft_sum,
-                    CompanyOrm.overdraft_days
+                    CompanyOrm.overdraft_days,
+                    CompanyOrm.overdraft_fee_percent
                 )
             )
             .options(
@@ -132,13 +170,14 @@ class CompanyRepository(BaseRepository):
                     CompanyOrm.id,
                     CompanyOrm.name,
                     CompanyOrm.inn,
-                    CompanyOrm.min_balance,
                     CompanyOrm.personal_account,
                     CompanyOrm.date_add,
                     CompanyOrm.contacts,
+                    CompanyOrm.min_balance,
                     CompanyOrm.overdraft_on,
                     CompanyOrm.overdraft_sum,
-                    CompanyOrm.overdraft_days
+                    CompanyOrm.overdraft_days,
+                    CompanyOrm.overdraft_fee_percent
                 )
             )
             .options(
@@ -149,15 +188,10 @@ class CompanyRepository(BaseRepository):
                     BalanceOrm.balance
                 )
                 .selectinload(BalanceOrm.balance_system_tariff)
-                .joinedload(BalanceSystemTariffOrm.system)
-                .load_only(SystemOrm.id, SystemOrm.full_name)
-            )
-            .options(
-                selectinload(CompanyOrm.balances)
-                .load_only()
-                .selectinload(BalanceOrm.balance_system_tariff)
-                .joinedload(BalanceSystemTariffOrm.tariff)
-                .load_only(TariffOrm.id, TariffOrm.name)
+                .options(
+                    joinedload(BalanceSystemTariffOrm.system).load_only(SystemOrm.id, SystemOrm.full_name),
+                    joinedload(BalanceSystemTariffOrm.tariff)
+                )
             )
             .options(
                 selectinload(CompanyOrm.users)

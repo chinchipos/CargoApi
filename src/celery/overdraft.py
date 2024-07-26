@@ -6,7 +6,7 @@ from sqlalchemy import select as sa_select, null
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from src.config import OVERDRAFT_FEE_PERCENT, TZ
+from src.config import TZ
 from src.database.models import (User as UserOrm, Transaction as TransactionOrm, Balance as BalanceOrm,
                                  OverdraftsHistory as OverdraftsHistoryOrm, Company as CompanyOrm)
 from src.repositories.base import BaseRepository
@@ -94,7 +94,8 @@ class Overdraft(BaseRepository):
             trigger = True if last_transaction.company_balance < overdraft.balance.company.min_balance else False
             if trigger:
                 fee_base = last_transaction.company_balance - overdraft.balance.company.min_balance
-                fee_sum = round(fee_base * OVERDRAFT_FEE_PERCENT / 100, 0) if fee_base < 0 else 0.0
+                fee_sum = round(fee_base * overdraft.balance.company.overdraft_fee_percent / 100, 0) \
+                    if fee_base < 0 else 0.0
 
                 # создаем транзакцию (плата за овер)
                 self.add_fee_transaction(
@@ -161,7 +162,8 @@ class Overdraft(BaseRepository):
             if trigger:
                 if last_transaction.balance.company.overdraft_on:
                     fee_base = last_transaction.company_balance
-                    fee_sum = round(fee_base * OVERDRAFT_FEE_PERCENT / 100, 2) if fee_base < 0 else 0.0
+                    fee_sum = round(fee_base * last_transaction.balance.company.overdraft_fee_percent / 100, 2) \
+                        if fee_base < 0 else 0.0
 
                     # создаем транзакцию (плата за овер)
                     self.add_fee_transaction(

@@ -449,9 +449,6 @@ class KHNPConnector(BaseRepository):
         khnp_connector_logger.info(f'Удалить тразакции из локальной БД: {len(to_delete)} шт')
         if len(to_delete):
             khnp_connector_logger.info('Удаляю помеченные локальные транзакции из БД')
-            for transaction in to_delete:
-                print('На удаление:', transaction.date_time.isoformat().replace('T', ' '), transaction.card,
-                      transaction.company)
 
             for transaction in to_delete:
                 await self.delete_object(TransactionOrm, transaction.id)

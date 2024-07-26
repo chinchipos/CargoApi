@@ -72,6 +72,10 @@ overdraft_sum_out_ = Annotated[
 
 overdraft_days_ = Annotated[NegativeToPositive, Field(description="Срок овердрафта, дни", examples=[7])]
 
+overdraft_fee_percent_ = Annotated[
+    NegativeToPositive | None,
+    Field(description="Комиссия за овердрафт, руб.", examples=[20000.0])]
+
 overdraft_begin_date_ = Annotated[
     date | None,
     Field(description="Дата начала периода действия овердрафта", examples=["2023-05-17"])
@@ -82,6 +86,8 @@ overdraft_end_date_ = Annotated[
     Field(description="Дата прекращения периода действия овердрафта", examples=["2023-05-21"])
 ]
 
+tariff_id_ = Annotated[str, Field(description="Тариф")]
+
 
 class CompanyCreateSchema(BaseSchema):
     name: name_
@@ -91,6 +97,8 @@ class CompanyCreateSchema(BaseSchema):
     overdraft_on: overdraft_on_ = False
     overdraft_sum: overdraft_sum_in_ = 0
     overdraft_days: overdraft_days_ = 0
+    overdraft_fee_percent: overdraft_fee_percent_ = 0.074
+    tariff_id: tariff_id_
 
 
 class CompanyEditSchema(BaseSchema):
@@ -101,6 +109,8 @@ class CompanyEditSchema(BaseSchema):
     overdraft_on: overdraft_on_ = None
     overdraft_sum: overdraft_sum_in_ = None
     overdraft_days: overdraft_days_ = None
+    overdraft_fee_percent: overdraft_fee_percent_ = None
+    tariff_id: tariff_id_
 
 
 class CompanyReadMinimumSchema(BaseSchema):
@@ -121,8 +131,7 @@ class CompanyReadSchema(BaseSchema):
     overdraft_on: overdraft_on_
     overdraft_sum: overdraft_sum_out_
     overdraft_days: overdraft_days_
-    # overdraft_begin_date: overdraft_begin_date_
-    # overdraft_end_date: overdraft_end_date_
+    overdraft_fee_percent: overdraft_fee_percent_
     users: users_ = []
     balances: balances_ = []
     cars: cars_ = []

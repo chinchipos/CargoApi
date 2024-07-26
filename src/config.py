@@ -35,5 +35,3 @@ ROOT_DIR = Path(__file__).parent.parent
 LOG_DIR = os.path.join(ROOT_DIR, "log")
 
 TZ = timezone(offset=timedelta(hours=3), name='МСК')
-
-OVERDRAFT_FEE_PERCENT = 0.07
