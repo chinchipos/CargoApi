@@ -475,30 +475,10 @@ class KHNPConnector(BaseRepository):
         # Обновляем время последней транзакции для карт
         await self.renew_cards_date_last_use()
 
-    async def block_cards(self, cards: List[CardOrm], need_authorization: bool = True) -> None:
-        # Из полученного списка обрабатываем номера карт, принадлежащих этой системе
-        khnp_card_numbers = self._get_khnp_cards(cards)
-        if khnp_card_numbers:
-            if need_authorization:
-                self.parser.login()
+    async def block_or_activate_cards(self, khnp_card_numbers_to_block: List[str],
+                                      khnp_card_numbers_to_activate: List[str],
+                                      need_authorization: bool = True) -> None:
+        if need_authorization:
+            self.parser.login()
 
-            self.parser.bulk_lock_cards(khnp_card_numbers)
-
-    async def activate_cards(self, cards: List[CardOrm], need_authorization: bool = True) -> None:
-        # Из полученного списка обрабатываем номера карт, принадлежащих этой системе
-        khnp_card_numbers = self._get_khnp_cards(cards)
-        if khnp_card_numbers:
-            if need_authorization:
-                self.parser.login()
-
-            self.parser.bulk_unlock_cards(khnp_card_numbers)
-
-    def _get_khnp_cards(self, cards: List[CardOrm]) -> List[str]:
-        khnp_card_numbers = set()
-        for card in cards:
-            for system in card.systems:
-                if system.id == self.system.id:
-                    khnp_card_numbers.add(card.card_number)
-
-        khnp_card_numbers = list(khnp_card_numbers)
-        return khnp_card_numbers
+        self.parser.block_or_activate_cards(khnp_card_numbers_to_block, khnp_card_numbers_to_activate)

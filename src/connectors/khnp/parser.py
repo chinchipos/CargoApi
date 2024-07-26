@@ -79,6 +79,9 @@ class KHNPParser:
         self.cards = []
         self.cards_all_block = None
 
+        self.cards_to_change_state = []
+        self.card_lock_elements = {}
+
     def login(self) -> None:
         logger.info(f'Открываю главную страницу: {self.site}')
         self.driver.get(self.site)
@@ -384,15 +387,26 @@ class KHNPParser:
             return {"success": False, "message": self.internal_error_msg}
     """
 
-    def get_card_lock_element(self, card_num: str) -> Any:
-        card_num_tail = card_num[-6:]
-        if not self.cards_all_block:
-            self.cards_all_block = WebDriverWait(self.driver, 5).until(
-                lambda x: x.find_element(By.CSS_SELECTOR, 'article.cards-all')
-            )
+    def retrive_card_lock_elements(self) -> None:
+        card_num_tails = [card_num[-6:] for card_num in self.cards_to_change_state]
         try:
-            # cards_all_block = WebDriverWait(self.driver, 5).until(
-            # lambda x: x.find_element(By.CSS_SELECTOR, 'article.cards-all'))
+            cards_all_block_trs = WebDriverWait(self.driver, 5).until(
+                lambda x: x.find_elements(
+                    By.CSS_SELECTOR, 'article.cards-all section.table table tbody tr[class^="card_"]')
+            )
+
+            for tr in cards_all_block_trs:
+                td = tr.find_element(By.CSS_SELECTOR, 'td:nth-child(4)')
+                span = td.find_element(By.CSS_SELECTOR, 'span:nth-child(2)')
+                html_card_num = span.get_attribute('innerText').strip()
+                if html_card_num in card_num_tails:
+                    td = tr.find_element(By.CSS_SELECTOR, 'td:nth-child(3)')
+                    card_lock_element = WebDriverWait(td, 5).until(
+                        lambda x: x.find_element(By.CSS_SELECTOR, 'span.blockcard'))
+                    self.card_lock_elements[html_card_num] = card_lock_element
+                    card_num_tails.remove(html_card_num)
+
+            """
             if card_num_tail in self.cards_all_block.get_attribute('innerHTML'):
                 container_table_block = WebDriverWait(self.cards_all_block, 5).until(
                     lambda x: x.find_element(By.CSS_SELECTOR, 'section.table'))
@@ -407,6 +421,7 @@ class KHNPParser:
                             lambda x: x.find_element(By.CSS_SELECTOR, 'span.blockcard'))
                         logger.info(f'{card_num} | Замок найден')
                         return card_lock_element
+            """
 
         except Exception as e:
             raise KHNPParserError(trace=True, message=str(e))
@@ -440,79 +455,50 @@ class KHNPParser:
         logger.info(f"Не удалось определить статус карты {card_num}")
         return False
 
-    def _change_card_state(self, card_num) -> None:
-        logger.info(f'{card_num} | Начинаю поиск "замка" карты')
-        card_lock_element = self.get_card_lock_element(card_num)
-
-        # Карта найдена
-        card_lock_element.click()
-        card_state_modal = self.get_card_state_modal()
-
-        footer = WebDriverWait(card_state_modal, 5).until(
-            lambda x: x.find_element(By.CSS_SELECTOR, 'footer.container')
-        )
-        ok_btn = WebDriverWait(footer, 5).until(lambda x: x.find_element(By.CSS_SELECTOR, 'span.btn'))
-        ok_btn.click()
-
-    def _lock_card(self, card_num: str) -> None:
-        logger.info(f'{card_num} | Получена задача на блокировку')
-
-        # Получаем статус карты
-        card_active = self.is_card_active(card_num)
-
-        # В зависимости от состояния карты выполняем необходимое действие
-        if not card_active:
-            logger.info(f'{card_num} | Карта уже была заблокирована ранее')
-            return None
-
-        # Блокируем
-        # Выполняем поиск "замка", при нажатии на который можно заблокировать/разблокировать карту
-        self._change_card_state(card_num)
-        logger.info(f'{card_num} | Карта заблокирована')
-        time.sleep(1)
-
-    def bulk_lock_cards(self, card_numbers: List[str]) -> None:
-        if not card_numbers:
-            return None
-
+    def block_or_activate_cards(self, card_numbers_to_block: List[str], card_numbers_to_activate: List[str]) -> None:
         if 'info.html' not in self.driver.current_url:
             self.open_cards_page()
 
         # Отображаем на экране все карты
         self.clear_card_filters()
 
-        for card_num in card_numbers:
-            self._lock_card(card_num)
+        # Обрабатываем карты, которые должны находиться в заблокированном состоянии
+        for card_num in card_numbers_to_block:
+            # Получаем статус карты
+            card_active = self.is_card_active(card_num)
 
-    def _unlock_card(self, card_num: str) -> None:
-        logger.info(f'{card_num} | Получена задача на разблокировку')
+            # Если статусы отличаются, то помечаем карту на смену статуса
+            if card_active:
+                logger.info(f'{card_num} | помечена на блокировку')
+                self.cards_to_change_state.append(card_num)
 
-        # Получаем статус карты
-        card_active = self.is_card_active(card_num)
+        # Обрабатываем карты, которые должны находиться в активном состоянии
+        for card_num in card_numbers_to_activate:
+            # Получаем статус карты
+            card_active = self.is_card_active(card_num)
 
-        # В зависимости от состояния карты выполняем необходимое действие
-        if card_active:
-            logger.info(f'{card_num} | Карта уже была раззаблокирована ранее')
-            return None
+            # Если статусы отличаются, то помечаем карту на смену статуса
+            if not card_active:
+                logger.info(f'{card_num} | помечена на разблокировку')
+                self.cards_to_change_state.append(card_num)
 
-        # Разблокируем
-        # Выполняем поиск "замка", при нажатии на который можно заблокировать/разблокировать карту
-        self._change_card_state(card_num)
-        logger.info(f'{card_num} | Карта разблокирована')
-        time.sleep(1)
+        # Получаем "замки" помеченных карт
+        self.retrive_card_lock_elements()
 
-    def bulk_unlock_cards(self, card_numbers: List[str]) -> None:
-        if not card_numbers:
-            return None
+        # Меняем статусы помеченных карт
+        self.change_card_states()
 
-        if 'info.html' not in self.driver.current_url:
-            self.open_cards_page()
-
-        # Отображаем на экране все карты
-        self.clear_card_filters()
-
-        for card_num in card_numbers:
-            self._unlock_card(card_num)
+    def change_card_states(self) -> None:
+        for card_num, card_lock_element in self.card_lock_elements.items():
+            # card_lock_element.click()
+            # card_state_modal = self.get_card_state_modal()
+            # footer = WebDriverWait(card_state_modal, 5).until(
+            #     lambda x: x.find_element(By.CSS_SELECTOR, 'footer.container')
+            # )
+            # ok_btn = WebDriverWait(footer, 5).until(lambda x: x.find_element(By.CSS_SELECTOR, 'span.btn'))
+            # ok_btn.click()
+            # time.sleep(1)
+            logger.info(f'{card_num} | смена статуса')
 
     """
     def set_limit(self, params):

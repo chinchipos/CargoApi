@@ -2,14 +2,23 @@ from datetime import datetime
 from typing import List
 
 from sqlalchemy import select as sa_select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from src.connectors.irrelevant_balances import IrrelevantBalances
 from src.database.models import Transaction as TransactionOrm, Balance as BalanceOrm
 from src.repositories.base import BaseRepository
 from src.utils.log import ColoredLogger
 
+balances_to_block_cards_type = List[str]
+balances_to_activate_cards_type = List[str]
+
 
 class CalcBalances(BaseRepository):
+
+    def __init__(self, session: AsyncSession):
+        super().__init__(session=session, user=None)
+        self.logger = ColoredLogger(logfile_name='schedule.log', logger_name='CALC_BALANCES')
 
     async def get_initial_transaction(self, balance_id: str, from_date_time: datetime) -> TransactionOrm:
         stmt = (
@@ -25,6 +34,10 @@ class CalcBalances(BaseRepository):
     async def get_transactions_to_recalculate(self, balance_id: str, from_date_time: datetime) -> List[TransactionOrm]:
         stmt = (
             sa_select(TransactionOrm)
+            .options(
+                joinedload(TransactionOrm.balance)
+                .joinedload(BalanceOrm.company)
+            )
             .where(TransactionOrm.balance_id == balance_id)
             .where(TransactionOrm.date_time_load >= from_date_time)
             .order_by(TransactionOrm.date_time_load)
@@ -41,10 +54,11 @@ class CalcBalances(BaseRepository):
 
         # Пересчитываем балансы
         previous_transaction = initial_transaction
-        previous_company_balance = previous_transaction.company_balance if previous_transaction else 0
         for transaction in transactions_to_recalculate:
-            transaction.company_balance = previous_company_balance + transaction.total_sum
-            previous_company_balance = float(transaction.company_balance)
+            transaction.company_balance = previous_transaction.company_balance + transaction.total_sum \
+                if previous_transaction else transaction.total_sum
+
+            previous_transaction = transaction
 
         # Сохраняем в БД
         dataset = []
@@ -55,7 +69,8 @@ class CalcBalances(BaseRepository):
             })
             await self.bulk_update(TransactionOrm, dataset)
 
-        return previous_company_balance
+        last_balance = previous_transaction.company_balance if previous_transaction else 0
+        return last_balance
 
     async def calculate(self, irrelevant_balances: IrrelevantBalances, logger: ColoredLogger) -> None:
         balances_dataset = []

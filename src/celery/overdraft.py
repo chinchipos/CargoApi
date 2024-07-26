@@ -30,7 +30,7 @@ class Overdraft(BaseRepository):
         self.overdrafts_to_off = []
         self.companies_to_disable_overdraft = []
 
-    async def calculate(self) -> List[balance_id_str_type]:
+    async def calculate(self) -> None:
         # Получаем открытые овердрафты
         self.logger.info('Получаю из БД открытые овердрафты')
         opened_overdrafts = await self.get_opened_overdrafts()
@@ -63,7 +63,6 @@ class Overdraft(BaseRepository):
         await self.save_opened_overdrafts()
 
         self.logger.info(f'Количетво клиентов на блокировку карт: {len(self.balances_to_block_cards)}')
-        return list(self.balances_to_block_cards)
 
     async def get_opened_overdrafts(self) -> Tuple[OverdraftsHistoryOrm, TransactionOrm]:
         # Формируем список открытых оверов и присоединяем к нему последнюю транзакцию за вчерашний день

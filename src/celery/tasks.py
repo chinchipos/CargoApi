@@ -1,13 +1,12 @@
+import asyncio
 import sys
 import traceback
 from typing import List
 
-import asyncio
-
 from celery import Celery, chord, chain
 
 from src.celery.card_manager import CardMgr
-from src.celery.exceptions import celery_logger
+from src.celery.exceptions import celery_logger, CeleryError
 from src.celery.overdraft import Overdraft
 from src.config import PROD_URI
 from src.connectors.calc_balance import CalcBalances
@@ -70,7 +69,13 @@ def agregate_sync_systems_data(irrelevant_balances_list: List[IrrelevantBalances
 
 
 # Задача пересчета балансов
-async def calc_balances_fn(irrelevant_balances: IrrelevantBalances) -> str:
+balance_id_str_type = str
+balances_to_block_cards_type = List[balance_id_str_type]
+balances_to_activate_cards_type = List[balance_id_str_type]
+
+
+async def calc_balances_fn(irrelevant_balances: IrrelevantBalances) -> None:
+
     sessionmanager = DatabaseSessionManager()
     sessionmanager.init(PROD_URI)
 
@@ -81,98 +86,81 @@ async def calc_balances_fn(irrelevant_balances: IrrelevantBalances) -> str:
     # Закрываем соединение с БД
     await sessionmanager.close()
 
-    return "COMPLETE"
-
 
 @celery.task(name="CALC_BALANCES")
-def calc_balances(irrelevant_balances: IrrelevantBalances) -> str:
+def calc_balances(irrelevant_balances: IrrelevantBalances) -> bool:
+
     if not irrelevant_balances['data']:
         celery_logger.info("Пересчет балансов не требуется")
-        return "COMPLETE"
+        return False
+
     else:
         celery_logger.info("Пересчитываю балансы")
         try:
-            return asyncio.run(calc_balances_fn(irrelevant_balances))
+            asyncio.run(calc_balances_fn(irrelevant_balances))
+            return True
+
         except Exception as e:
             trace_info = traceback.format_exc()
             celery_logger.error(str(e))
             celery_logger.error(trace_info)
-            celery_logger.info('Пересчет балансов завершился с ошибкой')
+            error = 'Пересчет балансов завершился ошибкой. См лог.'
+            celery_logger.info(error)
+            raise CeleryError(message=error)
+
+
+async def block_or_activate_cards_fn() -> None:
+    sessionmanager = DatabaseSessionManager()
+    sessionmanager.init(PROD_URI)
+
+    async with sessionmanager.session() as session:
+        card_mgr = CardMgr(session=session)
+        await card_mgr.block_or_activate_cards()
+
+    # Закрываем соединение с БД
+    await sessionmanager.close()
+
+
+@celery.task(name="BLOCK_OR_ACTIVATE_CARDS")
+def block_or_activate_cards(run_required: bool) -> str:
+    if run_required:
+        celery_logger.info('Запускаю задачу блокировки / разблокировки карт')
+
+        if sys.platform == 'win32':
+            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+        asyncio.run(block_or_activate_cards_fn())
+
+    else:
+        celery_logger.info('Блокировка / разблокировка карт не требуется: '
+                           'не было транзакций с момента последней синхронизации')
+
+    return "COMPLETE"
 
 
 # Задача пересчета овердрафтов
-balance_id_str_type = str
-
-
-async def calc_overdrafts_fn() -> List[balance_id_str_type]:
+async def calc_overdrafts_fn() -> bool:
     sessionmanager = DatabaseSessionManager()
     sessionmanager.init(PROD_URI)
 
     async with sessionmanager.session() as session:
         overdraft = Overdraft(session)
-        balances_to_block_cards = await overdraft.calculate()
+        await overdraft.calculate()
 
     # Закрываем соединение с БД
     await sessionmanager.close()
 
-    return balances_to_block_cards
+    return True
 
 
 @celery.task(name="CALC_OVERDRAFTS")
-def calc_overdrafts() -> List[balance_id_str_type]:
+def calc_overdrafts() -> bool:
     celery_logger.info('Запускаю задачу расчета овердрафтов')
 
     if sys.platform == 'win32':
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
     return asyncio.run(calc_overdrafts_fn())
-
-
-async def block_cards_fn(balances_to_block_cards: List[balance_id_str_type]) -> str:
-    sessionmanager = DatabaseSessionManager()
-    sessionmanager.init(PROD_URI)
-
-    async with sessionmanager.session() as session:
-        pass
-
-    # Закрываем соединение с БД
-    await sessionmanager.close()
-
-    return "COMPLETE"
-
-
-@celery.task(name="BLOCK_CARDS")
-def block_cards(balances_to_block_cards: List[balance_id_str_type]) -> str:
-    celery_logger.info('Запускаю задачу блокировки карт')
-
-    if sys.platform == 'win32':
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-
-    return asyncio.run(block_cards_fn(balances_to_block_cards))
-
-
-async def block_cards_test_fn(balances_to_block_cards: List[balance_id_str_type]) -> str:
-    sessionmanager = DatabaseSessionManager()
-    sessionmanager.init(PROD_URI)
-
-    async with sessionmanager.session() as session:
-        card_mgr = CardMgr(session=session)
-        await card_mgr.activate_cards(balances_to_block_cards)
-
-    # Закрываем соединение с БД
-    await sessionmanager.close()
-
-    return "COMPLETE"
-
-
-@celery.task(name="BLOCK_CARDS_TEST")
-def block_cards_test(balances_to_block_cards: List[balance_id_str_type]) -> str:
-    celery_logger.info('Запускаю задачу блокировки карт')
-
-    if sys.platform == 'win32':
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-
-    return asyncio.run(block_cards_test_fn(balances_to_block_cards))
 
 
 # Модель запуска цепочек задач.
@@ -196,7 +184,8 @@ sync_systems = chord(
 # "Агрегация (карты-транзакции)" <-> "Пересчет балансов" <-> "Блокировка/разблокировка карт"
 sync_chain = chain(
     sync_systems,
-    calc_balances.s()
+    calc_balances.s(),
+    block_or_activate_cards.s()
 )
 
 
@@ -204,7 +193,7 @@ sync_chain = chain(
 # "Расчет овердрафтов" <-> "Блокировка/разблокировка карт"
 overdraft_chain = chain(
     calc_overdrafts.si(),
-    block_cards.s()
+    block_or_activate_cards.s()
 )
 
 
