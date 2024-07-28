@@ -213,6 +213,7 @@ class CardRepository(BaseRepository):
             .where(card_system_table.card_id == CardOrm.id)
             .where(system_table.id == card_system_table.system_id)
             .where(system_table.scheme == ContractScheme.OVERBOUGHT)
+            .order_by(CardOrm.card_number)
         )
         cards = await self.select_all(stmt)
         return cards
