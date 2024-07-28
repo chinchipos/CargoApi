@@ -105,13 +105,15 @@ class CardMgr(BaseRepository):
         # Получаем из локальной БД карты, принадлежащие системе ХНП
         local_cards_to_be_active = self._filter_system_cards(self.all_cards_to_activate, khnp_connector.system)
         local_cards_to_be_blocked = self._filter_system_cards(self.all_cards_to_block, khnp_connector.system)
-        for c in self.all_cards_to_block:
-            if c.card_number == '502980100000358653':
-                print('111111111111111111111111111111111111111')
 
-        for c in local_cards_to_be_blocked:
-            if c.card_number == '502980100000358653':
-                print('222222222222222222222222222222222222222')
+        # Устанавливаем статусы карт локально
+        for card in local_cards_to_be_active:
+            card.is_active = True
+            card.reason_for_blocking = None
+
+        for card in local_cards_to_be_blocked:
+            card.is_active = False
+            card.reason_for_blocking = BlockingCardReason.MANUALLY
 
         # Сверяем статусы карт локально и в системе
         khnp_cards_to_change_state, local_cards = self._compare_card_states(
