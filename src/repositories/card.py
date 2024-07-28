@@ -198,7 +198,7 @@ class CardRepository(BaseRepository):
         systems = await self.select_all(stmt)
         return systems
 
-    async def get_cards_by_balance_ids(self, balance_ids: List[str] | Set[str]) -> List[CardOrm]:
+    async def get_cards_by_balance_ids(self, balance_ids: List[str]) -> List[CardOrm]:
         card_system_table = aliased(CardSystemOrm, name="cs_tbl")
         system_table = aliased(SystemOrm, name="system_tbl")
         stmt = (
@@ -215,5 +215,6 @@ class CardRepository(BaseRepository):
             .where(system_table.scheme == ContractScheme.OVERBOUGHT)
             .order_by(CardOrm.card_number)
         )
+
         cards = await self.select_all(stmt)
         return cards
