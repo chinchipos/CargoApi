@@ -288,14 +288,15 @@ class Overdraft(BaseRepository):
 
     async def save_closed_overdrafts(self) -> None:
         await self.bulk_insert_or_update(OverdraftsHistoryOrm, self.overdrafts_to_close)
+        self.logger.info(f'Количество погашенных овердрафтов {len(self.overdrafts_to_close)}')
 
     # def mark_balance_to_block_cards(self, balance_id: BalanceOrm) -> None:
     #    self.balances_to_block_cards.add(balance_id)
 
     def log_decision(self, company: CompanyOrm, transaction_balance: float, decision: str) -> None:
         message = (
-            f"{company.name} | "
             f"услуга овердрафт: {'подключена' if company.overdraft_on else 'не подключена'} | "
+            f"{company.name} | "
             f"min_balance: {company.min_balance} | "
             f"overdraft_sum: {company.overdraft_sum} | "
             f"balance: {transaction_balance} | "
