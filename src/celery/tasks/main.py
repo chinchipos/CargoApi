@@ -39,7 +39,7 @@ def calc_balances(irrelevant_balances: IrrelevantBalances) -> bool:
 
     if not irrelevant_balances['data']:
         celery_logger.info("Пересчет балансов не требуется")
-        return False
+        return True
 
     else:
         celery_logger.info("Пересчитываю балансы")
