@@ -1,12 +1,10 @@
 from typing import List
 
 from sqlalchemy import select as sa_select
-from sqlalchemy.exc import IntegrityError
 
-from src.database import models
+from src.database.model import models
 from src.repositories.base import BaseRepository
 from src.schemas.card_type import CardTypeCreateSchema
-from src.utils.exceptions import DBDuplicateException
 
 
 class CardTypeRepository(BaseRepository):

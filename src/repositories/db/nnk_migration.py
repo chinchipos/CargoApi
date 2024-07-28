@@ -1,4 +1,3 @@
-import random
 import traceback
 from datetime import datetime
 from typing import Dict, Any
@@ -6,10 +5,11 @@ from typing import Dict, Any
 from sqlalchemy import select as sa_select, delete as sa_delete, null
 
 from src.auth.manager import create_user
-from src.database.models import (Role as RoleOrm, System as SystemOrm, Company as CompanyOrm, Balance as BalanceOrm,
-                                 Card as CardOrm, Tariff as TariffOrm, OuterGoods as OuterGoodsOrm, Car as CarOrm,
-                                 InnerGoods as InnerGoodsOrm, CardType as CardTypeOrm, CardSystem as CardSystemOrm,
-                                 BalanceSystemTariff as BalanceSystemTariffOrm, Transaction as TransactionOrm)
+from src.database.model.card import CardOrm
+from src.database.model.models import (Role as RoleOrm, System as SystemOrm, Company as CompanyOrm, Balance as BalanceOrm,
+                                       Tariff as TariffOrm, OuterGoods as OuterGoodsOrm, Car as CarOrm,
+                                       InnerGoods as InnerGoodsOrm, CardType as CardTypeOrm, CardSystem as CardSystemOrm,
+                                       BalanceSystemTariff as BalanceSystemTariffOrm, Transaction as TransactionOrm)
 from src.repositories.base import BaseRepository
 from src.schemas.user import UserCreateSchema
 from src.utils import enums
@@ -319,7 +319,6 @@ class NNKMigration(BaseRepository):
 
         # Создаем пользователей
         self.logger.info("Создаю пользователей")
-        i = 1
         for user in users:
             if not list(filter(lambda sa: user['email'] == sa[0] + '@cargonomica.com', superadmins)):
                 phone = ''.join([num for num in str(user['phone']) if num.isdecimal()])

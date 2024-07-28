@@ -3,7 +3,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends
 
-from src.database import models
+from src.database.model import models
 from src.depends import get_service_goods
 from src.schemas.goods import OuterGoodsReadSchema, InnerGoodsReadSchema, InnerGoodsEditSchema
 from src.services.goods import GoodsService
@@ -82,7 +82,7 @@ async def edit(
     id: uuid.UUID,
     data: InnerGoodsEditSchema,
     service: GoodsService = Depends(get_service_goods)
-) -> OuterGoodsReadSchema:
+):
     id = str(id)
     # Редактировать могут только сотрудники ПроАВТО.
     if service.repository.user.role.name not in [enums.Role.CARGO_SUPER_ADMIN.name, enums.Role.CARGO_MANAGER.name]:

@@ -2,8 +2,8 @@ from datetime import date
 from typing import Dict, List
 
 from src.config import OVERDRAFT_FEE_PERCENT
-from src.connectors.wrapped_transaction import WrappedTransaction, Action
-from src.database.models import Transaction as TransactionOrm
+from src.connectors._wrapped_transaction import WrappedTransaction, Action
+from src.database.model.models import Transaction as TransactionOrm
 from src.utils.enums import TransactionType
 from src.utils.log import ColoredLogger
 

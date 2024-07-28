@@ -1,15 +1,13 @@
-from datetime import date
 from typing import List, Dict
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select as sa_select
 
 from src.connectors.irrelevant_balances import IrrelevantBalances
-from src.connectors.irrelevant_transactions import IrrelevantTransactions
+from src.connectors._irrelevant_transactions import IrrelevantTransactions
 from src.repositories.base import BaseRepository
 
-from src.database.models import (User as UserOrm, Transaction as TransactionOrm,
-                                 OverdraftsHistory as OverdraftsHistoryOrm)
+from src.database.model.models import (User as UserOrm, OverdraftsHistory as OverdraftsHistoryOrm)
 
 from src.utils.log import ColoredLogger
 
@@ -21,9 +19,9 @@ class Overdraft(BaseRepository):
         self.logger = ColoredLogger(logfile_name='schedule.log', logger_name='OVERDRAFT')
         self._irrelevant_balances = IrrelevantBalances()
 
-    async def calculate(self, irrelevant_balances: IrrelevantBalances) -> IrrelevantBalances:
+    async def calculate(self, irrelevant_balances: IrrelevantBalances) -> None:
         # Получаем историю овердрафтов
-        overdrafts_history = await self.get_overdrafts_history(irrelevant_balances)
+        # overdrafts_history = await self.get_overdrafts_history(irrelevant_balances)
 
         # По каждому балансу циклически обрабатываем транзакции по дням:
         # 1. Проверяем наличие транзакции "Комиссия за овердрафт" - комиссия за пользование овердрафтом
@@ -73,7 +71,7 @@ class Overdraft(BaseRepository):
             stmt = (
                 sa_select(OverdraftsHistoryOrm)
                 .where(OverdraftsHistoryOrm.balance_id == balance_id)
-                .where(OverdraftsHistoryOrm.overdraft_begin_date >= irrelevancy_date_time.date())
+                .where(OverdraftsHistoryOrm.begin_date >= irrelevancy_date_time.date())
             )
             overdraft_history = await self.select_all(stmt)
             overdrafts_history[balance_id] = overdraft_history

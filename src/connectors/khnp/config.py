@@ -1,4 +1,9 @@
+import os
+
+from dotenv import load_dotenv
+load_dotenv()
+
 KHNP_URL = "http://clients.khnp.aoil.ru"
-SYSTEM_USERNAME = "296865@ipc-oil.ru"
-SYSTEM_PASSWORD = "xW9fQne6A7NbS"
+KHNP_USERNAME = os.environ.get('KHNP_USERNAME')
+KHNP_PASSWORD = os.environ.get('KHNP_PASSWORD')
 SYSTEM_SHORT_NAME = 'ХНП'

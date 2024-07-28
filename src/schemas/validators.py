@@ -1,9 +1,9 @@
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import BeforeValidator, AfterValidator, Field
+from pydantic import BeforeValidator, Field
 
-from src.database.models import Balance as BalanceModel
+from src.database.model.models import Balance as BalanceModel
 from src.schemas.base import BaseSchema
 
 

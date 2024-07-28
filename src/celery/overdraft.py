@@ -4,13 +4,13 @@ from typing import List, Tuple
 
 from sqlalchemy import select as sa_select, null
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, aliased
 
 from src.config import TZ
-from src.database.models import (User as UserOrm, Transaction as TransactionOrm, Balance as BalanceOrm,
-                                 OverdraftsHistory as OverdraftsHistoryOrm, Company as CompanyOrm)
+from src.database.model.models import (Transaction as TransactionOrm, Balance as BalanceOrm, Company as CompanyOrm,
+                                       OverdraftsHistory as OverdraftsHistoryOrm)
 from src.repositories.base import BaseRepository
-from src.utils.enums import TransactionType
+from src.utils.enums import TransactionType, ContractScheme
 from src.utils.log import ColoredLogger
 
 balance_id_str_type = str
@@ -18,12 +18,12 @@ balance_id_str_type = str
 
 class Overdraft(BaseRepository):
 
-    def __init__(self, session: AsyncSession, user: UserOrm | None = None):
-        super().__init__(session, user)
-        self.logger = ColoredLogger(logfile_name='schedule.log', logger_name='OVERDRAFT')
+    def __init__(self, session: AsyncSession, logger: ColoredLogger):
+        super().__init__(session, None)
+        self.logger = logger
         self.today = datetime.now(tz=TZ).date()
         self.yesterday = datetime.now(tz=TZ).date() - timedelta(days=1)
-        self.balances_to_block_cards = set()
+        # self.balances_to_block_cards = set()
         self.fee_transactions = []
         self.overdrafts_to_open = []
         self.overdrafts_to_close = []
@@ -37,18 +37,20 @@ class Overdraft(BaseRepository):
         self.logger.info(f'Количетво открытых овердрафтов: {len(opened_overdrafts)}')
 
         # По открытым оверам анализируем последнюю транзакцию за вчерашний день.
-        self.logger.info('Обрабатываю открытые овердрафты')
-        await self.process_opened_overdrafts(opened_overdrafts)
+        if opened_overdrafts:
+            self.logger.info('Обрабатываю открытые овердрафты')
+            await self.process_opened_overdrafts(opened_overdrafts)
 
-        # По органищациям, у которых вчера не было открытого овера, получаем последнюю транзакцию за
-        # вчерашний день и открываем овер при необходимости
-        self.logger.info('Получаю из БД последние вчерашние транзакции по остальным организациям, '
-                         'проверяю есть ли необходимость открыть новый овердрафт')
+        # По органищациям, у которых вчера не было открытого овера, получаем баланс на конец вчерашнего дня
+        # и открываем овер при величине баланса ниже min_balance
+        self.logger.info('По остальным организациям с подключенной услугой "овердрафт" получаю последние транзакции, '
+                         'предшествующие сегодняшней дате . Проверяю есть ли необходимость открыть новый овердрафт')
         last_transactions = await self.get_last_transactions(opened_overdrafts)
         self.logger.info(f'Количетво транзакций: {len(last_transactions)}')
 
-        self.logger.info('Обрабатываю последние вчерашние транзакции')
-        await self.process_last_transactions(last_transactions)
+        if last_transactions:
+            self.logger.info('Обрабатываю последние вчерашние транзакции')
+            await self.process_last_transactions(last_transactions)
 
         # Записываем в БД комиссионные транзакции
         await self.save_fee_transactions_to_db()
@@ -62,15 +64,37 @@ class Overdraft(BaseRepository):
         # Открываем в БД новые овердрафты
         await self.save_opened_overdrafts()
 
-        self.logger.info(f'Количетво клиентов на блокировку карт: {len(self.balances_to_block_cards)}')
+        # По помеченным балансам получаем карты на блокировку
+        # card_repository = CardRepository(session=self.session)
+        #  cards_to_block = await card_repository.get_cards_by_balance_ids(self.balances_to_block_cards)
 
-    async def get_opened_overdrafts(self) -> Tuple[OverdraftsHistoryOrm, TransactionOrm]:
-        # Формируем список открытых оверов и присоединяем к нему последнюю транзакцию за вчерашний день
+        # Блокируем карты в локальной БД
+        # Далее запустится задача синхронизации с системой и карты будут заблокированы в ней
+        # dataset = [
+        #     {
+        #         "id": card.id,
+        #         "is_active": False,
+        #         "reason_for_blocking": BlockingCardReason.MANUALLY
+        #     } for card in cards_to_block
+        # ]
+        # await self.bulk_update(CardOrm, dataset)
+
+        # self.logger.info(f'Количетво клиентов на блокировку карт: {len(self.balances_to_block_cards)}')
+
+    async def get_opened_overdrafts(self) -> List[Tuple[OverdraftsHistoryOrm, TransactionOrm]]:
+        # Формируем список открытых оверов и присоединяем к нему последнюю транзакцию, предшествующую сегодняшней дате
+        balance_table = aliased(BalanceOrm, name="blnc")
         last_transaction_helper = (
             sa_select(TransactionOrm.id, TransactionOrm.balance_id)
+            .select_from(TransactionOrm, balance_table)
+            .where(TransactionOrm.balance_id == balance_table.id)
+            .where(balance_table.scheme == ContractScheme.OVERBOUGHT)
             .where(TransactionOrm.date_time_load < self.today)
-            .order_by(TransactionOrm.date_time_load.desc())
-            .limit(1)
+            .distinct(TransactionOrm.balance_id)
+            .order_by(
+                TransactionOrm.balance_id,
+                TransactionOrm.date_time_load.desc()
+            )
             .subquery(name="last_transaction_helper")
         )
 
@@ -84,10 +108,12 @@ class Overdraft(BaseRepository):
             .join(last_transaction_helper, last_transaction_helper.c.balance_id == OverdraftsHistoryOrm.balance_id)
             .join(TransactionOrm, TransactionOrm.id == last_transaction_helper.c.id)
         )
-        opened_overdrafts = await self.select_all(stmt, scalars=False)
-        return opened_overdrafts
+        self.statement(stmt)
+        dataset = await self.select_all(stmt, scalars=False)
+        return dataset
 
-    async def process_opened_overdrafts(self, opened_overdrafts: Tuple[OverdraftsHistoryOrm, TransactionOrm]) -> None:
+    async def process_opened_overdrafts(self, opened_overdrafts: List[Tuple[OverdraftsHistoryOrm, TransactionOrm]]) \
+            -> None:
         for overdraft, last_transaction in opened_overdrafts:
             # Если баланс последней вчерашней транзакции ниже значения min_balance, то берем плату.
             # Если выше, то погашаем овер.
@@ -99,58 +125,69 @@ class Overdraft(BaseRepository):
 
                 # создаем транзакцию (плата за овер)
                 self.add_fee_transaction(
-                    transaction_type = TransactionType.OVERDRAFT_FEE,
                     balance_id = overdraft.balance_id,
                     fee_sum = fee_sum,
-                    company_balance = last_transaction.company_balance + fee_sum,
-                    company=overdraft.balance.company
+                    company_balance = last_transaction.company_balance + fee_sum
+                )
+                self.log_decision(
+                    company=overdraft.balance.company,
+                    transaction_balance=last_transaction.company_balance,
+                    decision="начислить комиссию"
                 )
 
                 # Если овер открыт больше разрешенного времени, то помечаем его
-                # для отключения насовсем и блокируем карты
+                # для отключения насовсем. Блокировку карты выполнит следующая задача в Celery.
                 overdraft_opened_days = self.today - overdraft.begin_date
                 if overdraft.balance.company.overdraft_days < overdraft_opened_days.days:
-                    self.mark_overdraft_to_delete(
-                        overdraft_id=overdraft.id,
-                        company=overdraft.balance.company
-                    )
-                    self.mark_balance_to_block_cards(
-                        balance_id=overdraft.balance_id,
-                        company=overdraft.balance.company
+                    self.mark_overdraft_to_delete(overdraft_id=overdraft.id, company=overdraft.balance.company)
+                    # self.mark_balance_to_block_cards(balance_id=overdraft.balance_id)
+                    self.log_decision(
+                        company=overdraft.balance.company,
+                        transaction_balance=last_transaction.company_balance,
+                        decision='отключить услугу "овердрафт" в связи с нарушением условий договора'
                     )
 
             else:
                 # помечаем овер на гашение
-                self.mark_overdraft_to_close(
-                    overdraft_id=overdraft.id,
-                    company=overdraft.balance.company
+                self.mark_overdraft_to_close(overdraft_id=overdraft.id)
+                self.log_decision(
+                    company=overdraft.balance.company,
+                    transaction_balance=last_transaction.company_balance,
+                    decision="прекратить отсчет времени пользования овердрафтом"
                 )
 
-    async def get_last_transactions(self, opened_overdrafts: Tuple[OverdraftsHistoryOrm, TransactionOrm]) \
+    async def get_last_transactions(self, opened_overdrafts: List[Tuple[OverdraftsHistoryOrm, TransactionOrm]]) \
             -> List[TransactionOrm]:
-        excluded_balance_ids = [overdraft.balance_id for overdraft, last_transaction in opened_overdrafts]
+
+        balance_table = aliased(BalanceOrm, name="blnc")
         stmt = (
             sa_select(TransactionOrm)
             .options(
                 joinedload(TransactionOrm.balance)
                 .joinedload(BalanceOrm.company)
             )
+            .select_from(TransactionOrm, balance_table)
+            .where(TransactionOrm.balance_id == balance_table.id)
+            .where(balance_table.scheme == ContractScheme.OVERBOUGHT)
             .where(TransactionOrm.date_time_load < self.today)
-            .where(TransactionOrm.balance_id.notin_(excluded_balance_ids))
-            .order_by(TransactionOrm.date_time_load.desc())
-            .limit(1)
+            .distinct(TransactionOrm.balance_id)
+            .order_by(
+                TransactionOrm.balance_id,
+                TransactionOrm.date_time_load.desc()
+            )
         )
+
+        excluded_balance_ids = [overdraft.balance_id for overdraft, last_transaction in opened_overdrafts]
+        if excluded_balance_ids:
+            stmt = stmt.where(balance_table.id.notin_(excluded_balance_ids))
+
+        self.statement(stmt)
+
         last_transactions = await self.select_all(stmt)
         return last_transactions
 
     async def process_last_transactions(self, last_transactions: List[TransactionOrm]) -> None:
         for last_transaction in last_transactions:
-            self.logger.info(
-                f"{last_transaction.balance.company.name} | "
-                f"sum: {last_transaction.total_sum} | "
-                f"min_balance: {last_transaction.balance.company.min_balance} | "
-                f"balance: {last_transaction.company_balance}"
-            )
             # Если баланс последней вчерашней транзакции ниже значения min_balance, то при подключенном овере
             # берем плату и открываем овер, а при отключенном помечаем клиентов на блокировку карт.
             # Если выше, то ничего не делаем
@@ -158,8 +195,13 @@ class Overdraft(BaseRepository):
             # fee_base = last_transaction.company_balance - last_transaction.balance.company.min_balance
             trigger = True if last_transaction.company_balance < last_transaction.balance.company.min_balance \
                 else False
-
-            if trigger:
+            if not trigger:
+                self.log_decision(
+                    company=last_transaction.balance.company,
+                    transaction_balance=last_transaction.company_balance,
+                    decision="ничего не делать"
+                )
+            else:
                 if last_transaction.balance.company.overdraft_on:
                     fee_base = last_transaction.company_balance
                     fee_sum = round(fee_base * last_transaction.balance.company.overdraft_fee_percent / 100, 2) \
@@ -167,35 +209,40 @@ class Overdraft(BaseRepository):
 
                     # создаем транзакцию (плата за овер)
                     self.add_fee_transaction(
-                        transaction_type=TransactionType.OVERDRAFT_FEE,
                         balance_id=last_transaction.balance_id,
                         fee_sum=fee_sum,
-                        company_balance=last_transaction.company_balance + fee_sum,
-                        company=last_transaction.balance.company
+                        company_balance=last_transaction.company_balance + fee_sum
                     )
 
                     # помечаем овер на открытие
                     self.mark_overdraft_to_open(
                         balance_id=last_transaction.balance_id,
                         days=last_transaction.balance.company.overdraft_days,
-                        overdraft_sum=last_transaction.balance.company.overdraft_sum,
-                        company=last_transaction.balance.company
+                        overdraft_sum=last_transaction.balance.company.overdraft_sum
                     )
 
-                else:
-                    # Помечаем клиента на блокировку карт
-                    self.mark_balance_to_block_cards(
-                        balance_id=last_transaction.balance_id,
-                        company=last_transaction.balance.company
+                    self.log_decision(
+                        company=last_transaction.balance.company,
+                        transaction_balance=last_transaction.company_balance,
+                        decision=f"начислить комиссию {fee_sum}, начать отсчет времени пользования овердрафтом"
                     )
 
-    def add_fee_transaction(self, transaction_type: TransactionType, balance_id: str, fee_sum: float,
-                            company_balance: float, company: CompanyOrm) -> None:
+                # else:
+                #     # Помечаем клиента на блокировку карт
+                #     self.mark_balance_to_block_cards(balance_id=last_transaction.balance_id)
+#
+                #     self.log_decision(
+                #         company=last_transaction.balance.company,
+                #         transaction_balance=last_transaction.company_balance,
+                #         decision=f"заблокировать карты в связи с уменьшением баланса ниже допустимого порога"
+                #     )
+
+    def add_fee_transaction(self, balance_id: str, fee_sum: float, company_balance: float) -> None:
         now = datetime.now(tz=TZ)
         fee_transaction = {
             "date_time": now,
             "date_time_load": now,
-            "transaction_type": transaction_type,
+            "transaction_type": TransactionType.OVERDRAFT_FEE,
             "balance_id": balance_id,
             "transaction_sum": fee_sum,
             "total_sum": fee_sum,
@@ -203,15 +250,11 @@ class Overdraft(BaseRepository):
         }
         sleep(0.001)
         self.fee_transactions.append(fee_transaction)
-        self.logger.info(f'{company.name}: сформирована комиссия за пользование овердрафтом | '
-                         f'fee_sum: {fee_sum} | '
-                         f'balance: {company_balance} | '
-                         f'min_balance: {company.min_balance}')
 
     async def save_fee_transactions_to_db(self) -> None:
         await self.bulk_insert_or_update(TransactionOrm, self.fee_transactions)
 
-    def mark_overdraft_to_open(self, balance_id: str, days: int, overdraft_sum: float, company: CompanyOrm) -> None:
+    def mark_overdraft_to_open(self, balance_id: str, days: int, overdraft_sum: float) -> None:
         overdraft_to_open = {
             "balance_id": balance_id,
             "days": days,
@@ -221,8 +264,6 @@ class Overdraft(BaseRepository):
             "overdue": False,
         }
         self.overdrafts_to_open.append(overdraft_to_open)
-
-        self.logger.info(f'{company.name}: пометка на открытие овердрафта')
 
     async def save_opened_overdrafts(self) -> None:
         await self.bulk_insert_or_update(OverdraftsHistoryOrm, self.overdrafts_to_open)
@@ -235,24 +276,29 @@ class Overdraft(BaseRepository):
         company_to_disable_overdraft = {"id": company.id, "overdraft_on": False}
         self.companies_to_disable_overdraft.append(company_to_disable_overdraft)
 
-        self.logger.info(f'{company.name}: услуга овердрафт помечена на отключение '
-                         'в связи с несоблюдением условий договора')
-
     async def save_deleted_overdrafts(self) -> None:
         await self.bulk_insert_or_update(OverdraftsHistoryOrm, self.overdrafts_to_off)
         self.logger.info(f'Количество просроченных овердрафтов {len(self.overdrafts_to_off)}')
 
         await self.bulk_insert_or_update(CompanyOrm, self.companies_to_disable_overdraft)
 
-    def mark_overdraft_to_close(self, overdraft_id: str, company: CompanyOrm) -> None:
+    def mark_overdraft_to_close(self, overdraft_id: str) -> None:
         overdraft_to_close = {"id": overdraft_id, "end_date": self.yesterday}
         self.overdrafts_to_close.append(overdraft_to_close)
-        self.logger.info(f'{company.name}: текущий открытый овердрафт помечен на гашение '
-                         'в связи с достаточностью средств на балансе')
 
     async def save_closed_overdrafts(self) -> None:
         await self.bulk_insert_or_update(OverdraftsHistoryOrm, self.overdrafts_to_close)
 
-    def mark_balance_to_block_cards(self, balance_id: BalanceOrm, company: CompanyOrm) -> None:
-        self.balances_to_block_cards.add(balance_id)
-        self.logger.info(f'{company.name}: организация помечена на блокировку карт')
+    # def mark_balance_to_block_cards(self, balance_id: BalanceOrm) -> None:
+    #    self.balances_to_block_cards.add(balance_id)
+
+    def log_decision(self, company: CompanyOrm, transaction_balance: float, decision: str) -> None:
+        message = (
+            f"{company.name} | "
+            f"услуга овердрафт: {'подключена' if company.overdraft_on else 'не подключена'} | "
+            f"min_balance: {company.min_balance} | "
+            f"overdraft_sum: {company.overdraft_sum} | "
+            f"balance: {transaction_balance} | "
+            f"действие: {decision}"
+        )
+        self.logger.info(message)

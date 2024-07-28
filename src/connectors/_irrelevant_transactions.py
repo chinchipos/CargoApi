@@ -3,10 +3,10 @@ from typing import Dict, List
 from sqlalchemy import select as sa_select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.connectors.daily_transactions import DailyTransactions
+from src.connectors._daily_transactions import DailyTransactions
 from src.connectors.irrelevant_balances import IrrelevantBalances
-from src.connectors.wrapped_transaction import WrappedTransaction
-from src.database.models import Transaction as TransactionOrm
+from src.connectors._wrapped_transaction import WrappedTransaction
+from src.database.model.models import Transaction as TransactionOrm
 from src.repositories.base import BaseRepository
 from src.utils.log import ColoredLogger
 

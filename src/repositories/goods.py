@@ -1,9 +1,9 @@
 from typing import List
 
-from sqlalchemy import select as sa_select, desc, nulls_first
+from sqlalchemy import select as sa_select, nulls_first
 from sqlalchemy.orm import joinedload
 
-from src.database import models
+from src.database.model import models
 from src.repositories.base import BaseRepository
 
 

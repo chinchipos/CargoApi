@@ -1,12 +1,12 @@
-from datetime import date, datetime
-from typing import List, Any
+from datetime import datetime
+from typing import List
 
 from fastapi import Depends, APIRouter
 
 from src.depends import get_service_transaction
+from src.descriptions.transaction import transaction_tag_description, get_transactions_description
 from src.schemas.transaction import TransactionReadSchema
 from src.services.transaction import TransactionService
-from src.descriptions.transaction import transaction_tag_description, get_transactions_description
 from src.utils.schemas import MessageSchema
 
 router = APIRouter()

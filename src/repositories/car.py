@@ -3,7 +3,7 @@ from typing import List, Optional
 from sqlalchemy import select as sa_select
 from sqlalchemy.orm import joinedload
 
-from src.database import models
+from src.database.model import models
 from src.repositories.base import BaseRepository
 from src.schemas.car import CarCreateSchema, CarReadSchema, CarEditSchema
 from src.utils import enums

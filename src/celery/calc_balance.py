@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from src.connectors.irrelevant_balances import IrrelevantBalances
-from src.database.models import Transaction as TransactionOrm, Balance as BalanceOrm
+from src.database.model.models import Transaction as TransactionOrm, Balance as BalanceOrm
 from src.repositories.base import BaseRepository
 from src.utils.log import ColoredLogger
 
@@ -28,6 +28,7 @@ class CalcBalances(BaseRepository):
             .order_by(TransactionOrm.date_time_load.desc())
             .limit(1)
         )
+        # self.statement(stmt)
         transaction = await self.select_first(stmt)
         return transaction
 

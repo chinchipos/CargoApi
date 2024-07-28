@@ -6,29 +6,31 @@ from sqlalchemy import select as sa_select, update as sa_update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, load_only, aliased
 
+from src.celery.exceptions import CeleryError
 from src.config import TZ
 from src.connectors.irrelevant_balances import IrrelevantBalances
 from src.connectors.khnp.config import SYSTEM_SHORT_NAME
-from src.connectors.khnp.exceptions import KHNPConnectorError, khnp_connector_logger
 from src.connectors.khnp.parser import KHNPParser
-from src.database.models import (User as UserOrm, Card as CardOrm, CardType as CardTypeOrm,
-                                 Transaction as TransactionOrm, OuterGoods as OuterGoodsOrm,
-                                 CardSystem as CardSystemOrm, BalanceTariffHistory as BalanceTariffHistoryOrm,
-                                 Tariff as TariffOrm, Balance as BalanceOrm, Company as CompanyOrm,
-                                 BalanceSystemTariff as BalanceSystemTariffOrm)
+from src.database.model.card import CardOrm
+from src.database.model.models import (CardType as CardTypeOrm, OuterGoods as OuterGoodsOrm,
+                                       Transaction as TransactionOrm, BalanceTariffHistory as BalanceTariffHistoryOrm,
+                                       CardSystem as CardSystemOrm, BalanceSystemTariff as BalanceSystemTariffOrm,
+                                       Tariff as TariffOrm, Balance as BalanceOrm, Company as CompanyOrm)
 from src.repositories.base import BaseRepository
 from src.repositories.system import SystemRepository
 from src.utils.enums import ContractScheme, TransactionType
+from src.utils.log import ColoredLogger
 
 
 class KHNPConnector(BaseRepository):
 
-    def __init__(self, session: AsyncSession, user: UserOrm | None = None):
-        super().__init__(session, user)
-        self.parser = KHNPParser()
+    def __init__(self, session: AsyncSession, logger: ColoredLogger):
+        super().__init__(session, None)
+        self.logger = logger
+        self.parser = KHNPParser(logger)
         self.system = None
         self.local_cards: List[CardOrm] = []
-        self.provider_cards: List[Dict[str, Any]] = []
+        self.khnp_cards: List[Dict[str, Any]] = []
         self.outer_goods: List[OuterGoodsOrm] = []
         self._tariffs_history: List[BalanceTariffHistoryOrm] = []
         self._bst_list: List[BalanceSystemTariffOrm] = []
@@ -40,8 +42,8 @@ class KHNPConnector(BaseRepository):
         # Прогружаем наш баланс
         await self.load_balance(need_authorization=True)
 
-        # Прогружаем карты
-        await self.load_cards(need_authorization=False)
+        # Синхронизируем карты по номеру
+        await self.sync_cards_by_number(need_authorization=False)
 
         # Прогружаем транзакции
         await self.load_transactions(need_authorization=False)
@@ -62,20 +64,26 @@ class KHNPConnector(BaseRepository):
 
         # Получаем наш баланс у поставщика услуг
         balance = self.parser.get_balance()
-        khnp_connector_logger.info('Наш баланс в системе {}: {} руб.'.format(self.system.full_name, balance))
+        self.logger.info('Наш баланс в системе {}: {} руб.'.format(self.system.full_name, balance))
 
         # Обновляем запись в локальной БД
         await self.update_object(self.system, update_data={
             "balance": balance,
             "balance_sync_dt": datetime.now(tz=TZ)
         })
-        khnp_connector_logger.info('Обновлен баланс в локальной БД')
+        self.logger.info('Обновлен баланс в локальной БД')
 
     async def get_local_cards(self, card_numbers: List[str] = None) -> List[CardOrm]:
         stmt = (
             sa_select(CardOrm)
             .options(
-                load_only(CardOrm.id, CardOrm.card_number, CardOrm.is_active, CardOrm.manual_lock, CardOrm.company_id)
+                load_only(
+                    CardOrm.id,
+                    CardOrm.card_number,
+                    CardOrm.is_active,
+                    CardOrm.reason_for_blocking,
+                    CardOrm.company_id
+                )
             )
             .select_from(CardOrm, CardSystemOrm)
             .where(CardSystemOrm.system_id == self.system.id, CardSystemOrm.card_id == CardOrm.id)
@@ -106,21 +114,21 @@ class KHNPConnector(BaseRepository):
             is_active=True
         )
         new_card = await self.insert(CardOrm, **fields)
-        khnp_connector_logger.info(f'Создана карта {new_card.card_number}')
+        self.logger.info(f'Создана карта {new_card.card_number}')
         return new_card
 
-    def get_provider_cards(self) -> List[Dict[str, Any]]:
-        if not self.provider_cards:
-            self.provider_cards = self.parser.get_cards()
+    def get_khnp_cards(self) -> List[Dict[str, Any]]:
+        if not self.khnp_cards:
+            self.khnp_cards = self.parser.get_cards()
 
-        return self.provider_cards
+        return self.khnp_cards
 
-    async def load_cards(self, need_authorization: bool = True) -> None:
+    async def sync_cards_by_number(self, need_authorization: bool = True) -> None:
         if need_authorization:
             self.parser.login()
 
         # Получаем список карт от поставщика услуг
-        provider_cards = self.get_provider_cards()
+        provider_cards = self.get_khnp_cards()
         
         # Получаем список карт из локальной БД
         local_cards = await self.get_local_cards()
@@ -138,12 +146,12 @@ class KHNPConnector(BaseRepository):
                 # Записываем в БД сведения о новой карте
                 await self.create_card(provider_card['cardNo'], default_card_type.id)
 
-            # Здесь нужно добавить код для проверки состояния карты (активна / заблокирована).
-            # Устанавливать его в локальной БД таким, каким он установлен в БД поставщика.
+        # Здесь, возможно, нужно добавить код, который будет откреплять карту от системы,
+        # если в ХНП такая карта не найдена
 
         # Записываем в БД время последней успешной синхронизации
         await self.update_object(self.system, update_data={"cards_sync_dt": datetime.now(tz=TZ)})
-        khnp_connector_logger.info('Синхронизация карт выполнена')
+        self.logger.info('Синхронизация карт выполнена')
 
     async def get_provider_transactions(self, need_authorization: bool = True) -> Dict[str, Any]:
         if need_authorization:
@@ -202,7 +210,7 @@ class KHNPConnector(BaseRepository):
             if card.card_number == card_number:
                 return card
 
-        raise KHNPConnectorError(trace=True, message=f'Карта с номером {card_number} не найдена в БД')
+        raise CeleryError(trace=True, message=f'Карта с номером {card_number} не найдена в БД')
 
     async def get_all_outer_goods(self) -> List[OuterGoodsOrm]:
         if not self.outer_goods:
@@ -417,20 +425,20 @@ class KHNPConnector(BaseRepository):
         counter = sum(list(map(
             lambda card_number: len(provider_transactions.get(card_number)), provider_transactions
         )))
-        khnp_connector_logger.info(f'Количество транзакций от поставщика услуг: {counter} шт')
+        self.logger.info(f'Количество транзакций от поставщика услуг: {counter} шт')
         if not counter:
             return {}
 
         # Получаем список транзакций из локальной БД
-        khnp_connector_logger.info('Формирую список транзакций из локальной БД')
+        self.logger.info('Формирую список транзакций из локальной БД')
         local_transactions = await self.get_local_transactions()
-        khnp_connector_logger.info(f'Количество транзакций из локальной БД: {len(local_transactions)} шт')
+        self.logger.info(f'Количество транзакций из локальной БД: {len(local_transactions)} шт')
 
         # Сравниваем транзакции локальные с полученными от поставщика.
         # Идентичные транзакции исключаем из списка, полученного от системы.
         # Удаляем локальные транзакции из БД, которые не были найдены в списке,
         # полученном от системы.
-        khnp_connector_logger.info('Приступаю к процедуре сравнения локальных транзакций с полученными от поставщика')
+        self.logger.info('Приступаю к процедуре сравнения локальных транзакций с полученными от поставщика')
         to_delete = []
         for local_transaction in local_transactions:
             if local_transaction.card:
@@ -446,9 +454,9 @@ class KHNPConnector(BaseRepository):
                         )
 
         # Удаляем помеченные транзакции из БД
-        khnp_connector_logger.info(f'Удалить тразакции из локальной БД: {len(to_delete)} шт')
+        self.logger.info(f'Удалить тразакции из локальной БД: {len(to_delete)} шт')
         if len(to_delete):
-            khnp_connector_logger.info('Удаляю помеченные локальные транзакции из БД')
+            self.logger.info('Удаляю помеченные локальные транзакции из БД')
 
             for transaction in to_delete:
                 await self.delete_object(TransactionOrm, transaction.id)
@@ -458,10 +466,10 @@ class KHNPConnector(BaseRepository):
         counter = sum(list(map(
             lambda card_number: len(provider_transactions.get(card_number)), provider_transactions
         )))
-        khnp_connector_logger.info(f'Новые тразакции от поставщика услуг: {counter} шт')
+        self.logger.info(f'Новые тразакции от поставщика услуг: {counter} шт')
 
         if counter:
-            khnp_connector_logger.info(
+            self.logger.info(
                 'Начинаю обработку транзакций от поставщика услуг, которые не обнаружены в локальной БД'
             )
             await self.process_provider_transactions(provider_transactions)
@@ -472,10 +480,16 @@ class KHNPConnector(BaseRepository):
         # Обновляем время последней транзакции для карт
         await self.renew_cards_date_last_use()
 
-    async def block_or_activate_cards(self, khnp_card_numbers_to_block: List[str],
+    """
+    def block_or_activate_cards(self, khnp_card_numbers_to_block: List[str],
                                       khnp_card_numbers_to_activate: List[str],
                                       need_authorization: bool = True) -> None:
         if need_authorization:
             self.parser.login()
 
         self.parser.block_or_activate_cards(khnp_card_numbers_to_block, khnp_card_numbers_to_activate)
+    """
+
+    def change_card_states(self, card_numbers_to_change_state: List[str]) -> None:
+        self.parser.login()
+        self.parser.change_card_states(card_numbers_to_change_state)

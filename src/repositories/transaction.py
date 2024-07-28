@@ -1,13 +1,13 @@
-from datetime import date, datetime
+from datetime import datetime
 from typing import List
 
 from sqlalchemy import select as sa_select, and_
 from sqlalchemy.orm import joinedload, load_only, aliased
 
 from src.config import TZ
-from src.database.models import (Transaction as TransactionOrm, Card as CardOrm, System as SystemOrm,
-                                 OuterGoods as OuterGoodsOrm, Tariff as TariffOrm, Company as CompanyOrm,
-                                 Balance as BalanceOrm)
+from src.database.model.card import CardOrm
+from src.database.model.models import (Transaction as TransactionOrm, System as SystemOrm, Balance as BalanceOrm,
+                                       OuterGoods as OuterGoodsOrm, Tariff as TariffOrm, Company as CompanyOrm)
 from src.repositories.base import BaseRepository
 from src.utils import enums
 from src.utils.enums import TransactionType

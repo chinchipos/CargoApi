@@ -1,6 +1,6 @@
 from typing import List
 
-from src.database import models
+from src.database.model import models
 from src.repositories.base import BaseRepository
 from src.repositories.db.nnk_migration import NNKMigration
 from src.schemas.db import DBInitialSyncSchema

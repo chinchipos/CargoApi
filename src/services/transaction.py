@@ -2,7 +2,7 @@ from datetime import date, timedelta, datetime
 from dateutil.relativedelta import relativedelta
 from typing import List
 
-from src.database.models import Transaction as TransactionOrm
+from src.database.model.models import Transaction as TransactionOrm
 from src.repositories.transaction import TransactionRepository
 
 

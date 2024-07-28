@@ -1,23 +1,20 @@
+import traceback
 import uuid
 
 from fastapi import Depends
 from fastapi_users import FastAPIUsers
 from fastapi_users.authentication import BearerTransport, AuthenticationBackend
 from fastapi_users.authentication import JWTStrategy
-
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select as sa_select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from src.auth.manager import get_user_manager
 from src.config import JWT_SECRET
 from src.database.db import get_session
-from src.database.models import User, Role, RolePermition
-from src.utils.log import logger
-
-import traceback
-
+from src.database.model.models import User
 from src.utils.exceptions import DBException
+from src.utils.log import logger
 
 bearer_transport = BearerTransport(tokenUrl="auth/jwt/login")
 SECRET = JWT_SECRET

@@ -1,62 +1,14 @@
-import copy
 from datetime import date, datetime
-from typing import List, Dict, Any, Tuple
+from typing import List
 
 import sqlalchemy as sa
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID
-from sqlalchemy import MetaData, inspect, UniqueConstraint
-from sqlalchemy.ext.asyncio import AsyncAttrs
-from sqlalchemy.orm import MappedAsDataclass, DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy import UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.config import SCHEMA
+from src.database.model import Base
 from src.utils.enums import (TransactionType as TransactionTypeEnum, ContractScheme as ContractScheme,
                              Permition as PermitionEnum, ContractScheme as ContractSchemeEnum, Bank as BankEnum)
-
-
-class Base(AsyncAttrs, MappedAsDataclass, DeclarativeBase):
-    metadata = MetaData(schema=SCHEMA)
-
-    id: Mapped[str] = mapped_column(
-        sa.Uuid(as_uuid=False),
-        primary_key=True,
-        server_default=sa.text("uuid_generate_v4()"),
-        init=False
-    )
-
-    repr_cols = tuple()
-
-    def repr(self, repr_cols: Tuple) -> str:
-        # self.date_time.isoformat().replace('T', ' ')
-        cols = []
-        for idx, col in enumerate(self.__table__.columns.keys()):
-            if col in repr_cols:
-                cols.append(f"{col}={getattr(self, col)}")
-
-        return f"<{self.__class__.__name__} {', '.join(cols)}>"
-
-    def update_without_saving(self, data: Dict[str, Any]) -> None:
-        for field, value in data.items():
-            setattr(self, field, value)
-
-    def dumps(self) -> Dict[str, Any]:
-        # Формируем словарь, состоящий из полей модели
-        dump = {column.key: getattr(self, column.key) for column in inspect(self).mapper.column_attrs}
-
-        # Добавляем в словарь связанные модели
-        relationships = inspect(self.__class__).relationships
-        for rel in relationships:
-            try:
-                dump[rel.key] = getattr(self, rel.key)
-
-            finally:
-                pass
-
-        return dump
-
-    def annotate(self, data: Dict[str, Any]) -> Any:
-        for field, value in data.items():
-            setattr(self, field, copy.deepcopy(value))
-        return self
 
 
 class Tariff(Base):
@@ -220,7 +172,7 @@ class Company(Base):
     )
 
     # Список карт этой организации
-    cards: Mapped[List["Card"]] = relationship(
+    cards: Mapped[List["CardOrm"]] = relationship(
         back_populates="company",
         cascade="all, delete-orphan",
         lazy="noload",
@@ -685,7 +637,7 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     )
 
     # Список карт, привязанных к этому пользователю
-    cards: Mapped[List["Card"]] = relationship(
+    cards: Mapped[List["CardOrm"]] = relationship(
         back_populates="belongs_to_driver",
         cascade="all, delete-orphan",
         lazy="noload",
@@ -701,14 +653,6 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
         return self.company_id == company_id
 
     def company_ids_subquery(self) -> sa.Subquery:
-        """
-        stmt = (
-            sa.select(Company.id)
-            .join(Company.admin_company)
-            .where(AdminCompany.user_id == self.id)
-            .subquery()
-        )
-        """
         stmt = (
             sa.select(AdminCompany.id)
             .where(AdminCompany.user_id == self.id)
@@ -768,7 +712,7 @@ class CardType(Base):
     )
 
     # Список карт этого типа
-    cards: Mapped[List["Card"]] = relationship(
+    cards: Mapped[List["CardOrm"]] = relationship(
         back_populates="card_type",
         cascade="all, delete-orphan",
         lazy="noload",
@@ -818,7 +762,7 @@ class Car(Base):
     )
 
     # Список карт привязанных к этому автомобилю
-    cards: Mapped[List["Card"]] = relationship(
+    cards: Mapped[List["CardOrm"]] = relationship(
         back_populates="belongs_to_car",
         cascade="all, delete-orphan",
         lazy="noload",
@@ -868,120 +812,7 @@ class CarDriver(Base):
     repr_cols = ("car_id", "driver_id")
 
 
-class Card(Base):
-    __tablename__ = "card"
-    __table_args__ = {
-        'comment': 'Карты'
-    }
-
-    card_number: Mapped[str] = mapped_column(
-        sa.String(20),
-        unique=True,
-        nullable=False,
-        comment="Номер карты"
-    )
-
-    card_type_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.card_type.id"),
-        comment="Тип карты"
-    )
-
-    # Тип карты
-    card_type: Mapped["CardType"] = relationship(
-        back_populates="cards",
-        lazy="noload",
-        init=False
-    )
-
-    is_active: Mapped[bool] = mapped_column(
-        sa.Boolean,
-        nullable=False,
-        server_default=sa.sql.false(),
-        comment="Карта активна"
-    )
-
-    # Организация
-    company_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.company.id"),
-        nullable=True,
-        init=True,
-        comment="Организация"
-    )
-
-    # Организация
-    company: Mapped["Company"] = relationship(
-        back_populates="cards",
-        lazy="noload",
-        init=False
-    )
-
-    belongs_to_car_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.car.id"),
-        nullable=True,
-        comment="Автомобиль, с которым ассоциирована карта"
-    )
-
-    # Автомобиль, с которым ассоциирована карта
-    belongs_to_car: Mapped["Car"] = relationship(
-        back_populates="cards",
-        lazy="noload",
-        init=False
-    )
-
-    belongs_to_driver_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.user.id"),
-        nullable=True,
-        comment="Водитель, с которым ассоциирована карта"
-    )
-
-    # Водитель, с которым ассоциирована карта
-    belongs_to_driver: Mapped["User"] = relationship(
-        back_populates="cards",
-        lazy="noload",
-        init=False
-    )
-
-    date_last_use: Mapped[date] = mapped_column(
-        sa.Date,
-        nullable=True,
-        init=False,
-        comment="Дата последнего использования"
-    )
-
-    manual_lock: Mapped[bool] = mapped_column(
-        sa.Boolean,
-        nullable=False,
-        server_default=sa.sql.false(),
-        init=False,
-        comment="Признак ручной блокировки"
-    )
-
-    # Список связей этой карты с системами
-    card_system_links: Mapped[List["CardSystem"]] = relationship(
-        back_populates="card",
-        cascade="all, delete-orphan",
-        lazy="noload",
-        init=False
-    )
-
-    # Список систем, связанных с этой картой
-    systems: Mapped[List["System"]] = relationship(
-        back_populates="cards",
-        secondary="cargonomica.card_system",
-        viewonly=True,
-        lazy="noload",
-        init=False
-    )
-
-    # Список транзакций, привязанных к этой карте
-    transactions: Mapped[List["Transaction"]] = relationship(
-        back_populates="card",
-        cascade="all, delete-orphan",
-        lazy="noload",
-        init=False
-    )
-
-    repr_cols = ("card_number",)
+# Card
 
 
 class System(Base):
@@ -1062,7 +893,7 @@ class System(Base):
     )
 
     # Список карт, связанных с этой системой
-    cards: Mapped[List["Card"]] = relationship(
+    cards: Mapped[List["CardOrm"]] = relationship(
         back_populates="systems",
         secondary="cargonomica.card_system",
         viewonly=True,
@@ -1117,7 +948,7 @@ class CardSystem(Base):
     )
 
     # Карта
-    card: Mapped["Card"] = relationship(
+    card: Mapped["CardOrm"] = relationship(
         back_populates="card_system_links",
         lazy="noload"
     )
@@ -1256,7 +1087,7 @@ class Transaction(Base):
     )
 
     # Карта
-    card: Mapped["Card"] = relationship(
+    card: Mapped["CardOrm"] = relationship(
         back_populates="transactions",
         lazy="noload"
     )

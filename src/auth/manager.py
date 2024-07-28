@@ -9,7 +9,7 @@ from fastapi_users.exceptions import UserAlreadyExists
 from src.auth.db import get_user_db
 from src.config import JWT_SECRET
 from src.database.db import sessionmanager
-from src.database.models import User
+from src.database.model.models import User
 from src.schemas.user import UserCreateSchema
 from src.utils.exceptions import DBDuplicateException
 

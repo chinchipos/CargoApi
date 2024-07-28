@@ -1,6 +1,6 @@
 from typing import List, Any
 
-from src.database.models import Company as CompanyOrm, User as UserOrm
+from src.database.model.models import Company as CompanyOrm, User as UserOrm
 from src.repositories.company import CompanyRepository
 from src.repositories.transaction import TransactionRepository
 from src.repositories.user import UserRepository

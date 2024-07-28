@@ -1,13 +1,13 @@
-import copy
 from typing import List
 
 from sqlalchemy import select as sa_select, and_, func as sa_func
 from sqlalchemy.orm import joinedload, selectinload, aliased, load_only
 
 from src.connectors.khnp.config import SYSTEM_SHORT_NAME
-from src.database.models import (Company as CompanyOrm, Balance as BalanceOrm, AdminCompany as AdminCompanyOrm,
-                                 User as UserOrm, Role as RoleOrm, BalanceSystemTariff as BalanceSystemTariffOrm,
-                                 System as SystemOrm, Car as CarOrm, Tariff as TariffOrm, Card as CardOrm)
+from src.database.model.card import CardOrm
+from src.database.model.models import (Company as CompanyOrm, Balance as BalanceOrm, AdminCompany as AdminCompanyOrm,
+                                       User as UserOrm, Role as RoleOrm, BalanceSystemTariff as BalanceSystemTariffOrm,
+                                       System as SystemOrm, Car as CarOrm, Tariff as TariffOrm)
 from src.repositories.base import BaseRepository
 from src.repositories.system import SystemRepository
 from src.schemas.company import CompanyCreateSchema

@@ -1,6 +1,6 @@
 from enum import Enum
 
-from src.database.models import Transaction as TransactionOrm
+from src.database.model.models import Transaction as TransactionOrm
 
 
 class Action(Enum):

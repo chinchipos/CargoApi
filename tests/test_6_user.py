@@ -1,9 +1,9 @@
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import select as sa_select, text
+from sqlalchemy import select as sa_select
 
 from src.database.db import sessionmanager
-from src.database.models import Company, Role
+from src.database.model.models import Company, Role
 from src.repositories.base import BaseRepository
 from src.utils import enums
 from tests.conftest import headers

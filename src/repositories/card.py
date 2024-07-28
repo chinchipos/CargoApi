@@ -1,15 +1,17 @@
 import traceback
-from typing import List
+from typing import List, Set
 
 from sqlalchemy import select as sa_select, delete as sa_delete, func as sa_func
 from sqlalchemy.orm import joinedload, selectinload, load_only, aliased
 
-from src.database.models import (Card as CardOrm, User as UserOrm, Transaction as TransactionOrm, System as SystemOrm,
-                                 CardType as CardTypeOrm, Company as CompanyOrm, CardSystem as CardSystemOrm,
-                                 Car as CarOrm)
+from src.database.model.card import CardOrm
+from src.database.model.models import (User as UserOrm, Transaction as TransactionOrm, System as SystemOrm,
+                                       Car as CarOrm, CardType as CardTypeOrm, Company as CompanyOrm,
+                                       CardSystem as CardSystemOrm, Balance as BalanceOrm)
 from src.repositories.base import BaseRepository
 from src.schemas.card import CardCreateSchema
 from src.utils import enums
+from src.utils.enums import ContractScheme
 from src.utils.exceptions import DBException
 
 
@@ -30,8 +32,8 @@ class CardRepository(BaseRepository):
                     CardOrm.id,
                     CardOrm.card_number,
                     CardOrm.is_active,
+                    CardOrm.reason_for_blocking,
                     CardOrm.date_last_use,
-                    CardOrm.manual_lock,
                     CardOrm.company_id
                 )
             )
@@ -70,8 +72,8 @@ class CardRepository(BaseRepository):
                     CardOrm.id,
                     CardOrm.card_number,
                     CardOrm.is_active,
-                    CardOrm.date_last_use,
-                    CardOrm.manual_lock
+                    CardOrm.reason_for_blocking,
+                    CardOrm.date_last_use
                 )
             )
             .options(
@@ -195,3 +197,22 @@ class CardRepository(BaseRepository):
         stmt = sa_select(SystemOrm).where(SystemOrm.id.in_(system_ids))
         systems = await self.select_all(stmt)
         return systems
+
+    async def get_cards_by_balance_ids(self, balance_ids: List[str] | Set[str]) -> List[CardOrm]:
+        card_system_table = aliased(CardSystemOrm, name="cs_tbl")
+        system_table = aliased(SystemOrm, name="system_tbl")
+        stmt = (
+            sa_select(CardOrm)
+            .options(
+                selectinload(CardOrm.systems)
+            )
+            .select_from(CardOrm, CompanyOrm, BalanceOrm, card_system_table, system_table)
+            .where(CompanyOrm.id == CardOrm.company_id)
+            .where(BalanceOrm.company_id == CompanyOrm.id)
+            .where(BalanceOrm.id.in_(balance_ids))
+            .where(card_system_table.card_id == CardOrm.id)
+            .where(system_table.id == card_system_table.system_id)
+            .where(system_table.scheme == ContractScheme.OVERBOUGHT)
+        )
+        cards = await self.select_all(stmt)
+        return cards

@@ -1,6 +1,7 @@
 from typing import List
 
-from src.database.models import Card as CardOrm, CardSystem as CardSystemOrm
+from src.database.model.models import CardSystem as CardSystemOrm
+from src.database.model.card import CardOrm
 from src.repositories.card import CardRepository
 from src.schemas.card import CardCreateSchema, CardReadSchema, CardEditSchema
 from src.utils import enums

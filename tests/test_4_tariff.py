@@ -3,7 +3,7 @@ from httpx import AsyncClient
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from src.database.db import sessionmanager
-from src.database.models import Tariff
+from src.database.model.models import Tariff
 from tests.conftest import headers
 
 

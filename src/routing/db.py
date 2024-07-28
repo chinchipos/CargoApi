@@ -3,11 +3,11 @@ from typing import Any
 from fastapi import APIRouter, Depends
 
 from src.depends import get_service_db
-from src.schemas.common import SuccessSchema
-from src.schemas.db import DBInitSchema, DBInitialSyncSchema, DBRegularSyncSchema
-from src.services.db import DBService
-from src.descriptions.db import db_tag_description, db_regular_sync_description, db_initial_sync_description, \
+from src.descriptions.db import db_tag_description, db_initial_sync_description, \
     db_init_description
+from src.schemas.common import SuccessSchema
+from src.schemas.db import DBInitSchema, DBInitialSyncSchema
+from src.services.db import DBService
 from src.utils.schemas import MessageSchema
 
 router = APIRouter()
@@ -49,6 +49,7 @@ async def initial_sync(
     return {'success': True}
 
 
+"""
 @router.post(
     path="/db/sync/nnk/regular",
     tags=["db"],
@@ -63,3 +64,4 @@ async def regular_sync(
 ) -> dict[str, Any]:
     message = await db_service.regular_sync(data)
     return {'message': message}
+"""

@@ -3,7 +3,7 @@ from httpx import AsyncClient
 from sqlalchemy import select as sa_select
 
 from src.config import SERVICE_TOKEN
-from src.database import models
+from src.database.model import models
 from src.database.db import sessionmanager
 from src.repositories.base import BaseRepository
 

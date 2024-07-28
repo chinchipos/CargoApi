@@ -1,16 +1,12 @@
-import json
 from typing import Dict, Any, Tuple
 
 import requests
 import hashlib
-from requests_toolbelt.utils import dump
 from fake_useragent import UserAgent
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import PRODUCTION
 from src.connectors.gazpromneft import config
-from src.database.models import User
-from src.repositories.base import BaseRepository
+
 
 # print('-----------------------')
 # print('Дамп запроса к API:')

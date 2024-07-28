@@ -4,8 +4,8 @@ from typing import List
 from sqlalchemy import select as sa_select, and_, or_, null
 from sqlalchemy.orm import aliased
 
-from src.database.models import (Tariff as TariffOrm, BalanceSystemTariff as BalanceSystemTariffOrm,
-                                 BalanceTariffHistory as BalanceTariffHistoryOrm)
+from src.database.model.models import (Tariff as TariffOrm, BalanceSystemTariff as BalanceSystemTariffOrm,
+                                       BalanceTariffHistory as BalanceTariffHistoryOrm)
 from src.repositories.base import BaseRepository
 from src.schemas.tariff import TariffCreateSchema
 
