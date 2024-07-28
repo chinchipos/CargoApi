@@ -106,7 +106,7 @@ class CardMgr(BaseRepository):
         local_cards_to_be_active = self._filter_system_cards(self.all_cards_to_activate, khnp_connector.system)
         local_cards_to_be_blocked = self._filter_system_cards(self.all_cards_to_block, khnp_connector.system)
 
-        # Устанавливаем статусы карт локально
+        # Устанавливаем статусы карт без сохранения в БД
         for card in local_cards_to_be_active:
             card.is_active = True
             card.reason_for_blocking = None
@@ -122,7 +122,7 @@ class CardMgr(BaseRepository):
             local_cards_to_be_blocked=local_cards_to_be_blocked
         )
 
-        # Устанавливаем статусы карт локально
+        # Устанавливаем статусы карт локально с сохранением в БД - после процедуры сравнения статусы погли измениться
         self.logger.info("Обновляю статусы карт в локальной БД")
         dataset = [
             {
