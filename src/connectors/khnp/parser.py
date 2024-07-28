@@ -503,7 +503,7 @@ class KHNPParser:
         for card_num in card_numbers:
             card_status = self.get_card_status(card_num)
             if card_status != CardStatus.UNKNOWN:
-                card_lock_element = card_lock_elements[card_num]
+                card_lock_element = card_lock_elements[card_num[-6:]]
                 card_lock_element.click()
                 card_state_modal = self.get_card_state_modal()
                 footer = WebDriverWait(card_state_modal, 5).until(
