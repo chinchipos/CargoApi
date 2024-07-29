@@ -6,7 +6,7 @@ from pathlib import Path
 
 load_dotenv()
 
-PRODUCTION = False
+PRODUCTION = True if os.environ.get('PRODUCTION') == 'true' else False
 
 DB_FQDN_HOST = os.environ.get('DB_FQDN_HOST')
 DB_PORT = os.environ.get('DB_PORT')
