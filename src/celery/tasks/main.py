@@ -68,7 +68,7 @@ def agregate_sync_systems_data(irrelevant_balances_list: List[IrrelevantBalances
 
 
 @celery.task(name="CALC_OVERDRAFTS")
-def calc_overdrafts() -> bool:
+def calc_overdrafts() -> IrrelevantBalances:
 
     if sys.platform == 'win32':
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -135,6 +135,7 @@ def run_sync_systems():
 # "Расчет овердрафтов" <-> "Блокировка/разблокировка карт"
 overdraft_chain = chain(
     calc_overdrafts.si(),
+    calc_balances.s(),
     block_or_activate_cards.s()
 )
 

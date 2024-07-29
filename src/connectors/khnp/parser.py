@@ -17,7 +17,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 from xls2xlsx import XLS2XLSX
 
 from src.celery.exceptions import CeleryError
-from src.config import ROOT_DIR
+from src.config import ROOT_DIR, PRODUCTION
 from src.connectors.khnp.config import KHNP_URL, KHNP_USERNAME, KHNP_PASSWORD
 
 from pathlib import Path
@@ -503,15 +503,17 @@ class KHNPParser:
         for card_num in card_numbers:
             card_status = self.get_card_status(card_num)
             if card_status != CardStatus.UNKNOWN:
-                card_lock_element = card_lock_elements[card_num[-6:]]
-                card_lock_element.click()
-                card_state_modal = self.get_card_state_modal()
-                footer = WebDriverWait(card_state_modal, 5).until(
-                    lambda x: x.find_element(By.CSS_SELECTOR, 'footer.container')
-                )
-                ok_btn = WebDriverWait(footer, 5).until(lambda x: x.find_element(By.CSS_SELECTOR, 'span.btn'))
-                ok_btn.click()
-                time.sleep(1)
+                if PRODUCTION:
+                    # С продуктового сервера блокируем карты, с разработческого - нет
+                    card_lock_element = card_lock_elements[card_num[-6:]]
+                    card_lock_element.click()
+                    card_state_modal = self.get_card_state_modal()
+                    footer = WebDriverWait(card_state_modal, 5).until(
+                        lambda x: x.find_element(By.CSS_SELECTOR, 'footer.container')
+                    )
+                    ok_btn = WebDriverWait(footer, 5).until(lambda x: x.find_element(By.CSS_SELECTOR, 'span.btn'))
+                    ok_btn.click()
+                    time.sleep(1)
                 self.logger.info(message=f"{card_num} | смена статуса в ХНП с {card_status.name} на противоположный")
 
     """
