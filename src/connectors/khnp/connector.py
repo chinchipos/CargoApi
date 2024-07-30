@@ -4,19 +4,20 @@ from typing import Dict, Any, List
 
 from sqlalchemy import select as sa_select, update as sa_update, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload, load_only, aliased
+from sqlalchemy.orm import joinedload, aliased
 
 from src.celery.exceptions import CeleryError
 from src.config import TZ
 from src.connectors.irrelevant_balances import IrrelevantBalances
 from src.connectors.khnp.config import SYSTEM_SHORT_NAME
-from src.connectors.khnp.parser import KHNPParser
+from src.connectors.khnp.parser import KHNPParser, CardStatus
 from src.database.model.card import CardOrm
 from src.database.model.models import (CardType as CardTypeOrm, OuterGoods as OuterGoodsOrm,
                                        Transaction as TransactionOrm, BalanceTariffHistory as BalanceTariffHistoryOrm,
                                        CardSystem as CardSystemOrm, BalanceSystemTariff as BalanceSystemTariffOrm,
                                        Tariff as TariffOrm, Balance as BalanceOrm, Company as CompanyOrm)
 from src.repositories.base import BaseRepository
+from src.repositories.card import CardRepository
 from src.repositories.system import SystemRepository
 from src.utils.enums import ContractScheme, TransactionType
 from src.utils.log import ColoredLogger
@@ -71,29 +72,10 @@ class KHNPConnector(BaseRepository):
             "balance": balance,
             "balance_sync_dt": datetime.now(tz=TZ)
         })
-        self.logger.info('Обновлен баланс в локальной БД')
 
     async def get_local_cards(self, card_numbers: List[str] = None) -> List[CardOrm]:
-        stmt = (
-            sa_select(CardOrm)
-            .options(
-                load_only(
-                    CardOrm.id,
-                    CardOrm.card_number,
-                    CardOrm.is_active,
-                    CardOrm.reason_for_blocking,
-                    CardOrm.company_id
-                )
-            )
-            .select_from(CardOrm, CardSystemOrm)
-            .where(CardSystemOrm.system_id == self.system.id, CardSystemOrm.card_id == CardOrm.id)
-            # .join(CardSystemOrm, and_(CardSystemOrm.card_id == CardOrm.id, CardSystemOrm.system_id == system.id))
-            .order_by(CardOrm.card_number)
-        )
-        if card_numbers:
-            stmt = stmt.where(CardOrm.card_number.in_(card_numbers))
-        self.local_cards = await self.select_all(stmt)
-
+        card_repository = CardRepository(self.session)
+        self.local_cards = await card_repository.get_cards_by_numbers(card_numbers, self.system.id)
         return self.local_cards
 
     @staticmethod
@@ -107,16 +89,6 @@ class KHNPConnector(BaseRepository):
             else:
                 i += 1
 
-    async def create_card(self, card_number: str, default_card_type_id: str) -> CardOrm:
-        fields = dict(
-            card_number=card_number,
-            card_type_id=default_card_type_id,
-            is_active=True
-        )
-        new_card = await self.insert(CardOrm, **fields)
-        self.logger.info(f'Создана карта {new_card.card_number}')
-        return new_card
-
     def get_khnp_cards(self) -> List[Dict[str, Any]]:
         if not self.khnp_cards:
             self.khnp_cards = self.parser.get_cards()
@@ -128,26 +100,13 @@ class KHNPConnector(BaseRepository):
             self.parser.login()
 
         # Получаем список карт от поставщика услуг
-        provider_cards = self.get_khnp_cards()
+        khnp_cards = self.get_khnp_cards()
         
         # Получаем список карт из локальной БД
         local_cards = await self.get_local_cards()
 
-        # Тип карты по умолчанию
-        stmt = sa_select(CardTypeOrm).where(CardTypeOrm.name == 'Пластиковая карта')
-        default_card_type = await self.select_first(stmt)
-
         # Сравниваем карты локальные с полученными от поставщика.
-        # Создаем в локальной БД карты, которые есть у поставщика услуг, но нет локально
-
-        for provider_card in provider_cards:
-            local_card = self.get_equal_local_card(provider_card, local_cards)
-            if not local_card:
-                # Записываем в БД сведения о новой карте
-                await self.create_card(provider_card['cardNo'], default_card_type.id)
-
-        # Здесь, возможно, нужно добавить код, который будет откреплять карту от системы,
-        # если в ХНП такая карта не найдена
+        await self.compare_cards(khnp_cards, local_cards)
 
         # Записываем в БД время последней успешной синхронизации
         await self.update_object(self.system, update_data={"cards_sync_dt": datetime.now(tz=TZ)})
@@ -493,3 +452,55 @@ class KHNPConnector(BaseRepository):
     def change_card_states(self, card_numbers_to_change_state: List[str]) -> None:
         self.parser.login()
         self.parser.change_card_states(card_numbers_to_change_state)
+
+    async def compare_cards(self, khnp_cards: List[Dict[str, Any]], local_cards: List[CardOrm]) -> None:
+        """
+        Сравниваем карты локальные с полученными от системы.
+        Создаем в локальной БД карты, которые есть у системы, но нет локально.
+        """
+        # Тип карты по умолчанию
+        stmt = sa_select(CardTypeOrm).where(CardTypeOrm.name == 'Пластиковая карта')
+        default_card_type = await self.select_first(stmt)
+
+        # Сравниваем карты из системы с локальными.
+        # В локальной БД создаем новые, если появились в системе.
+        # В локальной БД обновляем статус карт на тот, который установлен в системе.
+        new_local_cards = []
+        local_cards_to_change_status = []
+        for khnp_card in khnp_cards:
+            local_card = self.get_equal_local_card(khnp_card, local_cards)
+            khnp_card_status =  self.parser.get_card_status(khnp_card["cardNo"])
+            if khnp_card_status in [CardStatus.ACTIVE, CardStatus.ACTIVATE_PENDING]:
+                khnp_card_status_is_active = True
+            else:
+                khnp_card_status_is_active = False
+
+            if local_card:
+                # В локальной системе есть соответствующая карта - сверяем статусы
+                if khnp_card_status_is_active != local_card:
+                    local_card.is_active = khnp_card_status_is_active
+                    local_cards_to_change_status.append({"id": local_card.id, "is_active": local_card.is_active})
+
+            else:
+                # В локальной системе нет такой карты - создаем её
+                new_local_cards.append({
+                    "card_number": khnp_card["cardNo"],
+                    "card_type_id": default_card_type.id,
+                    "is_active": True,
+                })
+
+        # Обновляем в БД статусы карт
+        if local_cards_to_change_status:
+            await self.bulk_update(CardOrm, local_cards_to_change_status)
+
+        # Записываем в БД сведения о новых картах
+        if new_local_cards:
+            await self.bulk_insert_or_update(CardOrm, new_local_cards, index_field="card_number")
+
+            # Получаем список созданных карт и привязываем их к системе
+            new_card_numbers = [card["card_number"] for card in new_local_cards]
+            stmt = sa_select(CardOrm).where(CardOrm.card_number.in_(new_card_numbers))
+            new_local_cards = await self.select_all(stmt)
+            card_system_bindings = [{"card_id": card.id, "system_id": self.system.id} for card in new_local_cards]
+            await self.bulk_insert_or_update(CardSystemOrm, card_system_bindings)
+            self.logger.info(f"Импортировано {len(new_local_cards)} новых карт")

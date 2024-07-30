@@ -8,7 +8,7 @@ from celery import chain
 
 from src.celery.exceptions import celery_logger, CeleryError
 from src.celery.tasks.modules.overdrafts import calc_overdrafts_fn, block_or_activate_cards_fn
-from src.celery.tasks.modules.sync_systems import sync_khnp_fn, sync_noname_fn, calc_balances_fn
+from src.celery.tasks.modules.sync_systems import sync_khnp_fn, sync_gpn_fn, calc_balances_fn
 from src.config import PROD_URI
 from src.connectors.irrelevant_balances import IrrelevantBalances
 
@@ -29,9 +29,9 @@ def sync_khnp() -> IrrelevantBalances:
 
 
 @celery.task(name="SYNC_NONAME")
-def sync_noname() -> IrrelevantBalances:
-    celery_logger.info("Запускаю синхронизацию с Noname")
-    return asyncio.run(sync_noname_fn())
+def sync_gpn() -> IrrelevantBalances:
+    celery_logger.info("Запускаю синхронизацию с ГПН")
+    return asyncio.run(sync_gpn_fn())
 
 
 @celery.task(name="CALC_BALANCES")
@@ -107,7 +107,7 @@ balances_to_activate_cards_type = List[balance_id_str_type]
 sync_systems = chord(
     header=[
         sync_khnp.si(),
-        sync_noname.si()
+        sync_gpn.si()
     ],
     body=agregate_sync_systems_data.s()
 )

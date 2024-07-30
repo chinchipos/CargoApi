@@ -1,5 +1,5 @@
 import traceback
-from typing import List, Set
+from typing import List
 
 from sqlalchemy import select as sa_select, delete as sa_delete, func as sa_func
 from sqlalchemy.orm import joinedload, selectinload, load_only, aliased
@@ -217,4 +217,32 @@ class CardRepository(BaseRepository):
         )
 
         cards = await self.select_all(stmt)
+        return cards
+
+    async def get_cards_by_numbers(self, card_numbers: List[str] | None = None, system_id: str | None = None) \
+            -> List[CardOrm]:
+        stmt = (
+            sa_select(CardOrm)
+            .options(
+                load_only(
+                    CardOrm.id,
+                    CardOrm.card_number,
+                    CardOrm.is_active,
+                    CardOrm.reason_for_blocking,
+                    CardOrm.company_id
+                )
+            )
+            .select_from(CardOrm, CardSystemOrm)
+            .where(CardSystemOrm.card_id == CardOrm.id)
+            .order_by(CardOrm.card_number)
+        )
+
+        if card_numbers:
+            stmt = stmt.where(CardOrm.card_number.in_(card_numbers))
+
+        if system_id:
+            stmt = stmt.where(CardSystemOrm.system_id == system_id)
+
+        cards = await self.select_all(stmt)
+
         return cards
