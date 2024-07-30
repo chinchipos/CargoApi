@@ -67,10 +67,10 @@ class GPNConnector(BaseRepository):
 
     async def sync(self) -> IrrelevantBalances:
         # Прогружаем наш баланс
-        await self.load_balance()
+        # await self.load_balance()
 
         # Синхронизируем карты по номеру
-        await self.sync_cards_by_number()
+        # await self.sync_cards_by_number()
 
         # Прогружаем транзакции
         # await self.load_transactions(need_authorization=False)

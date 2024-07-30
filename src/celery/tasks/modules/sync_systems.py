@@ -34,7 +34,7 @@ async def sync_gpn_fn() -> IrrelevantBalances:
     # Закрываем соединение с БД
     await sessionmanager.close()
     celery_logger.info('Синхронизация с ГПН успешно завершена')
-    return IrrelevantBalances()
+    return irrelevant_balances
 
 
 async def calc_balances_fn(irrelevant_balances: IrrelevantBalances) -> None:
