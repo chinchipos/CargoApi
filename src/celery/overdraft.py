@@ -1,8 +1,10 @@
 import smtplib
 from datetime import datetime, timedelta, date
 from email import encoders
-from email.message import EmailMessage
 from email.mime.base import MIMEBase
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.utils import formatdate
 from time import sleep
 from typing import List, Tuple, Dict
 
@@ -18,11 +20,6 @@ from src.reports.overdrafts import OverdraftsReport
 from src.repositories.base import BaseRepository
 from src.utils.enums import TransactionType, ContractScheme
 from src.utils.log import ColoredLogger
-
-from email.mime.application import MIMEApplication
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.utils import formatdate
 
 balance_id_str_type = str
 

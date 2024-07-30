@@ -29,7 +29,7 @@ def sync_khnp() -> IrrelevantBalances:
     return asyncio.run(sync_khnp_fn())
 
 
-@celery.task(name="SYNC_NONAME")
+@celery.task(name="SYNC_GPN")
 def sync_gpn() -> IrrelevantBalances:
     celery_logger.info("Запускаю синхронизацию с ГПН")
     return asyncio.run(sync_gpn_fn())
