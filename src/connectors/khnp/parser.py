@@ -450,7 +450,7 @@ class KHNPParser:
                 elif card_data['cardBlockRequest'] == CardStatus.ACTIVATE_PENDING.value:
                     return CardStatus.ACTIVATE_PENDING
                 else:
-                    self.logger.info("Сайт поставщика не позволяет остоверно определить статус карты, "
+                    self.logger.info("Сайт поставщика не позволяет достоверно определить статус карты, "
                                      "так как еще не обработана предыдущая операция по смене статуса карты {card_num}")
                     return CardStatus.UNKNOWN
 

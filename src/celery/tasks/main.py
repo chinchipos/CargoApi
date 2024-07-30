@@ -7,7 +7,8 @@ from celery import Celery, chord
 from celery import chain
 
 from src.celery.exceptions import celery_logger, CeleryError
-from src.celery.tasks.modules.overdrafts import calc_overdrafts_fn, block_or_activate_cards_fn
+from src.celery.tasks.modules.overdrafts import calc_overdrafts_fn, block_or_activate_cards_fn, \
+    send_overdrafts_report_fn
 from src.celery.tasks.modules.sync_systems import sync_khnp_fn, sync_gpn_fn, calc_balances_fn
 from src.config import PROD_URI
 from src.connectors.irrelevant_balances import IrrelevantBalances
@@ -90,6 +91,13 @@ def block_or_activate_cards(run_required: bool) -> str:
         celery_logger.info('Блокировка / разблокировка карт не требуется: '
                            'не было транзакций с момента последней синхронизации')
 
+    return "COMPLETE"
+
+
+@celery.task(name="SEND_OVERDRAFTS_REPORT")
+def send_overdrafts_report() -> str:
+    celery_logger.info('Запускаю задачу рассылки отчетов по открытым овердрафтам')
+    asyncio.run(send_overdrafts_report_fn())
     return "COMPLETE"
 
 

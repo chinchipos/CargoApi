@@ -1,13 +1,16 @@
+from datetime import datetime, timedelta
 from typing import List
 
-from sqlalchemy import select as sa_select, and_, func as sa_func
+from sqlalchemy import select as sa_select, and_, func as sa_func, null, or_
 from sqlalchemy.orm import joinedload, selectinload, aliased, load_only
 
+from src.config import TZ
 from src.connectors.khnp.config import SYSTEM_SHORT_NAME
 from src.database.model.card import CardOrm
 from src.database.model.models import (Company as CompanyOrm, Balance as BalanceOrm, AdminCompany as AdminCompanyOrm,
                                        User as UserOrm, Role as RoleOrm, BalanceSystemTariff as BalanceSystemTariffOrm,
-                                       System as SystemOrm, Car as CarOrm, Tariff as TariffOrm)
+                                       System as SystemOrm, Car as CarOrm, Tariff as TariffOrm,
+                                       OverdraftsHistory as OverdraftsHistoryOrm)
 from src.repositories.base import BaseRepository
 from src.repositories.system import SystemRepository
 from src.schemas.company import CompanyCreateSchema
@@ -71,7 +74,7 @@ class CompanyRepository(BaseRepository):
             await self.save_object(bst)
 
     async def get_company(self, company_id: str) -> CompanyOrm:
-        # Получаем полные сведения об организации
+        # Получаем сведения об организации
         stmt = (
             sa_select(CompanyOrm)
             .options(
@@ -126,12 +129,37 @@ class CompanyRepository(BaseRepository):
             .where(CompanyOrm.id == company_id)
         )
         company = await self.select_first(stmt)
+        overbought_balance_id = None
         for balance in company.balances:
             systems = []
             for bst in balance.balance_system_tariff:
                 bst.system.annotate({"tariff": bst.tariff})
                 systems.append(bst.system)
             balance.annotate({"systems": systems})
+
+            if balance.scheme == ContractScheme.OVERBOUGHT:
+                overbought_balance_id = balance.id
+
+        # Добавляем сведения об открытых овердрафтах
+        today = datetime.now(tz=TZ).date()
+        tomorrow = today + timedelta(days=1)
+        stmt = (
+            sa_select(OverdraftsHistoryOrm)
+            .where(OverdraftsHistoryOrm.balance_id == overbought_balance_id)
+            .where(or_(
+                OverdraftsHistoryOrm.end_date.is_(null()),
+                OverdraftsHistoryOrm.end_date >= tomorrow
+            ))
+        )
+        opened_overdraft = await self.select_first(stmt)
+        overdraft_end_date = opened_overdraft.end_date if opened_overdraft.end_date \
+            else opened_overdraft.begin_date + timedelta(days=company.overdraft_days - 1)
+        overdraft_payment_deadline = overdraft_end_date + timedelta(days=1)
+        company.annotate({
+            'overdraft_begin_date': opened_overdraft.begin_date,
+            'overdraft_end_date': overdraft_end_date,
+            'overdraft_payment_deadline': overdraft_payment_deadline,
+        })
 
         # Добавляем сведения о количестве карт
         # stmt = sa_select(sa_func.count(models.Card.id)).filter_by(company_id=company_id)

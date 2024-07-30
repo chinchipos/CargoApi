@@ -30,3 +30,15 @@ async def block_or_activate_cards_fn() -> None:
 
     # Закрываем соединение с БД
     await sessionmanager.close()
+
+
+async def send_overdrafts_report_fn() -> None:
+    sessionmanager = DatabaseSessionManager()
+    sessionmanager.init(PROD_URI)
+
+    async with sessionmanager.session() as session:
+        overdraft = Overdraft(session, celery_logger)
+        await overdraft.send_opened_overdrafts_report()
+
+    # Закрываем соединение с БД
+    await sessionmanager.close()

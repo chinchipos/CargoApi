@@ -1,18 +1,28 @@
-from datetime import datetime, timedelta
+import smtplib
+from datetime import datetime, timedelta, date
+from email import encoders
+from email.message import EmailMessage
+from email.mime.base import MIMEBase
 from time import sleep
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
-from sqlalchemy import select as sa_select, null
+from sqlalchemy import select as sa_select, null, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, aliased
 
-from src.config import TZ
+from src.config import TZ, SMTP_USER, SMTP_SERVER, SMTP_PORT, SMTP_PASSWORD
 from src.connectors.irrelevant_balances import IrrelevantBalances
 from src.database.model.models import (Transaction as TransactionOrm, Balance as BalanceOrm, Company as CompanyOrm,
                                        OverdraftsHistory as OverdraftsHistoryOrm)
+from src.reports.overdrafts import OverdraftsReport
 from src.repositories.base import BaseRepository
 from src.utils.enums import TransactionType, ContractScheme
 from src.utils.log import ColoredLogger
+
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.utils import formatdate
 
 balance_id_str_type = str
 
@@ -23,7 +33,8 @@ class Overdraft(BaseRepository):
         super().__init__(session, None)
         self.logger = logger
         self.today = datetime.now(tz=TZ).date()
-        self.yesterday = datetime.now(tz=TZ).date() - timedelta(days=1)
+        self.yesterday = self.today - timedelta(days=1)
+        self.tomorrow = self.today + timedelta(days=1)
         self.fee_transactions = []
         self.overdrafts_to_open = []
         self.overdrafts_to_close = []
@@ -134,8 +145,9 @@ class Overdraft(BaseRepository):
 
                 # Если овер открыт больше разрешенного времени, то помечаем его
                 # для отключения насовсем. Блокировку карты выполнит следующая задача в Celery.
-                overdraft_opened_days = self.today - overdraft.begin_date
-                if overdraft.balance.company.overdraft_days < overdraft_opened_days.days:
+                overdraft_end_date = overdraft.begin_date + timedelta(days=overdraft.days - 1)
+                overdraft_payment_deadline = overdraft_end_date + timedelta(days=1)
+                if overdraft_payment_deadline < self.today:
                     self.mark_overdraft_to_delete(overdraft_id=overdraft.id, company=overdraft.balance.company)
                     # self.mark_balance_to_block_cards(balance_id=overdraft.balance_id)
                     self.log_decision(
@@ -219,17 +231,6 @@ class Overdraft(BaseRepository):
                         transaction_balance=last_transaction.company_balance,
                         decision=f"начислить комиссию {fee_sum}, начать отсчет времени пользования овердрафтом"
                     )
-
-                # else:
-                #     # Помечаем клиента на блокировку карт
-                #     self.mark_balance_to_block_cards(balance_id=last_transaction.balance_id)
-
-    #
-    #     self.log_decision(
-    #         company=last_transaction.balance.company,
-    #         transaction_balance=last_transaction.company_balance,
-    #         decision=f"заблокировать карты в связи с уменьшением баланса ниже допустимого порога"
-    #     )
 
     def add_fee_transaction(self, balance_id: str, fee_sum: float) -> None:
         now = datetime.now(tz=TZ)
@@ -321,3 +322,64 @@ class Overdraft(BaseRepository):
             f"действие: {decision}"
         )
         self.logger.info(message)
+
+    async def send_opened_overdrafts_report(self) -> None:
+        # Получаем все открытые овердрафты, а также овердрафты, отключенные сегодня принудительно
+        stmt = (
+            sa_select(OverdraftsHistoryOrm)
+            .options(
+                joinedload(OverdraftsHistoryOrm.balance)
+                .joinedload(BalanceOrm.company)
+            )
+            .where(or_(
+                OverdraftsHistoryOrm.end_date.is_(null()),
+                and_(
+                    OverdraftsHistoryOrm.end_date > self.today - timedelta(days=7),
+                    OverdraftsHistoryOrm.overdue
+                )
+            ))
+        )
+        overdrafts = await self.select_all(stmt)
+        for overdraft in overdrafts:
+            if not overdraft.end_date:
+                overdraft_delete_date = overdraft.begin_date + timedelta(days=overdraft.days + 1)
+                overdraft.end_date = overdraft_delete_date
+
+        report = OverdraftsReport()
+
+        # Отправляем отчет для СБ
+        file_for_security_dptmt = report.make_excel(overdrafts)
+        file_name = f"Отчет_овердрафты_{date.strftime(datetime.now(tz=TZ), "%Y_%m_%d__%H_%M")}.xlsx"
+        self.send_mail(
+            recipients=["chinchipos1984@gmail.com"],
+            subject="ННК отчет: овердрафты",
+            text="Отчет",
+            files={file_name: file_for_security_dptmt})
+
+    @staticmethod
+    def send_mail(recipients: List[str], subject: str, text: str, files: Dict[str, bytes] | None = None) \
+            -> None:
+        if not files:
+            files = {}
+
+        msg = MIMEMultipart()
+        msg['From'] = SMTP_USER
+        msg['To'] = ", ".join(recipients)
+        msg['Date'] = formatdate(localtime=True)
+        msg['Subject'] = subject
+        msg.attach(MIMEText(text))
+
+        for file_name, file_content in files.items():
+            print(file_name)
+            part = MIMEBase('application', "octet-stream")
+            part.set_payload(file_content)
+            encoders.encode_base64(part)
+            # part.add_header('Content-Disposition', f'attachment; filename={file_name}')
+            part.add_header('content-disposition', 'attachment', filename=('utf-8', '', file_name))
+            msg.attach(part)
+
+        smtp = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        smtp.starttls()
+        smtp.login(SMTP_USER, SMTP_PASSWORD)
+        smtp.sendmail(SMTP_USER, recipients, msg.as_string())
+        smtp.quit()

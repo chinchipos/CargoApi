@@ -33,8 +33,7 @@ inn_ = Annotated[str | None, Field(description="ИНН", examples=["778965346788
 
 min_balance_ = Annotated[
     PositiveToNegative | None,
-    Field(description="Минимальный баланс, руб.", examples=[20000.0])
-]
+    Field(description="Минимальный баланс, руб.", examples=[20000.0])]
 
 contacts_ = Annotated[str | None, Field(description="Контактные данные", examples=[""])]
 
@@ -44,8 +43,7 @@ date_add_ = Annotated[date | None, Field(description="Дата добавлен�
 
 cards_amount_ = Annotated[
     int | None,
-    Field(description="Количество карт, принадлежащих этой организации", examples=[60])
-]
+    Field(description="Количество карт, принадлежащих этой организации", examples=[60])]
 
 users_ = Annotated[List[CompanyUserSchema], Field(description="Список пользователей этой организации")]
 
@@ -55,8 +53,7 @@ cars_ = Annotated[List[CompanyCarSchema], Field(description="Список пол
 
 direction_ = Annotated[
     FinanceEnum,
-    Field(description="Операция дебетования/кредитования", examples=[FinanceEnum.DEBIT.value])
-]
+    Field(description="Операция дебетования/кредитования", examples=[FinanceEnum.DEBIT.value])]
 
 delta_sum_ = Annotated[NegativeToPositive, Field(description="Сумма корректировки, руб", examples=[5000.0], gt=0)]
 
@@ -78,13 +75,15 @@ overdraft_fee_percent_ = Annotated[
 
 overdraft_begin_date_ = Annotated[
     date | None,
-    Field(description="Дата начала периода действия овердрафта", examples=["2023-05-17"])
-]
+    Field(description="Дата начала периода действия овердрафта", examples=["2023-05-17"])]
 
 overdraft_end_date_ = Annotated[
     date | None,
-    Field(description="Дата прекращения периода действия овердрафта", examples=["2023-05-21"])
-]
+    Field(description="Дата прекращения периода действия овердрафта", examples=["2023-05-21"])]
+
+overdraft_payment_deadline_ = Annotated[
+    date | None,
+    Field(description="Крайняя дата погашения задолженности по овердрафту", examples=["2023-05-22"])]
 
 tariff_id_ = Annotated[str, Field(description="Тариф")]
 
@@ -135,6 +134,9 @@ class CompanyReadSchema(BaseSchema):
     users: users_ = []
     balances: balances_ = []
     cars: cars_ = []
+    overdraft_begin_date: overdraft_begin_date_ = None
+    overdraft_end_date: overdraft_end_date_ = None
+    overdraft_payment_deadline: overdraft_payment_deadline_ = None
 
 
 class CompanyBalanceEditSchema(BaseSchema):

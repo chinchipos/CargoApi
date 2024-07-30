@@ -35,3 +35,8 @@ ROOT_DIR = Path(__file__).parent.parent
 LOG_DIR = os.path.join(ROOT_DIR, "log")
 
 TZ = timezone(offset=timedelta(hours=3), name='МСК')
+
+SMTP_SERVER = os.environ.get("SMTP_SERVER")
+SMTP_PORT = os.environ.get("SMTP_PORT")
+SMTP_USER = os.environ.get("SMTP_USER")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")
