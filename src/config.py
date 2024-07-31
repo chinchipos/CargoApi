@@ -1,3 +1,5 @@
+import json
+
 from dotenv import load_dotenv
 import os
 from datetime import timedelta, timezone
@@ -36,7 +38,9 @@ LOG_DIR = os.path.join(ROOT_DIR, "log")
 
 TZ = timezone(offset=timedelta(hours=3), name='МСК')
 
-SMTP_SERVER = os.environ.get("SMTP_SERVER")
-SMTP_PORT = os.environ.get("SMTP_PORT")
-SMTP_USER = os.environ.get("SMTP_USER")
-SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")
+MAIL_SERVER = os.environ.get("MAIL_SERVER")
+MAIL_PORT = int(os.environ.get("MAIL_PORT"))
+MAIL_USER = os.environ.get("MAIL_USER")
+MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD")
+MAIL_FROM = os.environ.get("MAIL_FROM")
+OVERDRAFTS_MAIL_TO = json.loads(os.environ.get('OVERDRAFTS_MAIL_TO')),

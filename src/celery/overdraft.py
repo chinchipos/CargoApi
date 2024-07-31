@@ -12,7 +12,7 @@ from sqlalchemy import select as sa_select, null, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, aliased
 
-from src.config import TZ, SMTP_USER, SMTP_SERVER, SMTP_PORT, SMTP_PASSWORD
+from src.config import TZ, MAIL_SERVER, MAIL_PORT, MAIL_USER, MAIL_PASSWORD, OVERDRAFTS_MAIL_TO, MAIL_FROM
 from src.connectors.irrelevant_balances import IrrelevantBalances
 from src.database.model.models import (Transaction as TransactionOrm, Balance as BalanceOrm, Company as CompanyOrm,
                                        OverdraftsHistory as OverdraftsHistoryOrm)
@@ -348,7 +348,7 @@ class Overdraft(BaseRepository):
         file_for_security_dptmt = report.make_excel(overdrafts)
         file_name = f"Отчет_овердрафты_{date.strftime(datetime.now(tz=TZ), "%Y_%m_%d__%H_%M")}.xlsx"
         self.send_mail(
-            recipients=["chinchipos1984@gmail.com"],
+            recipients=OVERDRAFTS_MAIL_TO,
             subject="ННК отчет: овердрафты",
             text="Отчет",
             files={file_name: file_for_security_dptmt})
@@ -360,23 +360,22 @@ class Overdraft(BaseRepository):
             files = {}
 
         msg = MIMEMultipart()
-        msg['From'] = SMTP_USER
+        msg['From'] = MAIL_FROM
         msg['To'] = ", ".join(recipients)
         msg['Date'] = formatdate(localtime=True)
         msg['Subject'] = subject
         msg.attach(MIMEText(text))
 
         for file_name, file_content in files.items():
-            print(file_name)
             part = MIMEBase('application', "octet-stream")
             part.set_payload(file_content)
             encoders.encode_base64(part)
-            # part.add_header('Content-Disposition', f'attachment; filename={file_name}')
             part.add_header('content-disposition', 'attachment', filename=('utf-8', '', file_name))
             msg.attach(part)
 
-        smtp = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        smtp = smtplib.SMTP(MAIL_SERVER, MAIL_PORT)
+        # smtp.set_debuglevel(1)
         smtp.starttls()
-        smtp.login(SMTP_USER, SMTP_PASSWORD)
-        smtp.sendmail(SMTP_USER, recipients, msg.as_string())
+        smtp.login(MAIL_USER, MAIL_PASSWORD)
+        smtp.sendmail(MAIL_FROM, recipients, msg.as_string())
         smtp.quit()
