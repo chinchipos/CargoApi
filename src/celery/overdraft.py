@@ -358,7 +358,8 @@ class Overdraft(BaseRepository):
             -> None:
         if not files:
             files = {}
-
+        print(recipients)
+        print(type(recipients))
         msg = MIMEMultipart()
         msg['From'] = MAIL_FROM
         msg['To'] = ", ".join(recipients)
