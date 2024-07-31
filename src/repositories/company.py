@@ -152,14 +152,15 @@ class CompanyRepository(BaseRepository):
             ))
         )
         opened_overdraft = await self.select_first(stmt)
-        overdraft_end_date = opened_overdraft.end_date if opened_overdraft.end_date \
-            else opened_overdraft.begin_date + timedelta(days=company.overdraft_days - 1)
-        overdraft_payment_deadline = overdraft_end_date + timedelta(days=1)
-        company.annotate({
-            'overdraft_begin_date': opened_overdraft.begin_date,
-            'overdraft_end_date': overdraft_end_date,
-            'overdraft_payment_deadline': overdraft_payment_deadline,
-        })
+        if opened_overdraft:
+            overdraft_end_date = opened_overdraft.end_date if opened_overdraft.end_date \
+                else opened_overdraft.begin_date + timedelta(days=company.overdraft_days - 1)
+            overdraft_payment_deadline = overdraft_end_date + timedelta(days=1)
+            company.annotate({
+                'overdraft_begin_date': opened_overdraft.begin_date,
+                'overdraft_end_date': overdraft_end_date,
+                'overdraft_payment_deadline': overdraft_payment_deadline,
+            })
 
         # Добавляем сведения о количестве карт
         # stmt = sa_select(sa_func.count(models.Card.id)).filter_by(company_id=company_id)
