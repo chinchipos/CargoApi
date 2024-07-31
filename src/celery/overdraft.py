@@ -320,7 +320,7 @@ class Overdraft(BaseRepository):
         )
         self.logger.info(message)
 
-    async def send_opened_overdrafts_report(self) -> None:
+    async def send_overdrafts_report(self) -> None:
         # Получаем все открытые овердрафты, а также овердрафты, отключенные сегодня принудительно
         stmt = (
             sa_select(OverdraftsHistoryOrm)

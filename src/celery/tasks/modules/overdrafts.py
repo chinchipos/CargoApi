@@ -38,7 +38,7 @@ async def send_overdrafts_report_fn() -> None:
 
     async with sessionmanager.session() as session:
         overdraft = Overdraft(session, celery_logger)
-        await overdraft.send_opened_overdrafts_report()
+        await overdraft.send_overdrafts_report()
 
     # Закрываем соединение с БД
     await sessionmanager.close()

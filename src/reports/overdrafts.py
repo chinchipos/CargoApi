@@ -33,8 +33,8 @@ class OverdraftsReport(BaseExcelReport):
                 cell_format=self.format(data_type=ExcelDataType.FLOAT_SEPARATED, align=ExcelAlign.RIGHT),
             ),
             dict(
-                title='Дата отключения услуги',
-                width=17,
+                title='Дата отключения услуги и блокировки карт',
+                width=25,
                 cell_format=self.format(align=ExcelAlign.CENTER),
             ),
         ]
