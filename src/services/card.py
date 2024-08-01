@@ -3,8 +3,10 @@ from typing import List
 from src.database.model.models import CardSystem as CardSystemOrm
 from src.database.model.card import CardOrm
 from src.repositories.card import CardRepository
+from src.repositories.system import SystemRepository
 from src.schemas.card import CardCreateSchema, CardReadSchema, CardEditSchema
 from src.utils import enums
+from src.utils.enums import ContractScheme
 from src.utils.exceptions import BadRequestException, ForbiddenException
 
 
@@ -109,6 +111,9 @@ class CardService:
             new_systems=systems
         )
 
+        # Если карта ГПН, то назначаем ей группу
+        await self.assign_card_groups_for_gpn_cards([card])
+
         # Получаем карту из БД
         card = await self.get_card(card_id)
         return card
@@ -161,6 +166,9 @@ class CardService:
         # Выполняем привязку к организации
         dataset = [{"id": card.id, "company_id": company_id} for card in cards]
         await self.repository.bulk_update(CardOrm, dataset)
+
+        # Картам ГПН назначаем группу
+        await self.assign_card_groups_for_gpn_cards(cards)
 
     async def bulk_bind_systems(self, card_numbers: List[str], system_ids: List[str]) -> None:
         # Проверяем права доступа.
@@ -215,13 +223,14 @@ class CardService:
         else:
             raise ForbiddenException()
 
-        # Отвязываем от карт автомобиль, водителя, организацию. Блокируем карту.
+        # Отвязываем от карт автомобиль, водителя, организацию, группу. Блокируем карту.
         dataset = [
             {
                 "id": card.id,
                 "company_id": None,
                 "belongs_to_car_id": None,
                 "belongs_to_driver_id": None,
+                "card_group_id": None,
                 "is_active": False,
             } for card in cards
         ]
@@ -290,4 +299,30 @@ class CardService:
 
         # Блокируем карты
         dataset = [{"id": card.id, "is_active": False, "manual_lock": True} for card in cards]
+        await self.repository.bulk_update(CardOrm, dataset)
+
+    async def assign_card_groups_for_gpn_cards(self, any_cards: List[CardOrm]) -> None:
+        # Получаем систему ГПН
+        system_repository = SystemRepository(self.repository.session, self.repository.user)
+        gpn_system = await system_repository.get_system_by_short_name(
+            system_fhort_name="ГПН",
+            scheme=ContractScheme.OVERBOUGHT
+        )
+
+        # Из полученного списка карт вычленяем карты ГПН
+        gpn_cards = self.repository.filter_cards_by_system(any_cards, gpn_system)
+
+        # Назначаем группы
+        await self.repository.get_card_groups()
+        for card in gpn_cards:
+            if card.company_id:
+                group = await self.repository.get_or_create_card_group(
+                    card_group_ext_id=card.company.personal_account,
+                    card_group_name=card.company.personal_account
+                )
+                card.card_group_id = group.id
+            else:
+                card.card_group_id = None
+
+        dataset = [{"id": card.id, "card_group_id": card.card_group_id} for card in gpn_cards]
         await self.repository.bulk_update(CardOrm, dataset)

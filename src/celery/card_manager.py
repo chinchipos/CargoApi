@@ -116,7 +116,7 @@ class CardMgr(BaseRepository):
             card.reason_for_blocking = BlockingCardReason.NNK
 
         # Сверяем статусы карт локально и в системе
-        khnp_cards_to_change_state, local_cards = self._compare_card_states(
+        khnp_cards_to_change_state, local_cards = self._compare_khnp_card_states(
             khnp_cards=khnp_cards,
             local_cards_to_be_active=local_cards_to_be_active,
             local_cards_to_be_blocked=local_cards_to_be_blocked
@@ -164,8 +164,8 @@ class CardMgr(BaseRepository):
         return system_cards
 
     @staticmethod
-    def _compare_card_states(khnp_cards: List[Dict[str, Any]], local_cards_to_be_active: List[CardOrm],
-                             local_cards_to_be_blocked: List[CardOrm]) -> Tuple[List[str], List[CardOrm]]:
+    def _compare_khnp_card_states(khnp_cards: List[Dict[str, Any]], local_cards_to_be_active: List[CardOrm],
+                                  local_cards_to_be_blocked: List[CardOrm]) -> Tuple[List[str], List[CardOrm]]:
         khnp_cards_to_change_state = []
         # Активные карты
         for local_card in local_cards_to_be_active:

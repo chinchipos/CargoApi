@@ -24,6 +24,7 @@ want_model_files = (
     f"{models_path}.models",
     f"{models_path}.card",
     f"{models_path}.card_type",
+    f"{models_path}.card_group",
 )
 
 for want_model_file in want_model_files:

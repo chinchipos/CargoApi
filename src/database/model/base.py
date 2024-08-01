@@ -1,4 +1,3 @@
-"""
 import copy
 from typing import Dict, Any, Tuple
 
@@ -54,4 +53,3 @@ class Base(AsyncAttrs, MappedAsDataclass, DeclarativeBase):
         for field, value in data.items():
             setattr(self, field, copy.deepcopy(value))
         return self
-"""

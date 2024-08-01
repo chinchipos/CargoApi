@@ -101,6 +101,21 @@ class CardOrm(Base):
         comment="Дата последнего использования"
     )
 
+    # Группа
+    card_group_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.card_group.id"),
+        nullable=True,
+        init=False,
+        comment="Группа карт"
+    )
+
+    # Группа
+    card_group: Mapped["CardGroupOrm"] = relationship(
+        back_populates="cards",
+        lazy="noload",
+        init=False
+    )
+
     # Список связей этой карты с системами
     card_system_links: Mapped[List["CardSystem"]] = relationship(
         back_populates="card",

@@ -10,12 +10,14 @@ from src.config import TZ
 from src.connectors.gazpromneft.config import SYSTEM_SHORT_NAME, GPN_USERNAME, GPN_URL, GPN_TOKEN, GPN_PASSWORD
 from src.connectors.irrelevant_balances import IrrelevantBalances
 from src.database.model.card import CardOrm
-from src.database.model.models import CardType as CardTypeOrm, CardSystem as CardSystemOrm
+from src.database.model.card_group import CardGroupOrm
+from src.database.model.card_type import CardTypeOrm
 from src.repositories.base import BaseRepository
 from src.repositories.card import CardRepository
 from src.repositories.system import SystemRepository
 from src.utils.enums import ContractScheme
 from src.utils.log import ColoredLogger
+from src.database.model.models import CardSystem as CardSystemOrm
 
 from sqlalchemy import select as sa_select
 
@@ -54,6 +56,7 @@ class GPNConnector(BaseRepository):
 
         self.gpn_cards = []
         self.local_cards = []
+        self.card_groups = []
 
     def endpoint(self, api_version: str, fn: str) -> str:
         return self.api_url + api_version + "/" + fn
@@ -198,41 +201,66 @@ class GPNConnector(BaseRepository):
         # Типы карт, используемые в ГПН, должны присутствовать в локальной БД
         card_types = await self.get_card_types(gpn_cards)
 
+        # Выгружаем из БД группы карт
+        card_repository = CardRepository(self.session, None)
+        await card_repository.get_card_groups()
+
         # Сравниваем карты из системы с локальными.
         # В локальной БД создаем новые, если появились в системе.
         # В локальной БД обновляем статус карт на тот, который установлен в системе.
         new_local_cards = []
-        local_cards_to_change_status = []
+        local_cards_to_update = []
         for gpn_card in gpn_cards:
             local_card = self.get_equal_local_card(gpn_card, local_cards)
             gpn_card_status_is_active = True if "locked" not in gpn_card["status"].lower() else False
             if local_card:
-                # В локальной системе есть соответствующая карта - сверяем статусы
+                # В локальной системе есть соответствующая карта - сверяем статусы и группы.
+                # Группы в локальной БД имеют первичное значение.
+                # Статусы в системе имеют первичное значение.
+                changed = False
                 if gpn_card_status_is_active != local_card:
                     local_card.is_active = gpn_card_status_is_active
-                    local_cards_to_change_status.append({"id": local_card.id, "is_active": local_card.is_active})
+                    changed = True
+
+                local_card_ext_group_id = local_card.card_group.external_id if local_card.card_group_id else None
+                if gpn_card['group_id'] != local_card_ext_group_id:
+                    local_card_group = await card_repository.get_or_create_card_group(
+                        gpn_card['group_id'], gpn_card['group_name'])
+                    local_card.card_group_id = local_card_group.id if local_card_group else None
+                    changed = True
+
+                if changed:
+                    local_cards_to_update.append(local_card)
 
             else:
                 # В локальной системе нет такой карты - создаем её
-                new_local_cards.append({
+                new_card_data = {
                     "card_number": gpn_card["number"],
                     "card_type_id": card_types[gpn_card["carrier_name"]].id,
                     "is_active": gpn_card_status_is_active,
-                })
+                }
+                new_card = await self.insert(CardOrm, **new_card_data)
 
-        # Обновляем в БД статусы карт
-        if local_cards_to_change_status:
-            await self.bulk_update(CardOrm, local_cards_to_change_status)
+                # Привязываем к системе
+                card_system_date = {"card_id": new_card.id, "system_id": self.system.id}
+                await self.insert(CardSystemOrm, **card_system_date)
 
-        # Записываем в БД сведения о новых картах
+                # Присваиваем группу
+                card_group = await self.get_or_create_card_group(gpn_card['group_id'], gpn_card['group_name'])
+                new_card.card_group_id = card_group.id if card_group else None
+
+                new_local_cards.append(new_card)
+
+        # Обновляем в БД карты
+        if local_cards_to_update:
+            local_cards_to_update = [
+                {
+                    "id": card.id,
+                    "is_active": card.is_active,
+                    "card_group_id": card.card_group_id,
+                } for card in local_cards_to_update
+            ]
+            await self.bulk_update(CardOrm, local_cards_to_update)
+
         if new_local_cards:
-            await self.bulk_insert_or_update(CardOrm, new_local_cards, index_field="card_number")
-
-            # Получаем список созданных карт и привязываем их к системе
-            new_card_numbers = [card["card_number"] for card in new_local_cards]
-            stmt = sa_select(CardOrm).where(CardOrm.card_number.in_(new_card_numbers))
-            new_local_cards = await self.select_all(stmt)
-            card_system_bindings = [{"card_id": card.id, "system_id": self.system.id} for card in new_local_cards]
-            await self.bulk_insert_or_update(CardSystemOrm, card_system_bindings)
             self.logger.info(f"Импортировано {len(new_local_cards)} новых карт")
-

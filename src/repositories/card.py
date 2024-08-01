@@ -2,8 +2,10 @@ import traceback
 from typing import List
 
 from sqlalchemy import select as sa_select, delete as sa_delete, func as sa_func
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload, load_only, aliased
 
+from src.database.model import CardGroupOrm
 from src.database.model.card import CardOrm
 from src.database.model.card_type import CardTypeOrm
 from src.database.model.models import (User as UserOrm, Transaction as TransactionOrm, System as SystemOrm,
@@ -17,6 +19,10 @@ from src.utils.exceptions import DBException
 
 
 class CardRepository(BaseRepository):
+
+    def __init__(self, session: AsyncSession, user: UserOrm | None = None):
+        super().__init__(session, user)
+        self.card_groups = []
 
     async def create(self, create_schema: CardCreateSchema) -> CardOrm:
         new_card = CardOrm(**create_schema.model_dump())
@@ -230,8 +236,12 @@ class CardRepository(BaseRepository):
                     CardOrm.card_number,
                     CardOrm.is_active,
                     CardOrm.reason_for_blocking,
-                    CardOrm.company_id
+                    CardOrm.company_id,
+                    CardOrm.card_group_id
                 )
+            )
+            .options(
+                joinedload(CardOrm.card_group)
             )
             .select_from(CardOrm, CardSystemOrm)
             .where(CardSystemOrm.card_id == CardOrm.id)
@@ -247,3 +257,31 @@ class CardRepository(BaseRepository):
         cards = await self.select_all(stmt)
 
         return cards
+
+    @staticmethod
+    def filter_cards_by_system(any_cards: List[CardOrm], system: SystemOrm) -> List[CardOrm]:
+        system_cards = []
+        for card in any_cards:
+            for s in card.systems:
+                if s.id == system.id:
+                    system_cards.append(card)
+
+        return system_cards
+
+    async def get_card_groups(self) -> None:
+        stmt = sa_select(CardGroupOrm)
+        self.card_groups = await self.select_all(stmt)
+
+    async def get_or_create_card_group(self, card_group_ext_id: str, card_group_name: str) -> CardGroupOrm | None:
+        if not card_group_ext_id:
+            return None
+
+        for card_group in self.card_groups:
+            if card_group.external_id == card_group_ext_id:
+                return card_group
+
+        # Группа не найдена - создаем новую
+        new_group = {"external_id": card_group_ext_id, "name": card_group_name}
+        group = await self.insert(CardGroupOrm, **new_group)
+        self.card_groups.append(group)
+        return group
