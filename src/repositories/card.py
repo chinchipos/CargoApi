@@ -5,9 +5,10 @@ from sqlalchemy import select as sa_select, delete as sa_delete, func as sa_func
 from sqlalchemy.orm import joinedload, selectinload, load_only, aliased
 
 from src.database.model.card import CardOrm
+from src.database.model.card_type import CardTypeOrm
 from src.database.model.models import (User as UserOrm, Transaction as TransactionOrm, System as SystemOrm,
-                                       Car as CarOrm, CardType as CardTypeOrm, Company as CompanyOrm,
-                                       CardSystem as CardSystemOrm, Balance as BalanceOrm)
+                                       Car as CarOrm, Company as CompanyOrm, CardSystem as CardSystemOrm,
+                                       Balance as BalanceOrm)
 from src.repositories.base import BaseRepository
 from src.schemas.card import CardCreateSchema
 from src.utils import enums

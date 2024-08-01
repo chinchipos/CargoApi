@@ -6,9 +6,10 @@ from sqlalchemy import select as sa_select, delete as sa_delete, null
 
 from src.auth.manager import create_user
 from src.database.model.card import CardOrm
+from src.database.model.card_type import CardTypeOrm
 from src.database.model.models import (Role as RoleOrm, System as SystemOrm, Company as CompanyOrm, Balance as BalanceOrm,
                                        Tariff as TariffOrm, OuterGoods as OuterGoodsOrm, Car as CarOrm,
-                                       InnerGoods as InnerGoodsOrm, CardType as CardTypeOrm, CardSystem as CardSystemOrm,
+                                       InnerGoods as InnerGoodsOrm, CardSystem as CardSystemOrm,
                                        BalanceSystemTariff as BalanceSystemTariffOrm, Transaction as TransactionOrm)
 from src.repositories.base import BaseRepository
 from src.schemas.user import UserCreateSchema

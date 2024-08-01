@@ -147,4 +147,8 @@ class CompanyService:
         transaction_repository = TransactionRepository(self.repository.session, self.repository.user)
         transaction_type = TransactionType.DECREASE if edit_balance_schema.direction == enums.Finance.DEBIT.name \
             else TransactionType.REFILL
-        await transaction_repository.create_corrective_transaction(balance, transaction_type, edit_balance_schema.delta_sum)
+        await transaction_repository.create_corrective_transaction(
+            balance=balance,
+            transaction_type=transaction_type,
+            delta_sum=edit_balance_schema.delta_sum
+        )

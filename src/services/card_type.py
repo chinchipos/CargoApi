@@ -1,6 +1,6 @@
 from typing import List
 
-from src.database.model import models
+from src.database.model.card_type import CardTypeOrm
 from src.repositories.card_type import CardTypeRepository
 from src.schemas.card_type import CardTypeCreateSchema, CardTypeReadSchema, CardTypeEditSchema
 from src.utils.exceptions import BadRequestException
@@ -19,7 +19,7 @@ class CardTypeService:
 
     async def edit(self, card_type_id: str, card_type_edit_schema: CardTypeEditSchema) -> CardTypeReadSchema:
         # Получаем запись из БД
-        card_type_obj = await self.repository.session.get(models.CardType, card_type_id)
+        card_type_obj = await self.repository.session.get(CardTypeOrm, card_type_id)
         if not card_type_obj:
             raise BadRequestException('Запись не найдена')
 
@@ -31,9 +31,9 @@ class CardTypeService:
         card_type_read_schema = CardTypeReadSchema.model_validate(card_type_obj)
         return card_type_read_schema
 
-    async def get_card_types(self) -> List[models.CardType]:
+    async def get_card_types(self) -> List[CardTypeOrm]:
         card_types = await self.repository.get_card_types()
         return card_types
 
     async def delete(self, card_type_id: str) -> None:
-        await self.repository.delete_object(models.CardType, card_type_id)
+        await self.repository.delete_object(CardTypeOrm, card_type_id)

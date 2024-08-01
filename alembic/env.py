@@ -23,6 +23,7 @@ models_path = "src.database.model"
 want_model_files = (
     f"{models_path}.models",
     f"{models_path}.card",
+    f"{models_path}.card_type",
 )
 
 for want_model_file in want_model_files:

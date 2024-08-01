@@ -32,7 +32,7 @@ class CardOrm(Base):
     )
 
     # Тип карты
-    card_type: Mapped["CardType"] = relationship(
+    card_type: Mapped["CardTypeOrm"] = relationship(
         back_populates="cards",
         lazy="noload",
         init=False

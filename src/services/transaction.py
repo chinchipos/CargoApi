@@ -1,6 +1,7 @@
-from datetime import date, timedelta, datetime
-from dateutil.relativedelta import relativedelta
+from datetime import timedelta, datetime
 from typing import List
+
+from dateutil.relativedelta import relativedelta
 
 from src.config import TZ
 from src.database.model.models import Transaction as TransactionOrm

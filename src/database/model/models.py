@@ -147,6 +147,13 @@ class Company(Base):
         comment="Комиссия за овердрафт, %"
     )
 
+    overdue_days: Mapped[int] = mapped_column(
+        sa.Integer(),
+        nullable=False,
+        server_default=sa.text("0"),
+        comment="Просрочка платежа, дни"
+    )
+
     # Список автомобилей этой организации
     cars: Mapped[List["Car"]] = relationship(
         back_populates="company",
@@ -698,29 +705,7 @@ class AdminCompany(Base):
     repr_cols = ("user_id", "company_id")
 
 
-class CardType(Base):
-    __tablename__ = "card_type"
-    __table_args__ = {
-        'comment': 'Типы карт'
-    }
-
-    name: Mapped[str] = mapped_column(
-        sa.String(50),
-        unique=True,
-        nullable=False,
-        comment="Название типа"
-    )
-
-    # Список карт этого типа
-    cards: Mapped[List["CardOrm"]] = relationship(
-        back_populates="card_type",
-        cascade="all, delete-orphan",
-        lazy="noload",
-        init=False
-    )
-
-    repr_cols = ("name",)
-
+# CardType
 
 class Car(Base):
     __tablename__ = "car"
