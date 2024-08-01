@@ -10,6 +10,8 @@ from src.database.model import Base
 
 class BlockingCardReason(Enum):
     MANUALLY = "Блокировка ННК"
+    NNK = "Заблокировано ННК"
+    COMPANY = "Заблокировано организацией"
     PIN = "Блокировка по ПИН"
 
 

@@ -113,7 +113,7 @@ class CardMgr(BaseRepository):
 
         for card in local_cards_to_be_blocked:
             card.is_active = False
-            card.reason_for_blocking = BlockingCardReason.MANUALLY
+            card.reason_for_blocking = BlockingCardReason.NNK
 
         # Сверяем статусы карт локально и в системе
         khnp_cards_to_change_state, local_cards = self._compare_card_states(
@@ -180,15 +180,15 @@ class CardMgr(BaseRepository):
                     elif khnp_card["cardBlockRequest"] in [CardStatus.BLOCKING_PENDING.value, CardStatus.BLOCKED.value]:
                         if khnp_card["status_name"] == "Активная":
                             khnp_cards_to_change_state.append(local_card.card_number)
-                            local_card.reason_for_blocking = BlockingCardReason.MANUALLY
+                            local_card.reason_for_blocking = BlockingCardReason.NNK
 
                     break
 
         # Заблокированные карты: ручная блокировка
         for local_card in local_cards_to_be_blocked:
-            if local_card.reason_for_blocking in [BlockingCardReason.MANUALLY, None]:
+            if local_card.reason_for_blocking in [BlockingCardReason.NNK, None]:
                 if local_card.reason_for_blocking is None:
-                    local_card.reason_for_blocking = BlockingCardReason.MANUALLY
+                    local_card.reason_for_blocking = BlockingCardReason.NNK
 
                 for khnp_card in khnp_cards:
                     if khnp_card["cardNo"] == local_card.card_number:
@@ -220,7 +220,7 @@ class CardMgr(BaseRepository):
 
                             if khnp_card["cardBlockRequest"] == CardStatus.BLOCKED.value:
                                 local_card.is_active = False
-                                local_card.reason_for_blocking = BlockingCardReason.MANUALLY
+                                local_card.reason_for_blocking = BlockingCardReason.NNK
 
                             if khnp_card["cardBlockRequest"] == CardStatus.ACTIVATE_PENDING.value:
                                 local_card.is_active = True
