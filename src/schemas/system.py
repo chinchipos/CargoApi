@@ -13,35 +13,31 @@ balance_ = Annotated[float, Field(description="Баланс, руб", examples=[
 
 transactions_sync_dt_ = Annotated[
     DateTimeNormalized | None,
-    Field(description="Время последней успешной синхронизации транзакции", examples=["2024-06-22 13:30:45"])
-]
+    Field(description="Время последней успешной синхронизации транзакции", examples=["2024-06-22 13:30:45"])]
 
 cards_sync_dt_ = Annotated[
     DateTimeNormalized | None,
-    Field(description="Время последней успешной синхронизации карт", examples=["2024-06-22 13:30:45"])
-]
+    Field(description="Время последней успешной синхронизации карт", examples=["2024-06-22 13:30:45"])]
 
 balance_sync_dt_ = Annotated[
     DateTimeNormalized | None,
-    Field(description="Время последней успешной синхронизации баланса", examples=["2024-06-22 13:30:45"])
-]
+    Field(description="Время последней успешной синхронизации баланса", examples=["2024-06-22 13:30:45"])]
 
 cards_amount_total_ = Annotated[int, Field(description="Общее кол-во карт этого поставщика услуг", examples=[750])]
 
 cards_amount_in_use_ = Annotated[
     int,
-    Field(description="Кол-во используемых карт этого поставщика услуг", examples=[630])
-]
+    Field(description="Кол-во используемых карт этого поставщика услуг", examples=[630])]
 
 cards_amount_free_ = Annotated[
     int,
-    Field(description="Кол-во неиспользуемых карт этого поставщика услуг", examples=[120])
-]
+    Field(description="Кол-во неиспользуемых карт этого поставщика услуг", examples=[120])]
 
 transaction_days_ = Annotated[
     int | None,
-    Field(description="Синхронизировать транзакции за период, дни (0 < x <= 50)", examples=[30], ge=0, le=50)
-]
+    Field(description="Синхронизировать транзакции за период, дни (0 < x <= 50)", examples=[30], ge=0, le=50)]
+
+card_icon_url_ = Annotated[str | None, Field(description="Ссылка на иконку карты")]
 
 
 class SystemEditSchema(BaseSchema):
@@ -65,6 +61,7 @@ class SystemReadSchema(BaseSchema):
     cards_amount_total: cards_amount_total_
     cards_amount_in_use: cards_amount_in_use_
     cards_amount_free: cards_amount_free_
+    card_icon_url: card_icon_url_
 
 
 """

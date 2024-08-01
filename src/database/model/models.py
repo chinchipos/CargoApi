@@ -868,6 +868,13 @@ class System(Base):
         comment="Дата последней успешной синхронизации баланса"
     )
 
+    card_icon_url: Mapped[str] = mapped_column(
+        sa.String(),
+        nullable=True,
+        init=False,
+        comment="Ссылка на иконку карты"
+    )
+
     # Список балансов, связанных с этой системой
     balances: Mapped[List["Balance"]] = relationship(
         back_populates="systems",
