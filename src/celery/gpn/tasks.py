@@ -59,21 +59,21 @@ def gpn_set_card_states(balance_ids_to_change_card_states: Dict[str, List[str]])
     return "COMPLETE"
 
 
-async def gpn_cards_bind_company_fn(card_ids: List[str], personal_account: str, company_name: str) -> None:
+async def gpn_cards_bind_company_fn(card_ids: List[str], personal_account: str) -> None:
     sessionmanager = DatabaseSessionManager()
     sessionmanager.init(PROD_URI)
 
     async with sessionmanager.session() as session:
         gpn = GPNController(session, celery_logger)
-        await gpn.gpn_bind_company_to_cards(card_ids, personal_account, company_name)
+        await gpn.gpn_bind_company_to_cards(card_ids, personal_account)
 
     # Закрываем соединение с БД
     await sessionmanager.close()
 
 
 @celery.task(name="GPN_CARDS_BIND_COMPANY")
-def gpn_cards_bind_company(card_ids: List[str], personal_account: str, company_name: str) -> None:
-    asyncio.run(gpn_cards_bind_company_fn(card_ids, personal_account, company_name))
+def gpn_cards_bind_company(card_ids: List[str], personal_account: str) -> None:
+    asyncio.run(gpn_cards_bind_company_fn(card_ids, personal_account))
 
 
 async def gpn_cards_unbind_company_fn(card_ids: List[str]) -> None:
@@ -91,6 +91,23 @@ async def gpn_cards_unbind_company_fn(card_ids: List[str]) -> None:
 @celery.task(name="GPN_CARD_UNBIND_COMPANY")
 def gpn_cards_unbind_company(card_ids: List[str]) -> None:
     asyncio.run(gpn_cards_unbind_company_fn(card_ids))
+
+
+async def sync_gpn_cards_fn() -> None:
+    sessionmanager = DatabaseSessionManager()
+    sessionmanager.init(PROD_URI)
+
+    async with sessionmanager.session() as session:
+        gpn = GPNController(session, celery_logger)
+        await gpn.sync_cards()
+
+    # Закрываем соединение с БД
+    await sessionmanager.close()
+
+
+@celery.task(name="SYNC_GPN_CARDS")
+def sync_gpn_cards() -> None:
+    asyncio.run(sync_gpn_cards_fn())
 
 
 """

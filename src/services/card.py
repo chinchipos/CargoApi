@@ -121,7 +121,7 @@ class CardService:
             if system.short_name == 'ГПН':
                 if current_company_id != new_company_id:
                     if new_company_id:
-                        gpn_cards_bind_company.delay([card.id], card.company.personal_account, card.company.name)
+                        gpn_cards_bind_company.delay([card.id], card.company.personal_account)
                     else:
                         gpn_cards_unbind_company.delay([card.id])
 
@@ -190,7 +190,7 @@ class CardService:
 
         if card_ids:
             company = await self.repository.session.get(CompanyOrm, company_id)
-            gpn_cards_bind_company.delay(card_ids, company.personal_account, company.name)
+            gpn_cards_bind_company.delay(card_ids, company.personal_account)
 
     async def bulk_bind_systems(self, card_numbers: List[str], system_ids: List[str]) -> None:
         # Проверяем права доступа.

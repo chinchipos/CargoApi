@@ -10,7 +10,7 @@ from src.celery.irrelevant_balances import IrrelevantBalances
 from src.config import TZ
 from src.database.model.card import CardOrm, BlockingCardReason
 from src.database.model.card_type import CardTypeOrm
-from src.database.model.models import CardSystem as CardSystemOrm, Company as CompanyOrm
+from src.database.model.models import CardSystem as CardSystemOrm
 from src.repositories.base import BaseRepository
 from src.repositories.card import CardRepository
 from src.repositories.system import SystemRepository
@@ -63,14 +63,15 @@ class GPNController(BaseRepository):
             "balance_sync_dt": datetime.now(tz=TZ)
         })
 
-    """
     async def sync_cards(self) -> None:
+        await self.init_system()
+
         # Получаем список карт от системы
-        gpn_cards = self.api.get_gpn_cards()
-        self.logger.info(f"Количество карт в API ГПН: {len(gpn_cards)}")
+        remote_cards = self.api.get_gpn_cards()
+        self.logger.info(f"Количество карт в API ГПН: {len(remote_cards)}")
 
         # Получаем типы карт
-        await self.get_card_types(gpn_cards)
+        await self.get_card_types(remote_cards)
 
         # Получаем список карт из локальной БД, привязанных к ГПН
         local_cards = await self.get_local_cards()
@@ -78,19 +79,31 @@ class GPNController(BaseRepository):
 
         # Создаем в локальной БД новые карты и привязываем их к ГПН - статус карты из ГПН транслируем на локальную БД.
         # Привязываем в локальной БД карты, открепленные от ГПН - статус не устанавливаем.
-        created_or_updated = False
+        # created_or_updated = False
         local_card_numbers = [local_card.card_number for local_card in local_cards]
-        for gpn_card in gpn_cards:
-            if gpn_card['number'] not in local_card_numbers:
-                is_active = True if "locked" not in gpn_card["status"].lower() else False
+        for remote_card in remote_cards:
+            if remote_card['number'] not in local_card_numbers:
+                is_active = True if "locked" not in remote_card["status"].lower() else False
                 await self.process_unbinded_local_card_or_create_new(
-                    external_id=gpn_card['id'],
-                    card_number=gpn_card['number'],
-                    card_type_name=gpn_card["carrier_name"],
+                    external_id=remote_card['id'],
+                    card_number=remote_card['number'],
+                    card_type_name=remote_card["carrier_name"],
                     is_active=is_active
                 )
-                created_or_updated = True
+                # created_or_updated = True
 
+        # Локальным картам присваиваем external_id, если не присвоено
+        dataset = []
+        for local_card in local_cards:
+            for remote_card in remote_cards:
+                if remote_card['number'] == local_card.card_number:
+                    if remote_card['id'] != local_card.external_id:
+                        dataset.append({"id": local_card.id, "external_id": remote_card['id']})
+
+        if dataset:
+            await self.bulk_update(CardOrm, dataset)
+
+        """
         # Синхронизируем сами группы карт
         await self.sync_card_groups()
 
@@ -107,17 +120,17 @@ class GPNController(BaseRepository):
         gpn_group_id_by_name = {gpn_card_group['name']: gpn_card_group['id'] for gpn_card_group in gpn_card_groups}
 
         # Сравниваем группы карт, присвоенные картам. Записи в локальной БД имеют первичное значение.
-        gpn_cards_dict = {card['number']: card for card in gpn_cards}
+        gpn_cards_dict = {card['number']: card for card in remote_cards}
         for local_card in local_cards:
             gpn_card = gpn_cards_dict[local_card.card_number]
             if gpn_card['group_id'] != local_card.group_id:
                 if local_card.company_id:
-                    self.api.bind_card_to_group(
+                    self.api.bind_cards_to_group(
                         card_id=gpn_card['id'],
                         group_id=gpn_group_id_by_name[local_card.company.personal_account]
                     )
                 else:
-                    self.api.unbind_card_from_group(gpn_card_id=gpn_card['id'])
+                    self.api.unbind_cards_from_group(gpn_card_id=gpn_card['id'])
 
         # Записываем в БД время последней успешной синхронизации
         await self.update_object(self.system, update_data={"cards_sync_dt": datetime.now(tz=TZ)})
@@ -126,7 +139,6 @@ class GPNController(BaseRepository):
 
     async def get_local_cards(self) -> List[CardOrm]:
         card_repository = CardRepository(self.session)
-        # local_cards = await card_repository.get_cards_by_system_id(self.system.id)
         local_cards = await card_repository.get_cards_by_filters(system_id=self.system.id)
 
         return local_cards
@@ -154,6 +166,7 @@ class GPNController(BaseRepository):
 
         self.card_types = {data.name: data for data in local_card_types_dataset}
 
+    """
     async def sync_card_groups(self):
         # Из локальной БД получаем список лицевых счетов организаций, которым присвоены карты ГПН.
         # Лицевые счета являются наименованиями для групп карт
@@ -193,6 +206,7 @@ class GPNController(BaseRepository):
         # Создаем в API недостающие группы.
         for company in companies:
             self.api.create_card_group(group_name=company.personal_account)
+    """
 
     async def process_unbinded_local_card_or_create_new(self, external_id: str, card_number: str, card_type_name: str,
                                                         is_active: bool) -> None:
@@ -221,8 +235,7 @@ class GPNController(BaseRepository):
 
             self.logger.info(f"{card_number} | в БД создана новая карта и привязана к ГПН")
 
-    async def gpn_bind_company_to_cards(self, card_ids: List[str], personal_account: str, company_name: str) \
-            -> None:
+    async def gpn_bind_company_to_cards(self, card_ids: List[str], personal_account: str) -> None:
         await self.init_system()
 
         # Получаем из ГПН группу с наименованием, содержащим personal account
