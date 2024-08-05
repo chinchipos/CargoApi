@@ -3,9 +3,8 @@ from typing import List
 
 from sqlalchemy import select as sa_select, delete as sa_delete, func as sa_func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload, selectinload, load_only, aliased
+from sqlalchemy.orm import joinedload, selectinload, aliased
 
-from src.database.model import CardGroupOrm
 from src.database.model.card import CardOrm
 from src.database.model.card_type import CardTypeOrm
 from src.database.model.models import (User as UserOrm, Transaction as TransactionOrm, System as SystemOrm,
@@ -14,7 +13,6 @@ from src.database.model.models import (User as UserOrm, Transaction as Transacti
 from src.repositories.base import BaseRepository
 from src.schemas.card import CardCreateSchema
 from src.utils import enums
-from src.utils.enums import ContractScheme
 from src.utils.exceptions import DBException
 
 
@@ -35,18 +33,7 @@ class CardRepository(BaseRepository):
         stmt = (
             sa_select(CardOrm)
             .options(
-                load_only(
-                    CardOrm.id,
-                    CardOrm.card_number,
-                    CardOrm.is_active,
-                    CardOrm.reason_for_blocking,
-                    CardOrm.date_last_use,
-                    CardOrm.company_id
-                )
-            )
-            .options(
                 selectinload(CardOrm.systems)
-                .load_only(SystemOrm.id, SystemOrm.full_name)
             )
             .options(
                 joinedload(CardOrm.card_type)
@@ -54,7 +41,6 @@ class CardRepository(BaseRepository):
             )
             .options(
                 joinedload(CardOrm.company)
-                .load_only(CompanyOrm.id, CompanyOrm.name, CompanyOrm.inn)
             )
             .options(
                 joinedload(CardOrm.belongs_to_car)
@@ -75,17 +61,8 @@ class CardRepository(BaseRepository):
         stmt = (
             sa_select(CardOrm)
             .options(
-                load_only(
-                    CardOrm.id,
-                    CardOrm.card_number,
-                    CardOrm.is_active,
-                    CardOrm.reason_for_blocking,
-                    CardOrm.date_last_use
-                )
-            )
-            .options(
                 selectinload(CardOrm.systems)
-                .load_only(SystemOrm.id, SystemOrm.full_name)
+                .load_only(SystemOrm.id, SystemOrm.full_name, SystemOrm.short_name)
             )
             .options(
                 joinedload(CardOrm.card_type)
@@ -93,7 +70,7 @@ class CardRepository(BaseRepository):
             )
             .options(
                 joinedload(CardOrm.company)
-                .load_only(CompanyOrm.id, CompanyOrm.name, CompanyOrm.inn)
+                .load_only(CompanyOrm.id, CompanyOrm.name, CompanyOrm.inn, CompanyOrm.personal_account)
             )
             .options(
                 joinedload(CardOrm.belongs_to_car)
@@ -205,6 +182,7 @@ class CardRepository(BaseRepository):
         systems = await self.select_all(stmt)
         return systems
 
+    """
     async def get_cards_by_balance_ids(self, balance_ids: List[str]) -> List[CardOrm]:
         card_system_table = aliased(CardSystemOrm, name="cs_tbl")
         system_table = aliased(SystemOrm, name="system_tbl")
@@ -225,24 +203,12 @@ class CardRepository(BaseRepository):
 
         cards = await self.select_all(stmt)
         return cards
-
+    """
+    """
     async def get_cards_by_numbers(self, card_numbers: List[str] | None = None, system_id: str | None = None) \
             -> List[CardOrm]:
         stmt = (
             sa_select(CardOrm)
-            .options(
-                load_only(
-                    CardOrm.id,
-                    CardOrm.card_number,
-                    CardOrm.is_active,
-                    CardOrm.reason_for_blocking,
-                    CardOrm.company_id,
-                    CardOrm.card_group_id
-                )
-            )
-            .options(
-                joinedload(CardOrm.card_group)
-            )
             .select_from(CardOrm, CardSystemOrm)
             .where(CardSystemOrm.card_id == CardOrm.id)
             .order_by(CardOrm.card_number)
@@ -257,7 +223,73 @@ class CardRepository(BaseRepository):
         cards = await self.select_all(stmt)
 
         return cards
+    """
+    """
+    async def get_cards_by_system_id(self, system_id: str | None = None) -> List[CardOrm]:
+        stmt = (
+            sa_select(CardOrm)
+            .options(
+                selectinload(CardOrm.systems)
+                .load_only(SystemOrm.id, SystemOrm.full_name, SystemOrm.short_name)
+            )
+            .options(
+                joinedload(CardOrm.card_type)
+                .load_only(CardTypeOrm.id, CardTypeOrm.name)
+            )
+            .options(
+                joinedload(CardOrm.company)
+                .load_only(CompanyOrm.id, CompanyOrm.name, CompanyOrm.inn, CompanyOrm.personal_account)
+            )
+            .order_by(CardOrm.card_number)
+        )
+        if system_id:
+            stmt = stmt.where(CardSystemOrm.system_id == system_id).where(CardSystemOrm.card_id == CardOrm.id)
+        cards = await self.select_all(stmt)
+        return cards
+    """
 
+    async def get_cards_by_filters(self, balance_ids: List[str] | None = None, system_id: str | None = None,
+                                   card_numbers: List[str] | None = None) -> List[CardOrm]:
+
+        stmt = (
+            sa_select(CardOrm)
+            .options(
+                selectinload(CardOrm.systems)
+            )
+            .options(
+                joinedload(CardOrm.card_type)
+            )
+            .options(
+                joinedload(CardOrm.company)
+            )
+            .order_by(CardOrm.card_number)
+        )
+
+        if balance_ids:
+            balance_table = aliased(BalanceOrm, name="balance_tbl")
+            company_table = aliased(CompanyOrm, name="company_tbl")
+            stmt = (
+                stmt
+                .where(balance_table.id.in_(balance_ids))
+                .where(company_table.id == balance_table.company_id)
+                .where(CardOrm.company_id == company_table.id)
+            )
+
+        if system_id:
+            card_system_table = aliased(CardSystemOrm, name="cs_tbl")
+            stmt = (
+                stmt
+                .where(card_system_table.system_id == system_id)
+                .where(card_system_table.card_id == CardOrm.id)
+            )
+
+        if card_numbers:
+            stmt = stmt.where(CardOrm.card_number.in_(card_numbers))
+
+        cards = await self.select_all(stmt)
+        return cards
+
+    """
     @staticmethod
     def filter_cards_by_system(any_cards: List[CardOrm], system: SystemOrm) -> List[CardOrm]:
         system_cards = []
@@ -267,21 +299,4 @@ class CardRepository(BaseRepository):
                     system_cards.append(card)
 
         return system_cards
-
-    async def get_card_groups(self) -> None:
-        stmt = sa_select(CardGroupOrm)
-        self.card_groups = await self.select_all(stmt)
-
-    async def get_or_create_card_group(self, card_group_ext_id: str, card_group_name: str) -> CardGroupOrm | None:
-        if not card_group_ext_id:
-            return None
-
-        for card_group in self.card_groups:
-            if card_group.external_id == card_group_ext_id:
-                return card_group
-
-        # Группа не найдена - создаем новую
-        new_group = {"external_id": card_group_ext_id, "name": card_group_name}
-        group = await self.insert(CardGroupOrm, **new_group)
-        self.card_groups.append(group)
-        return group
+    """

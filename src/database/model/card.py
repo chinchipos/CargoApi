@@ -21,6 +21,12 @@ class CardOrm(Base):
         'comment': 'Карты'
     }
 
+    external_id: Mapped[str] = mapped_column(
+        sa.String(30),
+        nullable=True,
+        comment="ID арты в системе"
+    )
+
     card_number: Mapped[str] = mapped_column(
         sa.String(20),
         unique=True,
@@ -102,18 +108,10 @@ class CardOrm(Base):
     )
 
     # Группа
-    card_group_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.card_group.id"),
+    group_id: Mapped[str] = mapped_column(
+        sa.String(30),
         nullable=True,
-        init=False,
-        comment="Группа карт"
-    )
-
-    # Группа
-    card_group: Mapped["CardGroupOrm"] = relationship(
-        back_populates="cards",
-        lazy="noload",
-        init=False
+        comment="ID группы в системе"
     )
 
     # Список связей этой карты с системами

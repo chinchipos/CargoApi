@@ -1,6 +1,6 @@
 from datetime import datetime, date, timedelta
 from time import sleep
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 
 from sqlalchemy import select as sa_select, update as sa_update, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,10 +8,10 @@ from sqlalchemy.orm import joinedload, aliased
 
 from src.celery.exceptions import CeleryError
 from src.config import TZ
-from src.connectors.irrelevant_balances import IrrelevantBalances
-from src.connectors.khnp.config import SYSTEM_SHORT_NAME
-from src.connectors.khnp.parser import KHNPParser, CardStatus
-from src.database.model.card import CardOrm
+from src.celery.irrelevant_balances import IrrelevantBalances
+from src.celery.khnp.config import SYSTEM_SHORT_NAME
+from src.celery.khnp.api import KHNPParser, CardStatus
+from src.database.model.card import CardOrm, BlockingCardReason
 from src.database.model.card_type import CardTypeOrm
 from src.database.model.models import (OuterGoods as OuterGoodsOrm, Balance as BalanceOrm, Company as CompanyOrm,
                                        Transaction as TransactionOrm, BalanceTariffHistory as BalanceTariffHistoryOrm,
@@ -24,7 +24,7 @@ from src.utils.enums import ContractScheme, TransactionType
 from src.utils.log import ColoredLogger
 
 
-class KHNPConnector(BaseRepository):
+class KHNPController(BaseRepository):
 
     def __init__(self, session: AsyncSession, logger: ColoredLogger):
         super().__init__(session, None)
@@ -41,6 +41,8 @@ class KHNPConnector(BaseRepository):
         self._irrelevant_balances = IrrelevantBalances()
 
     async def sync(self) -> IrrelevantBalances:
+        await self.init_system()
+
         # Прогружаем наш баланс
         await self.load_balance(need_authorization=True)
 
@@ -74,9 +76,13 @@ class KHNPConnector(BaseRepository):
             "balance_sync_dt": datetime.now(tz=TZ)
         })
 
-    async def get_local_cards(self, card_numbers: List[str] = None) -> List[CardOrm]:
+    async def get_local_cards(self, card_numbers: List[str] | None = None) -> List[CardOrm]:
         card_repository = CardRepository(self.session)
-        self.local_cards = await card_repository.get_cards_by_numbers(card_numbers, self.system.id)
+        # self.local_cards = await card_repository.get_cards_by_numbers(card_numbers, self.system.id)
+        self.local_cards = await card_repository.get_cards_by_filters(
+            system_id=self.system.id,
+            card_numbers=card_numbers
+        )
         return self.local_cards
 
     @staticmethod
@@ -102,7 +108,7 @@ class KHNPConnector(BaseRepository):
 
         # Получаем список карт от поставщика услуг
         khnp_cards = self.get_khnp_cards()
-        
+
         # Получаем список карт из локальной БД
         local_cards = await self.get_local_cards()
 
@@ -440,16 +446,6 @@ class KHNPConnector(BaseRepository):
         # Обновляем время последней транзакции для карт
         await self.renew_cards_date_last_use()
 
-    """
-    def block_or_activate_cards(self, khnp_card_numbers_to_block: List[str],
-                                      khnp_card_numbers_to_activate: List[str],
-                                      need_authorization: bool = True) -> None:
-        if need_authorization:
-            self.parser.login()
-
-        self.parser.block_or_activate_cards(khnp_card_numbers_to_block, khnp_card_numbers_to_activate)
-    """
-
     def change_card_states(self, card_numbers_to_change_state: List[str]) -> None:
         self.parser.login()
         self.parser.change_card_states(card_numbers_to_change_state)
@@ -470,7 +466,7 @@ class KHNPConnector(BaseRepository):
         local_cards_to_change_status = []
         for khnp_card in khnp_cards:
             local_card = self.get_equal_local_card(khnp_card, local_cards)
-            khnp_card_status =  self.parser.get_card_status(khnp_card["cardNo"])
+            khnp_card_status = self.parser.get_card_status(khnp_card["cardNo"])
             if khnp_card_status in [CardStatus.ACTIVE, CardStatus.ACTIVATE_PENDING]:
                 khnp_card_status_is_active = True
             else:
@@ -505,3 +501,138 @@ class KHNPConnector(BaseRepository):
             card_system_bindings = [{"card_id": card.id, "system_id": self.system.id} for card in new_local_cards]
             await self.bulk_insert_or_update(CardSystemOrm, card_system_bindings)
             self.logger.info(f"Импортировано {len(new_local_cards)} новых карт")
+
+    async def set_card_states(self, company_ids_to_change_card_states: Dict[str, List[str]]):
+        await self.init_system()
+
+        remote_cards = self.get_khnp_cards()
+
+        # Получаем из локальной БД карты, принадлежащие системе ХНП
+        card_repository = CardRepository(self.session, None)
+        # local_cards = await card_repository.get_cards_by_system_id(self.system.id)
+
+        local_cards_to_be_active = await card_repository.get_cards_by_filters(
+            balance_ids=company_ids_to_change_card_states["to_activate"],
+            system_id=self.system.id
+        )
+
+        local_cards_to_be_blocked = await card_repository.get_cards_by_filters(
+            balance_ids=company_ids_to_change_card_states["to_block"],
+            system_id=self.system.id
+        )
+
+        # Устанавливаем статусы карт без сохранения в БД
+        for card in local_cards_to_be_active:
+            card.is_active = True
+            card.reason_for_blocking = None
+
+        for card in local_cards_to_be_blocked:
+            card.is_active = False
+            card.reason_for_blocking = BlockingCardReason.NNK
+
+        # Сверяем статусы карт локально и в системе
+        remote_cards_to_change_state, local_cards = self.compare_khnp_card_states(
+            remote_cards=remote_cards,
+            local_cards_to_be_active=local_cards_to_be_active,
+            local_cards_to_be_blocked=local_cards_to_be_blocked
+        )
+
+        # Устанавливаем статусы карт локально с сохранением в БД - после процедуры сравнения статусы погли измениться
+        self.logger.info("Обновляю статусы карт в локальной БД")
+        dataset = [
+            {
+                "id": card.id,
+                "is_active": card.is_active,
+                "reason_for_blocking": card.reason_for_blocking
+            } for card in local_cards
+        ]
+        await self.bulk_update(CardOrm, dataset)
+
+        # Устанавливаем статусы карт в ХНП
+        self.logger.info("Обновляю статусы карт в ХНП")
+        self.change_card_states(remote_cards_to_change_state)
+
+    """
+    @staticmethod
+    def _filter_system_cards(cards: List[CardOrm], filter_system: SystemOrm) -> List[CardOrm]:
+        system_cards = []
+        for card in cards:
+            for system in card.systems:
+                if system.id == filter_system.id:
+                    system_cards.append(card)
+
+        return system_cards
+    """
+
+    @staticmethod
+    def compare_khnp_card_states(remote_cards: List[Dict[str, Any]], local_cards_to_be_active: List[CardOrm],
+                                 local_cards_to_be_blocked: List[CardOrm]) -> Tuple[List[str], List[CardOrm]]:
+        khnp_cards_to_change_state = []
+        # Активные карты
+        for local_card in local_cards_to_be_active:
+            for remote_card in remote_cards:
+                if remote_card["cardNo"] == local_card.card_number:
+                    # В ХНП карта заблокирована по ПИН
+                    if remote_card["status_name"] == "Заблокирована по ПИН":
+                        local_card.is_active = False
+                        local_card.reason_for_blocking = BlockingCardReason.PIN
+
+                    # В ХНП карта заблокирована или помечена на блокировку
+                    elif remote_card["cardBlockRequest"] in [CardStatus.BLOCKING_PENDING.value,
+                                                             CardStatus.BLOCKED.value]:
+                        if remote_card["status_name"] == "Активная":
+                            khnp_cards_to_change_state.append(local_card.card_number)
+                            local_card.reason_for_blocking = BlockingCardReason.NNK
+
+                    break
+
+        # Заблокированные карты: ручная блокировка
+        for local_card in local_cards_to_be_blocked:
+            if local_card.reason_for_blocking in [BlockingCardReason.NNK, None]:
+                if local_card.reason_for_blocking is None:
+                    local_card.reason_for_blocking = BlockingCardReason.NNK
+
+                for remote_card in remote_cards:
+                    if remote_card["cardNo"] == local_card.card_number:
+                        # В ХНП карта заблокирована по ПИН
+                        if remote_card["status_name"] == "Заблокирована по ПИН":
+                            local_card.is_active = False
+                            local_card.reason_for_blocking = BlockingCardReason.PIN
+
+                        # В ХНП карта разблокирована или помечена на разблокировку
+                        elif remote_card["cardBlockRequest"] in [CardStatus.ACTIVE.value,
+                                                                 CardStatus.ACTIVATE_PENDING.value]:
+                            khnp_cards_to_change_state.append(local_card.card_number)
+
+                        break
+
+        # Заблокированные карты: блокировка по ПИН
+        for local_card in local_cards_to_be_blocked:
+            if local_card.reason_for_blocking == BlockingCardReason.PIN:
+                for remote_card in remote_cards:
+                    if remote_card["cardNo"] == local_card.card_number:
+                        if remote_card["status_name"] == "Активная":
+                            if remote_card["cardBlockRequest"] in [CardStatus.ACTIVE.value,
+                                                                   CardStatus.BLOCKING_PENDING.value]:
+                                local_card.is_active = True
+                                local_card.reason_for_blocking = None
+
+                            if remote_card["cardBlockRequest"] == CardStatus.BLOCKING_PENDING.value:
+                                khnp_cards_to_change_state.append(local_card.card_number)
+
+                            if remote_card["cardBlockRequest"] == CardStatus.BLOCKED.value:
+                                local_card.is_active = False
+                                local_card.reason_for_blocking = BlockingCardReason.NNK
+
+                            if remote_card["cardBlockRequest"] == CardStatus.ACTIVATE_PENDING.value:
+                                local_card.is_active = True
+                                local_card.reason_for_blocking = None
+
+                        elif remote_card["status_name"] == "Заблокирована по ПИН":
+                            if remote_card["cardBlockRequest"] == CardStatus.ACTIVATE_PENDING.value:
+                                khnp_cards_to_change_state.append(local_card.card_number)
+
+                        break
+
+        local_cards: List[CardOrm] = local_cards_to_be_active + local_cards_to_be_blocked
+        return khnp_cards_to_change_state, local_cards

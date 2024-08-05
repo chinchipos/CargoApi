@@ -5,7 +5,7 @@ from sqlalchemy import select as sa_select, and_, func as sa_func, null, or_
 from sqlalchemy.orm import joinedload, selectinload, aliased, load_only
 
 from src.config import TZ
-from src.connectors.khnp.config import SYSTEM_SHORT_NAME
+from src.celery.khnp.config import SYSTEM_SHORT_NAME
 from src.database.model.card import CardOrm
 from src.database.model.models import (Company as CompanyOrm, Balance as BalanceOrm, AdminCompany as AdminCompanyOrm,
                                        User as UserOrm, Role as RoleOrm, BalanceSystemTariff as BalanceSystemTariffOrm,
@@ -22,6 +22,7 @@ from src.utils.enums import ContractScheme
 class CompanyRepository(BaseRepository):
 
     async def create(self, company_create_schema: CompanyCreateSchema) -> CompanyOrm:
+        print('YYYYYYYYYYYYYYYYYYYYYYY')
         # Создаем организацию
         personal_account = make_personal_account()
         company_data = company_create_schema.model_dump()

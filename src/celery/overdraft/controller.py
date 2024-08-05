@@ -1,4 +1,5 @@
 import smtplib
+import time
 from datetime import datetime, timedelta, date
 from email import encoders
 from email.mime.base import MIMEBase
@@ -8,17 +9,17 @@ from email.utils import formatdate
 from time import sleep
 from typing import List, Tuple, Dict
 
-from sqlalchemy import select as sa_select, null, or_, and_
+from sqlalchemy import select as sa_select, null
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, aliased
 
-from src.config import TZ, MAIL_SERVER, MAIL_PORT, MAIL_USER, MAIL_PASSWORD, OVERDRAFTS_MAIL_TO, MAIL_FROM
-from src.connectors.irrelevant_balances import IrrelevantBalances
+from src.config import TZ, MAIL_SERVER, MAIL_PORT, MAIL_USER, MAIL_PASSWORD, OVERDRAFTS_MAIL_TO, MAIL_FROM, PRODUCTION
+from src.celery.irrelevant_balances import IrrelevantBalances
 from src.database.model.models import (Transaction as TransactionOrm, Balance as BalanceOrm, Company as CompanyOrm,
-                                       OverdraftsHistory as OverdraftsHistoryOrm)
-from src.reports.overdrafts import OverdraftsReport
+                                       OverdraftsHistory as OverdraftsHistoryOrm, User as UserOrm)
+from src.celery.overdraft.reports import OverdraftsReport
 from src.repositories.base import BaseRepository
-from src.utils.enums import TransactionType, ContractScheme
+from src.utils.enums import TransactionType, ContractScheme, Role
 from src.utils.log import ColoredLogger
 
 balance_id_str_type = str
@@ -35,7 +36,7 @@ class Overdraft(BaseRepository):
         self.fee_transactions = []
         self.overdrafts_to_open = []
         self.overdrafts_to_close = []
-        self.overdrafts_to_off = []
+        # self.overdrafts_to_off = []
         self.companies_to_disable_overdraft = []
 
     async def calculate(self) -> IrrelevantBalances:
@@ -128,9 +129,10 @@ class Overdraft(BaseRepository):
             # Если выше, то погашаем овер.
             trigger = True if last_transaction.company_balance < overdraft.balance.company.min_balance else False
             if trigger:
-                fee_base = last_transaction.company_balance - overdraft.balance.company.min_balance
-                fee_sum = round(fee_base * overdraft.balance.company.overdraft_fee_percent / 100, 0) \
-                    if fee_base < 0 else 0.0
+                fee_sum = self.calc_fee_sum(
+                    fee_base = last_transaction.company_balance - overdraft.balance.company.min_balance,
+                    fee_percent=overdraft.balance.company.overdraft_fee_percent
+                )
 
                 # создаем транзакцию (плата за овер)
                 self.add_fee_transaction(balance_id=overdraft.balance_id, fee_sum=fee_sum)
@@ -141,12 +143,11 @@ class Overdraft(BaseRepository):
                 )
 
                 # Если овер открыт больше разрешенного времени, то помечаем его
-                # для отключения насовсем. Блокировку карты выполнит следующая задача в Celery.
+                # для отключения насовсем. Блокировку карт выполнит следующая задача в Celery.
                 overdraft_end_date = overdraft.begin_date + timedelta(days=overdraft.days - 1)
                 overdraft_payment_deadline = overdraft_end_date + timedelta(days=1)
-                if overdraft_payment_deadline < self.today:
-                    self.mark_overdraft_to_delete(overdraft_id=overdraft.id, company=overdraft.balance.company)
-                    # self.mark_balance_to_block_cards(balance_id=overdraft.balance_id)
+                if overdraft_payment_deadline < self.today and overdraft.balance.company.overdraft_on:
+                    self.mark_overdraft_to_delete(company=overdraft.balance.company)
                     self.log_decision(
                         company=overdraft.balance.company,
                         transaction_balance=last_transaction.company_balance,
@@ -209,9 +210,10 @@ class Overdraft(BaseRepository):
                 )
             else:
                 if last_transaction.balance.company.overdraft_on:
-                    fee_base = last_transaction.company_balance
-                    fee_sum = round(fee_base * last_transaction.balance.company.overdraft_fee_percent / 100, 2) \
-                        if fee_base < 0 else 0.0
+                    fee_sum = self.calc_fee_sum(
+                        fee_base=last_transaction.company_balance,
+                        fee_percent=last_transaction.balance.company.overdraft_fee_percent
+                    )
 
                     # создаем транзакцию (плата за овер)
                     self.add_fee_transaction(balance_id=last_transaction.balance_id, fee_sum=fee_sum)
@@ -285,25 +287,24 @@ class Overdraft(BaseRepository):
         await self.bulk_insert_or_update(OverdraftsHistoryOrm, self.overdrafts_to_open)
         self.logger.info(f'Количество вновь открытых овердрафтов: {len(self.overdrafts_to_open)}')
 
-    def mark_overdraft_to_delete(self, overdraft_id: str, company: CompanyOrm) -> None:
-        overdraft_to_off = {"id": overdraft_id, "end_date": self.today, "overdue": True}
-        self.overdrafts_to_off.append(overdraft_to_off)
+    def mark_overdraft_to_delete(self, company: CompanyOrm) -> None:
+        # overdraft_to_off = {"id": overdraft_id, "end_date": self.today, "overdue": True}
+        # self.overdrafts_to_off.append(overdraft_to_off)
 
         company_to_disable_overdraft = {"id": company.id, "overdraft_on": False}
         self.companies_to_disable_overdraft.append(company_to_disable_overdraft)
 
     async def save_deleted_overdrafts(self) -> None:
-        await self.bulk_insert_or_update(OverdraftsHistoryOrm, self.overdrafts_to_off)
-        self.logger.info(f'Количество просроченных овердрафтов: {len(self.overdrafts_to_off)}')
-
-        await self.bulk_insert_or_update(CompanyOrm, self.companies_to_disable_overdraft)
+        # await self.bulk_update(OverdraftsHistoryOrm, self.overdrafts_to_off)
+        await self.bulk_update(CompanyOrm, self.companies_to_disable_overdraft)
+        self.logger.info(f'Количество просроченных овердрафтов: {len(self.companies_to_disable_overdraft)}')
 
     def mark_overdraft_to_close(self, overdraft_id: str) -> None:
         overdraft_to_close = {"id": overdraft_id, "end_date": self.yesterday}
         self.overdrafts_to_close.append(overdraft_to_close)
 
     async def save_closed_overdrafts(self) -> None:
-        await self.bulk_insert_or_update(OverdraftsHistoryOrm, self.overdrafts_to_close)
+        await self.bulk_update(OverdraftsHistoryOrm, self.overdrafts_to_close)
         self.logger.info(f'Количество погашенных овердрафтов: {len(self.overdrafts_to_close)}')
 
     # def mark_balance_to_block_cards(self, balance_id: BalanceOrm) -> None:
@@ -321,51 +322,61 @@ class Overdraft(BaseRepository):
         self.logger.info(message)
 
     async def send_overdrafts_report(self) -> None:
-        # Получаем все открытые овердрафты, а также овердрафты, отключенные сегодня принудительно
+        # Получаем все открытые овердрафты с указанием дней просрочки
         stmt = (
             sa_select(OverdraftsHistoryOrm)
             .options(
                 joinedload(OverdraftsHistoryOrm.balance)
                 .joinedload(BalanceOrm.company)
+                .selectinload(CompanyOrm.users)
+                .joinedload(UserOrm.role)
             )
-            .where(or_(
-                OverdraftsHistoryOrm.end_date.is_(null()),
-                and_(
-                    OverdraftsHistoryOrm.end_date > self.today - timedelta(days=7),
-                    OverdraftsHistoryOrm.overdue
-                )
-            ))
+            .where(OverdraftsHistoryOrm.end_date.is_(null()))
         )
         overdrafts = await self.select_all(stmt)
-        for overdraft in overdrafts:
-            if not overdraft.end_date:
-                overdraft_delete_date = overdraft.begin_date + timedelta(days=overdraft.days + 1)
-                overdraft.end_date = overdraft_delete_date
-
-        report = OverdraftsReport()
+        # for overdraft in overdrafts:
+        #     overdraft_delete_date = overdraft.begin_date + timedelta(days=overdraft.days + 1)
+        #     overdraft.end_date = overdraft_delete_date
 
         # Отправляем отчет для СБ
+        report = OverdraftsReport()
         file_for_security_dptmt = report.make_excel(overdrafts)
         file_name = f"Отчет_овердрафты_{date.strftime(datetime.now(tz=TZ), "%Y_%m_%d__%H_%M")}.xlsx"
         self.send_mail(
             recipients=OVERDRAFTS_MAIL_TO,
             subject="ННК отчет: овердрафты",
-            text="Отчет",
-            files={file_name: file_for_security_dptmt})
+            text="ННК отчет: овердрафты",
+            files={file_name: file_for_security_dptmt}
+        )
+
+        # Отправляем отчет клиентам
+        if PRODUCTION:
+            for overdraft in overdrafts:
+                time.sleep(1)
+                recipients = [user.email for user in overdraft.balance.company.users
+                              if user.role.name == Role.COMPANY_ADMIN.name]
+
+                text = (
+                    'Уважаемый клиент, у вас имеется задолженность в системе Cargonomica в размере '
+                    f'{-overdraft.balance.balance} рублей.<br>'
+                    'Подробная информация доступна в <a href="https://nnk.cargonomica.com">личном кабинете</a>.'
+                )
+                self.send_mail(
+                    recipients=recipients,
+                    subject="ННК отчет: овердрафты",
+                    text=text
+                )
 
     @staticmethod
-    def send_mail(recipients: List[str], subject: str, text: str, files: Dict[str, bytes] | None = None) \
-            -> None:
+    def send_mail(recipients: List[str], subject: str, text: str, files: Dict[str, bytes] | None = None) -> None:
         if not files:
             files = {}
-        print(recipients)
-        print(type(recipients))
         msg = MIMEMultipart()
         msg['From'] = MAIL_FROM
         msg['To'] = ", ".join(recipients)
         msg['Date'] = formatdate(localtime=True)
         msg['Subject'] = subject
-        msg.attach(MIMEText(text))
+        msg.attach(MIMEText(text, 'html'))
 
         for file_name, file_content in files.items():
             part = MIMEBase('application', "octet-stream")
@@ -380,3 +391,7 @@ class Overdraft(BaseRepository):
         smtp.login(MAIL_USER, MAIL_PASSWORD)
         smtp.sendmail(MAIL_FROM, recipients, msg.as_string())
         smtp.quit()
+
+    @staticmethod
+    def calc_fee_sum(fee_base: float, fee_percent: float) -> float:
+        return round(fee_base * fee_percent / 100, 2) if fee_base < 0 else 0.0

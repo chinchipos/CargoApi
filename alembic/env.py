@@ -1,7 +1,6 @@
 import asyncio
 import sys
 from logging.config import fileConfig
-import importlib
 
 from alembic import context
 from sqlalchemy import pool
@@ -17,21 +16,6 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 config.set_main_option("sqlalchemy.url", PROD_URI + "?sslmode=verify-full&target_session_attrs=read-write")
-
-
-models_path = "src.database.model"
-want_model_files = (
-    f"{models_path}.models",
-    f"{models_path}.card",
-    f"{models_path}.card_type",
-    f"{models_path}.card_group",
-)
-
-for want_model_file in want_model_files:
-    try:
-        loaded_module = importlib.import_module(want_model_file )
-    except ModuleNotFoundError:
-        print(f'Could not import module {want_model_file}')
 
 target_metadata = Base.metadata
 
@@ -93,6 +77,7 @@ async def run_async_migrations() -> None:
         await connection.run_sync(do_run_migrations)
 
     await connectable.dispose()
+
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""

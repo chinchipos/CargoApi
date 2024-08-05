@@ -147,13 +147,6 @@ class Company(Base):
         comment="Комиссия за овердрафт, %"
     )
 
-    overdue_days: Mapped[int] = mapped_column(
-        sa.Integer(),
-        nullable=False,
-        server_default=sa.text("0"),
-        comment="Просрочка платежа, дни"
-    )
-
     # Список автомобилей этой организации
     cars: Mapped[List["Car"]] = relationship(
         back_populates="company",

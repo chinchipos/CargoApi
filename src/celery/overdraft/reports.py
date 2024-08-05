@@ -1,7 +1,9 @@
+from datetime import timedelta, datetime, date
 from typing import List
 
+from src.config import TZ
 from src.database.model.models import OverdraftsHistory as OverdraftsHistoryOrm
-from src.reports.base import BaseExcelReport, ExcelDataType, ExcelAlign
+from src.utils.report_base import BaseExcelReport, ExcelDataType, ExcelAlign
 
 
 class OverdraftsReport(BaseExcelReport):
@@ -23,19 +25,34 @@ class OverdraftsReport(BaseExcelReport):
                 cell_format=self.format(),
             ),
             dict(
-                title='Сумма долга',
-                width=15,
-                cell_format=self.format(data_type=ExcelDataType.FLOAT_SEPARATED, align=ExcelAlign.RIGHT),
-            ),
-            dict(
                 title='Согласованная сумма овердрафта',
                 width=20,
                 cell_format=self.format(data_type=ExcelDataType.FLOAT_SEPARATED, align=ExcelAlign.RIGHT),
             ),
             dict(
-                title='Дата отключения услуги и блокировки карт',
-                width=25,
+                title='Сумма долга',
+                width=15,
+                cell_format=self.format(data_type=ExcelDataType.FLOAT_SEPARATED, align=ExcelAlign.RIGHT),
+            ),
+            dict(
+                title='Согласованный срок овердрафта',
+                width=19,
+                cell_format=self.format(data_type=ExcelDataType.INTEGER, align=ExcelAlign.RIGHT),
+            ),
+            dict(
+                title='Дата открытия овердрафта',
+                width=17,
                 cell_format=self.format(align=ExcelAlign.CENTER),
+            ),
+            dict(
+                title='Дата отключения услуги и блокировки карт',
+                width=23,
+                cell_format=self.format(align=ExcelAlign.CENTER),
+            ),
+            dict(
+                title='Кол-во дней просрочки',
+                width=13,
+                cell_format=self.format(data_type=ExcelDataType.INTEGER, align=ExcelAlign.CENTER),
             ),
         ]
 
@@ -48,17 +65,26 @@ class OverdraftsReport(BaseExcelReport):
         # Заполняем таблицу данными
         row += 1
         for overdraft in overdrafts:
+            blocking_cards_date: date = overdraft.begin_date + timedelta(days=overdraft.days + 1)
+            today = datetime.now(tz=TZ).date()
+            overdue_days = (today - blocking_cards_date).days + 1 if blocking_cards_date <= today else None
             values = [
                 # ИНН
                 overdraft.balance.company.inn,
                 # Наименование
                 overdraft.balance.company.name,
-                # Сумма долга
-                overdraft.balance.balance,
                 # Согласованная сумма овердрафта
                 overdraft.sum,
-                # Дата отключения услуги
-                overdraft.end_date.isoformat()
+                # Сумма долга
+                overdraft.balance.balance,
+                # Согласованный срок овердрафта
+                overdraft.days,
+                # Дата открытия овердрафта
+                overdraft.begin_date.isoformat(),
+                # Дата отключения услуги и блокировки карт
+                blocking_cards_date.isoformat(),
+                # Кол-во дней просрочки
+                overdue_days
             ]
 
             for col in range(0, len(values)):

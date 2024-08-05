@@ -26,12 +26,4 @@ class CardGroupOrm(Base):
         comment="Название группы"
     )
 
-    # Список карт этой группы
-    cards: Mapped[List["CardOrm"]] = relationship(
-        back_populates="card_group",
-        cascade="all, delete-orphan",
-        lazy="noload",
-        init=False
-    )
-
     repr_cols = ("name",)

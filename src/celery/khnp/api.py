@@ -18,7 +18,7 @@ from xls2xlsx import XLS2XLSX
 
 from src.celery.exceptions import CeleryError
 from src.config import ROOT_DIR, PRODUCTION
-from src.connectors.khnp.config import KHNP_URL, KHNP_USERNAME, KHNP_PASSWORD
+from src.celery.khnp.config import KHNP_URL, KHNP_USERNAME, KHNP_PASSWORD
 
 from pathlib import Path
 
