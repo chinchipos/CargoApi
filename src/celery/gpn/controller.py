@@ -1,8 +1,10 @@
 from datetime import datetime
+import time
 from typing import Dict, Any, List
 
 from sqlalchemy import select as sa_select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from src.celery.gpn.api import GPNApi
 from src.celery.gpn.config import SYSTEM_SHORT_NAME
@@ -10,7 +12,7 @@ from src.celery.irrelevant_balances import IrrelevantBalances
 from src.config import TZ
 from src.database.model.card import CardOrm, BlockingCardReason
 from src.database.model.card_type import CardTypeOrm
-from src.database.model.models import CardSystem as CardSystemOrm
+from src.database.model.models import CardSystem as CardSystemOrm, Balance as BalanceOrm
 from src.repositories.base import BaseRepository
 from src.repositories.card import CardRepository
 from src.repositories.system import SystemRepository
@@ -235,7 +237,8 @@ class GPNController(BaseRepository):
 
             self.logger.info(f"{card_number} | в БД создана новая карта и привязана к ГПН")
 
-    async def gpn_bind_company_to_cards(self, card_ids: List[str], personal_account: str) -> None:
+    async def gpn_bind_company_to_cards(self, card_ids: List[str], personal_account: str, limit_sum: int | float) \
+            -> None:
         await self.init_system()
 
         # Получаем из ГПН группу с наименованием, содержащим personal account
@@ -250,6 +253,9 @@ class GPNController(BaseRepository):
 
         if not group_id:
             group_id = self.api.create_card_group(personal_account)
+            self.logger.info("Пауза 40 сек")
+            time.sleep(40)
+            self.api.set_card_group_limits([(personal_account, limit_sum)])
 
         # Привязываем карту к группе в API ГПН
         stmt = sa_select(CardOrm).where(CardOrm.id.in_(card_ids)).order_by(CardOrm.card_number)
@@ -324,3 +330,23 @@ class GPNController(BaseRepository):
         if local_cards_to_block:
             ext_card_ids = [card.external_id for card in local_cards_to_block]
             self.api.block_cards(ext_card_ids)
+
+    async def set_card_group_limit(self, balance_id: str) -> None:
+        # Получаем параметры баланса и организации
+        stmt = (
+            sa_select(BalanceOrm)
+            .options(
+                joinedload(BalanceOrm.company)
+            )
+            .where(BalanceOrm.id == balance_id)
+        )
+        balance = await self.select_first(stmt)
+
+        # Вычисляем доступный лимит
+        overdraft_sum = balance.company.overdraft_sum if balance.company.overdraft_on else 0
+        boundary_sum = balance.company.min_balance - overdraft_sum
+        limit_sum = abs(boundary_sum - balance.balance) if boundary_sum < balance.balance else 1
+
+        # Устанавливаем лимит
+        gpn_api = GPNApi(self.logger)
+        gpn_api.set_card_group_limits(limits_dataset=[(balance.company.personal_account, limit_sum)])

@@ -16,38 +16,7 @@ celery.autodiscover_tasks(
         "src.celery.balance",
         "src.celery.overdraft",
         "src.celery.khnp",
-        "src.celery.gpn"
+        "src.celery.gpn",
+        "src.celery.limits"
     ]
 )
-
-
-"""
-@celery.task(name="ZERO_TASK")
-def zero_task() -> Dict[str, Any]:
-    return {"p1": 123, "p2": 456}
-
-
-@celery.task(name="GROUPED_TASK1")
-def grouped_task1(data: Dict[str, Any]) -> None:
-    print(f"TASK1: {data}")
-
-
-@celery.task(name="GROUPED_TASK2")
-def grouped_task2(data: Dict[str, Any]) -> None:
-    print(f"TASK2: {data}")
-
-
-@shared_task
-def dmap(result):
-    grouped_tasks = group(
-        grouped_task1.s(result),
-        grouped_task2.s(result)
-    )
-    return grouped_tasks()
-
-
-main_chain = chain(
-    zero_task.si(),
-    dmap.s()
-)
-"""

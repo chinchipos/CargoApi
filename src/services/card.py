@@ -3,8 +3,10 @@ from typing import List
 from src.database.model.card import CardOrm
 from src.database.model.models import CardSystem as CardSystemOrm, Company as CompanyOrm
 from src.repositories.card import CardRepository
+from src.repositories.company import CompanyRepository
 from src.schemas.card import CardCreateSchema, CardReadSchema, CardEditSchema
 from src.utils import enums
+from src.utils.enums import ContractScheme
 from src.utils.exceptions import BadRequestException, ForbiddenException
 from src.celery.gpn.tasks import gpn_cards_bind_company, gpn_cards_unbind_company
 
@@ -121,7 +123,19 @@ class CardService:
             if system.short_name == 'ГПН':
                 if current_company_id != new_company_id:
                     if new_company_id:
-                        gpn_cards_bind_company.delay([card.id], card.company.personal_account)
+                        company_repository = CompanyRepository(session=self.repository.session)
+                        company = await company_repository.get_company(new_company_id)
+                        limit_sum = 1
+                        for balance in company.balances:
+                            if balance.scheme == ContractScheme.OVERBOUGHT:
+                                # Вычисляем доступный лимит
+                                overdraft_sum = card.company.overdraft_sum if card.company.overdraft_on else 0
+                                boundary_sum = card.company.min_balance - overdraft_sum
+                                limit_sum = abs(boundary_sum - balance.balance) if boundary_sum < balance.balance else 1
+                                break
+
+                        gpn_cards_bind_company.delay([card.id], card.company.personal_account, limit_sum)
+
                     else:
                         gpn_cards_unbind_company.delay([card.id])
 
@@ -189,8 +203,18 @@ class CardService:
                     break
 
         if card_ids:
-            company = await self.repository.session.get(CompanyOrm, company_id)
-            gpn_cards_bind_company.delay(card_ids, company.personal_account)
+            company_repository = CompanyRepository(session=self.repository.session)
+            company = await company_repository.get_company(company_id)
+            limit_sum = 1
+            for balance in company.balances:
+                if balance.scheme == ContractScheme.OVERBOUGHT:
+                    # Вычисляем доступный лимит
+                    overdraft_sum = company.overdraft_sum if company.overdraft_on else 0
+                    boundary_sum = company.min_balance - overdraft_sum
+                    limit_sum = abs(boundary_sum - balance.balance) if boundary_sum < balance.balance else 1
+                    break
+
+            gpn_cards_bind_company.delay(card_ids, company.personal_account, limit_sum)
 
     async def bulk_bind_systems(self, card_numbers: List[str], system_ids: List[str]) -> None:
         # Проверяем права доступа.

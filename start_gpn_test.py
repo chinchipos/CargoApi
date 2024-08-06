@@ -1,3 +1,3 @@
-from src.celery.main import gpn_test
+from src.celery.gpn.tasks import gpn_test
 
 gpn_test.delay()

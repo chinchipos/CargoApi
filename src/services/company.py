@@ -9,6 +9,7 @@ from src.schemas.company import CompanyEditSchema, CompanyReadSchema, CompanyRea
 from src.utils import enums
 from src.utils.enums import TransactionType
 from src.utils.exceptions import BadRequestException, ForbiddenException
+from src.celery.limits.tasks import set_card_group_limit
 
 
 class CompanyService:
@@ -143,6 +144,7 @@ class CompanyService:
 
         # Получаем перекупной баланс организации (он может быть всего 1 у организации)
         balance = await self.repository.get_overbought_balance_by_company_id(company_id)
+
         # Создаем транзакцию
         transaction_repository = TransactionRepository(self.repository.session, self.repository.user)
         transaction_type = TransactionType.DECREASE if edit_balance_schema.direction == enums.Finance.DEBIT.name \
@@ -152,3 +154,6 @@ class CompanyService:
             transaction_type=transaction_type,
             delta_sum=edit_balance_schema.delta_sum
         )
+
+        # В системе поставщика устанавливаем лимит на группу карт (если применимо)
+        set_card_group_limit.delay(balance_id=balance.id)
