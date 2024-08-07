@@ -1,8 +1,8 @@
 import asyncio
 import sys
 
-from src.celery.exceptions import celery_logger
-from src.celery.sync.tasks import sync_chain
+from src.celery_tasks.exceptions import celery_logger
+from src.celery_tasks.sync.tasks import sync_chain
 
 
 def run_sync_systems():

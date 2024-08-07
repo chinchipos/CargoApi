@@ -16,9 +16,9 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from xls2xlsx import XLS2XLSX
 
-from src.celery.exceptions import CeleryError
+from src.celery_tasks.exceptions import CeleryError
 from src.config import ROOT_DIR, PRODUCTION
-from src.celery.khnp.config import KHNP_URL, KHNP_USERNAME, KHNP_PASSWORD
+from src.celery_tasks.khnp.config import KHNP_URL, KHNP_USERNAME, KHNP_PASSWORD
 
 from pathlib import Path
 

@@ -1,6 +1,7 @@
 from typing import List, Any
 
-from src.database.model.models import Company as CompanyOrm, User as UserOrm
+from src.database.model.models import (Company as CompanyOrm, User as UserOrm,
+                                       BalanceSystemTariff as BalanceSystemTariffOrm)
 from src.repositories.company import CompanyRepository
 from src.repositories.transaction import TransactionRepository
 from src.repositories.user import UserRepository
@@ -9,7 +10,7 @@ from src.schemas.company import CompanyEditSchema, CompanyReadSchema, CompanyRea
 from src.utils import enums
 from src.utils.enums import TransactionType
 from src.utils.exceptions import BadRequestException, ForbiddenException
-from src.celery.limits.tasks import set_card_group_limit
+from src.celery_tasks.limits.tasks import set_card_group_limit
 
 
 class CompanyService:
@@ -76,15 +77,34 @@ class CompanyService:
                 balance = cb
                 break
 
-        # Получаем систему ХНП
-        khnp_system = await self.repository.get_khnp_system()
+        # Сравниваем текущие настройки тарифов с полученными
+        bst_list_current = await self.repository.get_systems_tariffs(balance.id)
 
-        # Устанавливаем тариф
-        await self.repository.set_tariff(
-            balance_id=balance.id,
-            system_id=khnp_system.id,
-            tariff_id=company_edit_schema.tariff_id
-        )
+        # Удаляем отвязанные
+        for bst_current in bst_list_current:
+            for system_tariff_received in company_edit_schema.tariffs:
+                system_id = system_tariff_received['system_id']
+                tariff_id = system_tariff_received['tariff_id']
+                if bst_current.system_id == system_id and not tariff_id:
+                    await self.repository.delete_object(BalanceSystemTariffOrm, bst_current.id)
+
+        # Создаем новые связи, изменяем существующие
+        for system_tariff_received in company_edit_schema.tariffs:
+            system_id = system_tariff_received['system_id']
+            tariff_id = system_tariff_received['tariff_id']
+            if tariff_id:
+                found = False
+                for bst_current in bst_list_current:
+                    if bst_current.system_id == system_id:
+                        found = True
+                        if bst_current.tariff_id != tariff_id:
+                            # Меняем тариф для этой системы у этой организации
+                            await self.repository.update_object(bst_current, {"tariff_id": tariff_id})
+
+                if not found:
+                    # Создаем новую связь "Система - Тариф" для этой организации
+                    new_bst = BalanceSystemTariffOrm(balance_id=balance.id, system_id=system_id, tariff_id=tariff_id)
+                    await self.repository.save_object(new_bst)
 
         # Формируем ответ
         company = await self.repository.get_company(company_id)

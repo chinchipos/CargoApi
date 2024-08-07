@@ -6,11 +6,11 @@ from sqlalchemy import select as sa_select, update as sa_update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, aliased
 
-from src.celery.exceptions import CeleryError
+from src.celery_tasks.exceptions import CeleryError
 from src.config import TZ
-from src.celery.irrelevant_balances import IrrelevantBalances
-from src.celery.khnp.config import SYSTEM_SHORT_NAME
-from src.celery.khnp.api import KHNPParser, CardStatus
+from src.celery_tasks.irrelevant_balances import IrrelevantBalances
+from src.celery_tasks.khnp.config import SYSTEM_SHORT_NAME
+from src.celery_tasks.khnp.api import KHNPParser, CardStatus
 from src.database.model.card import CardOrm, BlockingCardReason
 from src.database.model.card_type import CardTypeOrm
 from src.database.model.models import (OuterGoods as OuterGoodsOrm, Balance as BalanceOrm, Company as CompanyOrm,

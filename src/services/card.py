@@ -8,7 +8,7 @@ from src.schemas.card import CardCreateSchema, CardReadSchema, CardEditSchema
 from src.utils import enums
 from src.utils.enums import ContractScheme
 from src.utils.exceptions import BadRequestException, ForbiddenException
-from src.celery.gpn.tasks import gpn_cards_bind_company, gpn_cards_unbind_company
+from src.celery_tasks.gpn.tasks import gpn_cards_bind_company, gpn_cards_unbind_company
 
 
 class CardService:

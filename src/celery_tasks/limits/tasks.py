@@ -1,9 +1,9 @@
 import asyncio
 from typing import List
 
-from src.celery.exceptions import celery_logger
-from src.celery.gpn.controller import GPNController
-from src.celery.main import celery
+from src.celery_tasks.exceptions import celery_logger
+from src.celery_tasks.gpn.controller import GPNController
+from src.celery_tasks.main import celery
 from src.config import PROD_URI
 from src.database.db import DatabaseSessionManager
 from src.repositories.card import CardRepository

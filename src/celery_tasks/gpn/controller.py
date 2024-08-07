@@ -6,9 +6,9 @@ from sqlalchemy import select as sa_select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from src.celery.gpn.api import GPNApi
-from src.celery.gpn.config import SYSTEM_SHORT_NAME
-from src.celery.irrelevant_balances import IrrelevantBalances
+from src.celery_tasks.gpn.api import GPNApi
+from src.celery_tasks.gpn.config import SYSTEM_SHORT_NAME
+from src.celery_tasks.irrelevant_balances import IrrelevantBalances
 from src.config import TZ
 from src.database.model.card import CardOrm, BlockingCardReason
 from src.database.model.card_type import CardTypeOrm

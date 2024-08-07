@@ -14,10 +14,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, aliased
 
 from src.config import TZ, MAIL_SERVER, MAIL_PORT, MAIL_USER, MAIL_PASSWORD, OVERDRAFTS_MAIL_TO, MAIL_FROM, PRODUCTION
-from src.celery.irrelevant_balances import IrrelevantBalances
+from src.celery_tasks.irrelevant_balances import IrrelevantBalances
 from src.database.model.models import (Transaction as TransactionOrm, Balance as BalanceOrm, Company as CompanyOrm,
                                        OverdraftsHistory as OverdraftsHistoryOrm, User as UserOrm)
-from src.celery.overdraft.reports import OverdraftsReport
+from src.celery_tasks.overdraft.reports import OverdraftsReport
 from src.repositories.base import BaseRepository
 from src.utils.enums import TransactionType, ContractScheme, Role
 from src.utils.log import ColoredLogger

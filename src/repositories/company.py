@@ -5,7 +5,7 @@ from sqlalchemy import select as sa_select, and_, func as sa_func, null, or_
 from sqlalchemy.orm import joinedload, selectinload, aliased, load_only
 
 from src.config import TZ
-from src.celery.khnp.config import SYSTEM_SHORT_NAME
+from src.celery_tasks.khnp.config import SYSTEM_SHORT_NAME
 from src.database.model.card import CardOrm
 from src.database.model.models import (Company as CompanyOrm, Balance as BalanceOrm, AdminCompany as AdminCompanyOrm,
                                        User as UserOrm, Role as RoleOrm, BalanceSystemTariff as BalanceSystemTariffOrm,
@@ -297,3 +297,8 @@ class CompanyRepository(BaseRepository):
         )
         balance = await self.select_first(stmt)
         return balance
+
+    async def get_systems_tariffs(self, balance_id: str) -> List[BalanceSystemTariffOrm]:
+        stmt = sa_select(BalanceSystemTariffOrm).where(BalanceSystemTariffOrm.balance_id == balance_id)
+        bst_list = await self.select_all(stmt)
+        return bst_list

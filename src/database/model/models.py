@@ -698,8 +698,6 @@ class AdminCompany(Base):
     repr_cols = ("user_id", "company_id")
 
 
-# CardType
-
 class Car(Base):
     __tablename__ = "car"
     __table_args__ = {
@@ -790,9 +788,6 @@ class CarDriver(Base):
     repr_cols = ("car_id", "driver_id")
 
 
-# Card
-
-
 class System(Base):
     __tablename__ = "system"
     __table_args__ = {
@@ -838,6 +833,13 @@ class System(Base):
     scheme: Mapped[ContractSchemeEnum] = mapped_column(
         comment="Схема работы (агентская, перекупная, ...). См. соответствующий public -> Types.",
         server_default=ContractSchemeEnum.OVERBOUGHT.name
+    )
+
+    enabled: Mapped[bool] = mapped_column(
+        sa.Boolean,
+        nullable=False,
+        server_default=sa.sql.true(),
+        comment='Признак - с системой заключен договор, можно в ней обслуживаться на текущий момент'
     )
 
     transactions_sync_dt: Mapped[datetime] = mapped_column(

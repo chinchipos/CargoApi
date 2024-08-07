@@ -7,8 +7,8 @@ from typing import Dict, Any, List, Tuple
 import requests
 from fake_useragent import UserAgent
 
-from src.celery.exceptions import CeleryError
-from src.celery.gpn.config import GPN_USERNAME, GPN_URL, GPN_TOKEN, GPN_PASSWORD
+from src.celery_tasks.exceptions import CeleryError
+from src.celery_tasks.gpn.config import GPN_USERNAME, GPN_URL, GPN_TOKEN, GPN_PASSWORD
 from src.config import PRODUCTION, TZ
 from src.utils.log import ColoredLogger
 

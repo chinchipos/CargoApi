@@ -2,12 +2,12 @@ import asyncio
 import sys
 from typing import Dict, List
 
-from src.celery.exceptions import celery_logger
-from src.celery.gpn.api import GPNApi
-from src.celery.main import celery
+from src.celery_tasks.exceptions import celery_logger
+from src.celery_tasks.gpn.api import GPNApi
+from src.celery_tasks.main import celery
 from src.config import PROD_URI
-from src.celery.gpn.controller import GPNController
-from src.celery.irrelevant_balances import IrrelevantBalances
+from src.celery_tasks.gpn.controller import GPNController
+from src.celery_tasks.irrelevant_balances import IrrelevantBalances
 from src.database.db import DatabaseSessionManager
 
 

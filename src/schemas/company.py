@@ -1,5 +1,5 @@
 from datetime import date
-from typing import List, Annotated
+from typing import List, Annotated, Dict
 
 from pydantic import Field
 
@@ -85,7 +85,7 @@ overdraft_payment_deadline_ = Annotated[
     date | None,
     Field(description="Крайняя дата погашения задолженности по овердрафту", examples=["2023-05-22"])]
 
-tariff_id_ = Annotated[str, Field(description="Тариф")]
+tariffs_ = Annotated[List[Dict[str, str]], Field(description="Тарифы систем")]
 
 
 class CompanyCreateSchema(BaseSchema):
@@ -97,7 +97,7 @@ class CompanyCreateSchema(BaseSchema):
     overdraft_sum: overdraft_sum_in_ = 0
     overdraft_days: overdraft_days_ = 0
     overdraft_fee_percent: overdraft_fee_percent_ = 0.074
-    tariff_id: tariff_id_
+    tariffs: tariffs_
 
 
 class CompanyEditSchema(BaseSchema):
@@ -109,7 +109,7 @@ class CompanyEditSchema(BaseSchema):
     overdraft_sum: overdraft_sum_in_ = None
     overdraft_days: overdraft_days_ = None
     overdraft_fee_percent: overdraft_fee_percent_ = None
-    tariff_id: tariff_id_
+    tariffs: tariffs_
 
 
 class CompanyReadMinimumSchema(BaseSchema):

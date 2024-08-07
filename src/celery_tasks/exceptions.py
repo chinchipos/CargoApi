@@ -2,7 +2,7 @@ import traceback
 
 from src.utils.log import ColoredLogger
 
-celery_logger = ColoredLogger(logfile_name='celery.log', logger_name='CELERY')
+celery_logger = ColoredLogger(logfile_name='celery_tasks.log', logger_name='CELERY')
 
 
 class CeleryError(Exception):

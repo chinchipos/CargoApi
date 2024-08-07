@@ -3,14 +3,14 @@ import sys
 
 from celery import chain, shared_task, group
 
-from src.celery.exceptions import celery_logger
-from src.celery.main import celery
-from src.celery.balance.tasks import calc_balances
-from src.celery.overdraft.controller import Overdraft
-from src.celery.gpn.tasks import gpn_set_card_states
-from src.celery.khnp.tasks import khnp_set_card_states
+from src.celery_tasks.exceptions import celery_logger
+from src.celery_tasks.main import celery
+from src.celery_tasks.balance.tasks import calc_balances
+from src.celery_tasks.overdraft.controller import Overdraft
+from src.celery_tasks.gpn.tasks import gpn_set_card_states
+from src.celery_tasks.khnp.tasks import khnp_set_card_states
 from src.config import PROD_URI
-from src.celery.irrelevant_balances import IrrelevantBalances
+from src.celery_tasks.irrelevant_balances import IrrelevantBalances
 from src.database.db import DatabaseSessionManager
 
 

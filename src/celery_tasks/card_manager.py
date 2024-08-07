@@ -4,8 +4,8 @@ from sqlalchemy import select as sa_select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from src.celery.khnp.controller import KHNPController
-from src.celery.khnp.api import CardStatus
+from src.celery_tasks.khnp.controller import KHNPController
+from src.celery_tasks.khnp.api import CardStatus
 from src.database.model.card import CardOrm, BlockingCardReason
 from src.database.model.models import (Balance as BalanceOrm,
                                        Company as CompanyOrm, System as SystemOrm)

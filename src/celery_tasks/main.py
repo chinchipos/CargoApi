@@ -12,11 +12,11 @@ celery.conf.broker_connection_max_retries = 10
 celery.conf.timezone = 'Europe/Moscow'
 celery.autodiscover_tasks(
     packages=[
-        "src.celery.sync",
-        "src.celery.balance",
-        "src.celery.overdraft",
-        "src.celery.khnp",
-        "src.celery.gpn",
-        "src.celery.limits"
+        "src.celery_tasks.sync",
+        "src.celery_tasks.balance",
+        "src.celery_tasks.overdraft",
+        "src.celery_tasks.khnp",
+        "src.celery_tasks.gpn",
+        "src.celery_tasks.limits"
     ]
 )

@@ -5,7 +5,7 @@ from sqlalchemy import select as sa_select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from src.celery.irrelevant_balances import IrrelevantBalances
+from src.celery_tasks.irrelevant_balances import IrrelevantBalances
 from src.database.model.models import Transaction as TransactionOrm, Balance as BalanceOrm
 from src.repositories.base import BaseRepository
 from src.utils.enums import ContractScheme

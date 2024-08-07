@@ -2,12 +2,12 @@ import asyncio
 import traceback
 from typing import Dict, List
 
-from src.celery.exceptions import celery_logger, CeleryError
-from src.celery.main import celery
-from src.celery.irrelevant_balances import IrrelevantBalances
+from src.celery_tasks.exceptions import celery_logger, CeleryError
+from src.celery_tasks.main import celery
+from src.celery_tasks.irrelevant_balances import IrrelevantBalances
 from src.database.db import DatabaseSessionManager
 from src.config import PROD_URI
-from src.celery.balance.calc_balance import CalcBalances
+from src.celery_tasks.balance.calc_balance import CalcBalances
 
 
 async def calc_balances_fn(irrelevant_balances: IrrelevantBalances) -> Dict[str, List[str]]:

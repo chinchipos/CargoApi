@@ -1,8 +1,8 @@
 import asyncio
 import sys
 
-from src.celery.exceptions import celery_logger
-from src.celery.overdraft.tasks import overdraft_chain
+from src.celery_tasks.exceptions import celery_logger
+from src.celery_tasks.overdraft.tasks import overdraft_chain
 
 
 def run_calc_overdrafts():

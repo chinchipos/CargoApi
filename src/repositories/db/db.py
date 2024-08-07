@@ -1,6 +1,7 @@
 from typing import List
 
-from src.database.model import models
+from src.database.model.models import Role as RoleOrm, Balance as BalanceOrm, Transaction as TransactionOrm
+from src.database.model.card_type import CardTypeOrm
 from src.repositories.base import BaseRepository
 from src.repositories.db.nnk_migration import NNKMigration
 from src.schemas.db import DBInitialSyncSchema
@@ -21,7 +22,7 @@ class DBRepository(BaseRepository):
                 'description': role.value['description']
             } for role in enums.Role
         ]
-        stmt = pg_insert(models.Role).on_conflict_do_nothing()
+        stmt = pg_insert(RoleOrm).on_conflict_do_nothing()
         try:
             async with self.session.begin():
                 await self.session.execute(stmt, dataset)
@@ -34,7 +35,7 @@ class DBRepository(BaseRepository):
             {'name': 'Пластиковая карта'},
             {'name': 'Виртуальная карта'}
         ]
-        stmt = pg_insert(models.CardType).on_conflict_do_nothing()
+        stmt = pg_insert(CardTypeOrm).on_conflict_do_nothing()
         try:
             await self.session.execute(stmt, dataset)
             await self.session.commit()
@@ -74,9 +75,9 @@ class DBRepository(BaseRepository):
         self.logger.info('Импортирую пользователей')
         await nnk.import_users(data.users)
 
-    async def get_cargo_superadmin_role(self) -> models.Role:
+    async def get_cargo_superadmin_role(self) -> RoleOrm:
         try:
-            stmt = sa_select(models.Role).where(models.Role.name == enums.Role.CARGO_SUPER_ADMIN.name).limit(1)
+            stmt = sa_select(RoleOrm).where(RoleOrm.name == enums.Role.CARGO_SUPER_ADMIN.name).limit(1)
             dataset = await self.session.scalars(stmt)
             role = dataset.first()
             return role
@@ -84,16 +85,16 @@ class DBRepository(BaseRepository):
         except Exception:
             raise DBException()
 
-    async def get_balances(self) -> List[models.Balance]:
-        stmt = sa_select(models.Balance)
+    async def get_balances(self) -> List[BalanceOrm]:
+        stmt = sa_select(BalanceOrm)
         dataset = await self.select_all(stmt)
         return dataset
 
-    async def get_balance_transactions(self, balance: models.Balance) -> List[models.Transaction]:
+    async def get_balance_transactions(self, balance: BalanceOrm) -> List[TransactionOrm]:
         stmt = (
-            sa_select(models.Transaction)
-            .where(models.Transaction.balance_id == balance.id)
-            .order_by(desc(models.Transaction.date_time))
+            sa_select(TransactionOrm)
+            .where(TransactionOrm.balance_id == balance.id)
+            .order_by(desc(TransactionOrm.date_time))
         )
         dataset = await self.select_all(stmt)
         return dataset
