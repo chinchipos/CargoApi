@@ -279,7 +279,6 @@ class Overdraft(BaseRepository):
             "sum": overdraft_sum,
             "begin_date": self.yesterday,
             "end_date": None,
-            "overdue": False,
         }
         self.overdrafts_to_open.append(overdraft_to_open)
 
@@ -288,8 +287,6 @@ class Overdraft(BaseRepository):
         self.logger.info(f'Количество вновь открытых овердрафтов: {len(self.overdrafts_to_open)}')
 
     def mark_overdraft_to_delete(self, company: CompanyOrm) -> None:
-        # overdraft_to_off = {"id": overdraft_id, "end_date": self.today, "overdue": True}
-        # self.overdrafts_to_off.append(overdraft_to_off)
 
         company_to_disable_overdraft = {"id": company.id, "overdraft_on": False}
         self.companies_to_disable_overdraft.append(company_to_disable_overdraft)
@@ -340,13 +337,18 @@ class Overdraft(BaseRepository):
 
         # Отправляем отчет для СБ
         report = OverdraftsReport()
-        file_for_security_dptmt = report.make_excel(overdrafts)
-        file_name = f"Отчет_овердрафты_{date.strftime(datetime.now(tz=TZ), "%Y_%m_%d__%H_%M")}.xlsx"
+        files = None
+        if overdrafts:
+            file_for_security_dptmt = report.make_excel(overdrafts)
+            file_name = f"Отчет_овердрафты_{date.strftime(datetime.now(tz=TZ), "%Y_%m_%d__%H_%M")}.xlsx"
+            files = {file_name: file_for_security_dptmt}
+        subject = "ННК отчет: овердрафты" if overdrafts else "ННК отчет: нет открытых овердрафтов"
+        text = "ННК отчет: файл во вложении." if overdrafts else "Нет открытых овердрафтов."
         self.send_mail(
             recipients=OVERDRAFTS_MAIL_TO,
-            subject="ННК отчет: овердрафты",
-            text="ННК отчет: овердрафты",
-            files={file_name: file_for_security_dptmt}
+            subject=subject,
+            text=text,
+            files=files
         )
 
         # Отправляем отчет клиентам
