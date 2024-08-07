@@ -36,7 +36,6 @@ class Overdraft(BaseRepository):
         self.fee_transactions = []
         self.overdrafts_to_open = []
         self.overdrafts_to_close = []
-        # self.overdrafts_to_off = []
         self.companies_to_disable_overdraft = []
 
     async def calculate(self) -> IrrelevantBalances:
@@ -73,22 +72,6 @@ class Overdraft(BaseRepository):
         # Открываем в БД новые овердрафты
         await self.save_opened_overdrafts()
 
-        # По помеченным балансам получаем карты на блокировку
-        # card_repository = CardRepository(session=self.session)
-        #  cards_to_block = await card_repository.get_cards_by_balance_ids(self.balances_to_block_cards)
-
-        # Блокируем карты в локальной БД
-        # Далее запустится задача синхронизации с системой и карты будут заблокированы в ней
-        # dataset = [
-        #     {
-        #         "id": card.id,
-        #         "is_active": False,
-        #         "reason_for_blocking": BlockingCardReason.MANUALLY
-        #     } for card in cards_to_block
-        # ]
-        # await self.bulk_update(CardOrm, dataset)
-
-        # self.logger.info(f'Количетво клиентов на блокировку карт: {len(self.balances_to_block_cards)}')
         return irrelevant_balances
 
     async def get_opened_overdrafts(self) -> List[Tuple[OverdraftsHistoryOrm, TransactionOrm]]:
@@ -292,7 +275,6 @@ class Overdraft(BaseRepository):
         self.companies_to_disable_overdraft.append(company_to_disable_overdraft)
 
     async def save_deleted_overdrafts(self) -> None:
-        # await self.bulk_update(OverdraftsHistoryOrm, self.overdrafts_to_off)
         await self.bulk_update(CompanyOrm, self.companies_to_disable_overdraft)
         self.logger.info(f'Количество просроченных овердрафтов: {len(self.companies_to_disable_overdraft)}')
 
@@ -303,9 +285,6 @@ class Overdraft(BaseRepository):
     async def save_closed_overdrafts(self) -> None:
         await self.bulk_update(OverdraftsHistoryOrm, self.overdrafts_to_close)
         self.logger.info(f'Количество погашенных овердрафтов: {len(self.overdrafts_to_close)}')
-
-    # def mark_balance_to_block_cards(self, balance_id: BalanceOrm) -> None:
-    #    self.balances_to_block_cards.add(balance_id)
 
     def log_decision(self, company: CompanyOrm, transaction_balance: float, decision: str) -> None:
         message = (
@@ -331,9 +310,6 @@ class Overdraft(BaseRepository):
             .where(OverdraftsHistoryOrm.end_date.is_(null()))
         )
         overdrafts = await self.select_all(stmt)
-        # for overdraft in overdrafts:
-        #     overdraft_delete_date = overdraft.begin_date + timedelta(days=overdraft.days + 1)
-        #     overdraft.end_date = overdraft_delete_date
 
         # Отправляем отчет для СБ
         report = OverdraftsReport()
@@ -343,7 +319,7 @@ class Overdraft(BaseRepository):
             file_name = f"Отчет_овердрафты_{date.strftime(datetime.now(tz=TZ), "%Y_%m_%d__%H_%M")}.xlsx"
             files = {file_name: file_for_security_dptmt}
         subject = "ННК отчет: овердрафты" if overdrafts else "ННК отчет: нет открытых овердрафтов"
-        text = "ННК отчет: файл во вложении." if overdrafts else "Нет открытых овердрафтов."
+        text = "ННК отчет: файл во вложении." if overdrafts else "Нет открытых овердрафтов. Задолженности погашены."
         self.send_mail(
             recipients=OVERDRAFTS_MAIL_TO,
             subject=subject,
