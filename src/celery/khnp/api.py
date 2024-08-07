@@ -450,8 +450,8 @@ class KHNPParser:
                 elif card_data['cardBlockRequest'] == CardStatus.ACTIVATE_PENDING.value:
                     return CardStatus.ACTIVATE_PENDING
                 else:
-                    self.logger.info("Сайт поставщика не позволяет достоверно определить статус карты, "
-                                     "так как еще не обработана предыдущая операция по смене статуса карты {card_num}")
+                    print("Сайт поставщика не позволяет достоверно определить статус карты, "
+                          "так как еще не обработана предыдущая операция по смене статуса карты {card_num}")
                     return CardStatus.UNKNOWN
 
     """
@@ -514,7 +514,7 @@ class KHNPParser:
                     ok_btn = WebDriverWait(footer, 5).until(lambda x: x.find_element(By.CSS_SELECTOR, 'span.btn'))
                     ok_btn.click()
                     time.sleep(1)
-                self.logger.info(message=f"{card_num} | смена статуса в ХНП с {card_status.name} на противоположный")
+                print(f"{card_num} | смена статуса в ХНП с {card_status.name} на противоположный")
 
     """
     def set_limit(self, params):
