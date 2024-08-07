@@ -1,9 +1,10 @@
-from typing import List
+from typing import List, Dict
 
 from celery import chain, chord, shared_task, group
 
 from src.celery.exceptions import celery_logger
 from src.celery.gpn.tasks import gpn_sync, gpn_set_card_states
+from src.celery.limits.tasks import set_card_group_limit
 from src.celery.khnp.tasks import khnp_sync, khnp_set_card_states
 from src.celery.balance.tasks import calc_balances
 from src.celery.main import celery
@@ -35,10 +36,16 @@ load_balance_card_transactions = chord(
 
 
 @shared_task
-def set_card_states(result):
+def set_card_states(balance_ids: Dict[str, List[str]]):
+    print(balance_ids)
+    balance_ids_list = list(balance_ids["to_block"])
+    balance_ids_list.extend(balance_ids["to_activate"])
+    print('2222222222222222222222222222222')
+    print(balance_ids_list)
     grouped_tasks = group(
-        khnp_set_card_states.s(result),
-        gpn_set_card_states.s(result)
+        khnp_set_card_states.s(balance_ids),
+        gpn_set_card_states.s(balance_ids),
+        set_card_group_limit.s(balance_ids_list)
     )
     return grouped_tasks()
 

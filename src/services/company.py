@@ -156,4 +156,4 @@ class CompanyService:
         )
 
         # В системе поставщика устанавливаем лимит на группу карт (если применимо)
-        set_card_group_limit.delay(balance_id=balance.id)
+        set_card_group_limit.delay(balance_ids=[balance.id])

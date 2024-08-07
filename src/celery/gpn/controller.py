@@ -331,14 +331,18 @@ class GPNController(BaseRepository):
             ext_card_ids = [card.external_id for card in local_cards_to_block]
             self.api.block_cards(ext_card_ids)
 
-    async def set_card_group_limit(self, balance_id: str) -> None:
+    async def set_card_group_limit(self, balance_ids: List[str]) -> None:
+        if not balance_ids:
+            print("Получен пустой список балансов для обновления лимитов на группы карт ГПН")
+            return None
+
         # Получаем параметры баланса и организации
         stmt = (
             sa_select(BalanceOrm)
             .options(
                 joinedload(BalanceOrm.company)
             )
-            .where(BalanceOrm.id == balance_id)
+            .where(BalanceOrm.id.in_(balance_ids))
         )
         balance = await self.select_first(stmt)
 
