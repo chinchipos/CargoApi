@@ -117,7 +117,8 @@ async def gpn_test_fn() -> None:
 
     async with sessionmanager.session() as session:
         gpn_api = GPNApi(celery_logger)
-        gpn_api.gpn_test()
+        # gpn_api.get_transactions(1)
+        gpn_api.get_goods()
 
     # Закрываем соединение с БД
     await sessionmanager.close()

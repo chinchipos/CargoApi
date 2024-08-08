@@ -35,7 +35,7 @@ load_balance_card_transactions = chord(
 )
 
 
-@shared_task
+@shared_task(name="SYNC_SET_CARD_STATES")
 def set_card_states(balance_ids: Dict[str, List[str]]):
     balance_ids_list = list(balance_ids["to_block"])
     balance_ids_list.extend(balance_ids["to_activate"])

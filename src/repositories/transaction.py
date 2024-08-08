@@ -1,13 +1,15 @@
-from datetime import datetime
-from typing import List
+from datetime import datetime, timedelta
+from typing import List, Dict
 
-from sqlalchemy import select as sa_select, and_
+from sqlalchemy import select as sa_select, and_, func, update as sa_update
 from sqlalchemy.orm import joinedload, load_only, aliased
 
 from src.config import TZ
 from src.database.model.card import CardOrm
 from src.database.model.models import (Transaction as TransactionOrm, System as SystemOrm, Balance as BalanceOrm,
-                                       OuterGoods as OuterGoodsOrm, Tariff as TariffOrm, Company as CompanyOrm)
+                                       OuterGoods as OuterGoodsOrm, Tariff as TariffOrm, Company as CompanyOrm,
+                                       BalanceSystemTariff as BalanceSystemTariffOrm, CardSystem as CardSystemOrm,
+                                       BalanceTariffHistory as BalanceTariffHistoryOrm)
 from src.repositories.base import BaseRepository
 from src.utils import enums
 from src.utils.enums import TransactionType
@@ -167,3 +169,86 @@ class TransactionRepository(BaseRepository):
         # Обновляем сумму на балансе
         update_data = {'balance': corrective_transaction.company_balance}
         await self.update_object(balance, update_data)
+
+    async def get_recent_system_transactions(self, system_id: str, transaction_days: int) \
+            -> List[TransactionOrm]:
+        start_date = datetime.now(tz=TZ).date() - timedelta(days=transaction_days)
+        stmt = (
+            sa_select(TransactionOrm)
+            .options(
+                joinedload(TransactionOrm.card),
+                joinedload(TransactionOrm.company),
+                joinedload(TransactionOrm.outer_goods),
+                joinedload(TransactionOrm.tariff)
+            )
+            .where(TransactionOrm.date_time >= start_date)
+            .where(TransactionOrm.system_id == system_id)
+            .outerjoin(TransactionOrm.card)
+            .order_by(CardOrm.card_number, TransactionOrm.date_time)
+        )
+        transactions = await self.select_all(stmt)
+
+        # От систем транзакции приходят с указанием времени в формате YYYY-MM-DD HH:MM:SS
+        # Обрезаем микросекунды, чтобы можно было сравнивать по времени локальные транзакции с
+        # полученными от систем
+        for tr in transactions:
+            tr.date_time.replace(microsecond=0)
+
+        return transactions
+
+    async def renew_cards_date_last_use(self) -> None:
+        date_last_use_subquery = (
+            sa_select(func.max(TransactionOrm.date_time))
+            .where(TransactionOrm.card_id == CardOrm.id)
+            .scalar_subquery()
+        )
+        stmt = sa_update(CardOrm).values(date_last_use=date_last_use_subquery)
+        await self.session.execute(stmt)
+        await self.session.commit()
+
+    async def get_balance_system_tariff_list(self, system_id: str) -> List[BalanceSystemTariffOrm]:
+        bst = aliased(BalanceSystemTariffOrm, name="bst")
+        stmt = (
+            sa_select(bst)
+            .options(
+                joinedload(bst.tariff)
+                .load_only(TariffOrm.id, TariffOrm.fee_percent)
+            )
+            .where(bst.system_id == system_id)
+        )
+        balance_system_tariff_list = await self.select_all(stmt)
+        return balance_system_tariff_list
+
+    async def get_tariffs_history(self, system_id: str) -> List[BalanceTariffHistoryOrm]:
+        bth = aliased(BalanceTariffHistoryOrm, name="bth")
+        stmt = (
+            sa_select(bth)
+            .options(
+                joinedload(bth.tariff)
+                .load_only(TariffOrm.id, TariffOrm.fee_percent)
+            )
+            .where(bth.system_id == system_id)
+        )
+        tariffs_history = await self.select_all(stmt)
+        return tariffs_history
+
+    async def get_balance_card_relations(self, card_numbers: List[str], system_id: str) -> Dict[str, str]:
+        stmt = (
+            sa_select(CardOrm.card_number, BalanceOrm.id)
+            .select_from(BalanceSystemTariffOrm, BalanceOrm, CompanyOrm, CardOrm, CardSystemOrm)
+            .where(CardOrm.card_number.in_(card_numbers))
+            .where(CardSystemOrm.card_id == CardOrm.id)
+            .where(CardSystemOrm.system_id == system_id)
+            .where(BalanceSystemTariffOrm.system_id == system_id)
+            .where(BalanceOrm.id == BalanceSystemTariffOrm.balance_id)
+            .where(CompanyOrm.id == BalanceOrm.company_id)
+            .where(CardOrm.company_id == CompanyOrm.id)
+        )
+        dataset = await self.select_all(stmt, scalars=False)
+        balance_card_relations = {data[0]: data[1] for data in dataset}
+        return balance_card_relations
+
+    async def get_outer_goods_list(self, system_id: str) -> List[OuterGoodsOrm]:
+        stmt = sa_select(OuterGoodsOrm).where(OuterGoodsOrm.system_id == system_id)
+        outer_goods = await self.select_all(stmt)
+        return outer_goods

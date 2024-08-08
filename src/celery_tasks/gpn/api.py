@@ -51,18 +51,23 @@ class GPNApi:
         password = GPN_PASSWORD
         password_hash = hashlib.sha512(password.encode('utf-8')).hexdigest().lower()
 
+        data = {
+            "login": username,
+            "password": password_hash
+        }
         response = requests.post(
             url=self.endpoint(self.api_v1, "authUser"),
             headers=self.headers,
-            data={
-                "login": username,
-                "password": password_hash
-            }
+            data=data
         )
 
-        resp_data = response.json()
-        self.api_session_id = resp_data['data']['session_id']
-        self.contract_id = resp_data['data']['contracts'][0]['id']
+        res = response.json()
+        if res["status"]["code"] != 200:
+            raise CeleryError(message=f"Ошибка авторизации. Ответ API: {res['status']['errors']}. "
+                                      f"Наш запрос: {data}")
+
+        self.api_session_id = res['data']['session_id']
+        self.contract_id = res['data']['contracts'][0]['id']
 
     def contract_info(self) -> Dict[str, Any]:
         """Получение информации об организации."""
@@ -253,16 +258,20 @@ class GPNApi:
         # Количество транзакций на странице. 500, если не указано.
         page_offset = 0
         transactions = []
+        i = 0
         while True:
             params = {
                 "date_from": date_from.isoformat(),
                 "date_to": self.today.isoformat(),
+                "page_limit": 100,
                 "page_offset": page_offset
             }
+            url = self.endpoint(self.api_v2, "transactions", params)
             response = requests.get(
-                url=self.endpoint(self.api_v2, "transactions", params),
+                url=url,
                 headers=self.headers | {"session_id": self.api_session_id}
             )
+            print(url)
 
             res = response.json()
 
@@ -274,8 +283,16 @@ class GPNApi:
                 break
 
             transactions.extend(res["data"]["result"])
+            print('----------------------')
+            print(f'OFFSET: {page_offset}')
             print(res["data"]["result"])
-            page_offset += 500
+            page_offset += 100
+            i += 1
+            if i == 3:
+                break
+
+        for transaction in transactions:
+            transaction['timestamp'] = datetime.fromisoformat(transaction['timestamp'][:19])
 
         return transactions
 
@@ -384,6 +401,11 @@ class GPNApi:
             self.product_types = self.get_dictionary(dictionary_name="ProductType")
 
         return self.product_types
+
+    def get_goods(self) -> List[Dict[str, Any]]:
+        goods = self.get_dictionary(dictionary_name="Goods")
+        print(goods)
+        return goods
 
     def get_dictionary(self, dictionary_name: str) -> List[Dict[str, Any]]:
         response = requests.get(

@@ -1,5 +1,5 @@
-from datetime import datetime
 import time
+from datetime import datetime
 from typing import Dict, Any, List
 
 from sqlalchemy import select as sa_select
@@ -9,14 +9,20 @@ from sqlalchemy.orm import joinedload
 from src.celery_tasks.gpn.api import GPNApi
 from src.celery_tasks.gpn.config import SYSTEM_SHORT_NAME
 from src.celery_tasks.irrelevant_balances import IrrelevantBalances
+from src.celery_tasks.transaction_helper import get_local_cards, get_local_card, get_tariff_on_date_by_balance, \
+    get_current_tariff_by_balance
 from src.config import TZ
 from src.database.model.card import CardOrm, BlockingCardReason
 from src.database.model.card_type import CardTypeOrm
-from src.database.model.models import CardSystem as CardSystemOrm, Balance as BalanceOrm
+from src.database.model.models import (CardSystem as CardSystemOrm, Balance as BalanceOrm,
+                                       Transaction as TransactionOrm,
+                                       OuterGoods as OuterGoodsOrm, BalanceTariffHistory as BalanceTariffHistoryOrm,
+                                       BalanceSystemTariff as BalanceSystemTariffOrm)
 from src.repositories.base import BaseRepository
 from src.repositories.card import CardRepository
 from src.repositories.system import SystemRepository
-from src.utils.enums import ContractScheme
+from src.repositories.transaction import TransactionRepository
+from src.utils.enums import ContractScheme, TransactionType
 from src.utils.log import ColoredLogger
 
 
@@ -30,6 +36,12 @@ class GPNController(BaseRepository):
         self._irrelevant_balances = IrrelevantBalances()
         self.card_groups = []
         self.card_types = {}
+
+        self._local_cards: List[CardOrm] = []
+        self._balance_card_relations: Dict[str, str] = {}
+        self._tariffs_history: List[BalanceTariffHistoryOrm] = []
+        self._bst_list: List[BalanceSystemTariffOrm] = []
+        self._outer_goods_list: List[OuterGoodsOrm] = []
 
     async def init_system(self) -> None:
         if not self.system:
@@ -76,7 +88,7 @@ class GPNController(BaseRepository):
         await self.get_card_types(remote_cards)
 
         # Получаем список карт из локальной БД, привязанных к ГПН
-        local_cards = await self.get_local_cards()
+        local_cards = await get_local_cards(session=self.session, system_id=self.system.id)
         self.logger.info(f"Количество карт в локальной БД (до синхронизации): {len(local_cards)}")
 
         # Создаем в локальной БД новые карты и привязываем их к ГПН - статус карты из ГПН транслируем на локальную БД.
@@ -138,12 +150,6 @@ class GPNController(BaseRepository):
         await self.update_object(self.system, update_data={"cards_sync_dt": datetime.now(tz=TZ)})
         self.logger.info('Синхронизация карт выполнена')
     """
-
-    async def get_local_cards(self) -> List[CardOrm]:
-        card_repository = CardRepository(self.session)
-        local_cards = await card_repository.get_cards_by_filters(system_id=self.system.id)
-
-        return local_cards
 
     async def get_card_types(self, gpn_cards: List[Dict[str, Any]]) -> None:
         """
@@ -354,3 +360,216 @@ class GPNController(BaseRepository):
         # Устанавливаем лимит
         gpn_api = GPNApi(self.logger)
         gpn_api.set_card_group_limits(limits_dataset=[(balance.company.personal_account, limit_sum)])
+
+    async def load_transactions(self) -> None:
+        await self.init_system()
+
+        # Получаем список транзакций от поставщика услуг
+        remote_transactions = self.api.get_transactions(transaction_days=self.system.transaction_days)
+        self.logger.info(f'Количество транзакций от системы ГПН: {len(remote_transactions)} шт')
+        if not len(remote_transactions):
+            return None
+
+        # Получаем список транзакций из локальной БД
+        transaction_repository = TransactionRepository(self.session, None)
+        local_transactions = await transaction_repository.get_recent_system_transactions(
+            system_id=self.system.id,
+            transaction_days=self.system.transaction_days
+        )
+        self.logger.info(f'Количество транзакций из локальной БД: {len(local_transactions)} шт')
+
+        # Сравниваем транзакции локальные с полученными от системы.
+        # Идентичные транзакции исключаем из списков.
+        self.logger.info('Приступаю к процедуре сравнения локальных транзакций с полученными от системы ГПН')
+        to_delete_local = []
+        for local_transaction in local_transactions:
+            remote_transaction = self.get_equal_remote_transaction(local_transaction, remote_transactions)
+            if remote_transaction:
+                remote_transactions.remove(remote_transaction)
+            else:
+                # Транзакция присутствует локально, но у поставщика услуг её нет.
+                # Помечаем на удаление локальную транзакцию.
+                to_delete_local.append(local_transaction)
+                if local_transaction.balance_id:
+                    self._irrelevant_balances.add(
+                        balance_id=str(local_transaction.balance_id),
+                        irrelevancy_date_time=local_transaction.date_time_load
+                    )
+
+        # Удаляем помеченные транзакции из БД
+        self.logger.info(f'Удалить тразакции из локальной БД: {len(to_delete_local)} шт')
+        if len(to_delete_local):
+            self.logger.info('Удаляю помеченные локальные транзакции из БД')
+            for transaction in to_delete_local:
+                await self.delete_object(TransactionOrm, transaction.id)
+
+        # Транзакции от системы, оставшиеся необработанными,
+        # записываем в локальную БД.
+        self.logger.info(f'Новые тразакции от системы ГПН: {len(remote_transactions)} шт')
+        if len(remote_transactions):
+            self.logger.info(
+                'Начинаю обработку транзакций от системы ГПН, которые не обнаружены в локальной БД'
+            )
+            await self.process_new_remote_transactions(remote_transactions, transaction_repository)
+
+        # Записываем в БД время последней успешной синхронизации
+        await self.update_object(self.system, update_data={"transactions_sync_dt": datetime.now(tz=TZ)})
+
+        # Обновляем время последней транзакции для карт
+        await transaction_repository.renew_cards_date_last_use()
+
+    @staticmethod
+    def get_equal_remote_transaction(local_transaction: TransactionOrm, remote_transactions: List[Dict[str, Any]]) \
+            -> Dict[str, Any] | None:
+        for remote_transaction in remote_transactions:
+            if remote_transaction['timestamp'] == local_transaction.date_time:
+                if remote_transaction['qty'] == abs(local_transaction.fuel_volume):
+                    if remote_transaction['sum'] == abs(local_transaction.transaction_sum):
+                        return remote_transaction
+
+    async def process_new_remote_transactions(self, remote_transactions: List[Dict[str, Any]],
+                                              transaction_repository: TransactionRepository) -> None:
+        # Получаем текущие тарифы
+        self._bst_list = await transaction_repository.get_balance_system_tariff_list(self.system.id)
+
+        # Получаем историю тарифов
+        self._tariffs_history = await transaction_repository.get_tariffs_history(self.system.id)
+
+        # Получаем список продуктов / услуг
+        self._outer_goods_list = await transaction_repository.get_outer_goods_list(system_id=self.system.id)
+
+        # Получаем связи карт (Карта-Баланс)
+        card_numbers = [transaction['card_number'] for transaction in remote_transactions]
+        self._balance_card_relations = await transaction_repository.get_balance_card_relations(card_numbers, self.system.id)
+
+        # Получаем карты
+        self._local_cards = await get_local_cards(
+            session=self.session,
+            system_id=self.system.id,
+            card_numbers=card_numbers
+        )
+
+        # Подготавливаем список транзакций для сохранения в БД
+        transactions_to_save = []
+        for remote_transaction in remote_transactions:
+            transaction_data = await self.process_new_remote_transaction(
+                card_number=remote_transaction['card_number'],
+                remote_transaction=remote_transaction
+            )
+            if transaction_data:
+                transactions_to_save.append(transaction_data)
+                if transaction_data['balance_id']:
+                    self._irrelevant_balances.add(
+                        balance_id=str(transaction_data['balance_id']),
+                        irrelevancy_date_time=transaction_data['date_time_load']
+                    )
+
+        # Сохраняем транзакции в БД
+        await self.bulk_insert_or_update(TransactionOrm, transactions_to_save)
+
+    async def process_new_remote_transaction(self, card_number: str, remote_transaction: Dict[str, Any]) \
+            -> Dict[str, Any] | None:
+        # remote_transaction = {
+        #     "id": 9281938435,
+        #     "timestamp": "2002-11-28 00:10:00",
+        #     "card_id": "15844989",
+        #     "poi_id": "1-3GQFQPF",
+        #     "terminal_id": "RZ142481",
+        #     "type": "P",
+        #     "product_id": "00000000000003",
+        #     "product_category_id": "НП",
+        #     "currency": "RUR",
+        #     "check_id": 127523194203,
+        #     "stor_transaction_id": 9282453912,
+        #     "is_storno": true,
+        #     "is_manual_corrention": false,
+        #     "qty": -53.10 ,
+        #     "price": 54.90,
+        #     "price_no_discount": 52.79,
+        #     "sum": -2915.19,
+        #     "sum_no_discount": -2803.15,
+        #     "discount": 112.04,
+        #     "exchange_rate": 1,
+        #     "card_number": "7005830007328081",
+        #     "payment_type": "Карта"
+        # }
+
+        # Получаем баланс
+        balance_id = self._balance_card_relations.get(card_number, None)
+        if not balance_id:
+            return None
+
+        # Получаем карту
+        card = await get_local_card(card_number, self._local_cards)
+
+        # Получаем товар/услугу
+        outer_goods = await self.get_outer_goods(remote_transaction)
+
+        # Получаем тариф
+        tariff = get_tariff_on_date_by_balance(
+            balance_id=balance_id,
+            transaction_date=remote_transaction['timestamp'].date(),
+            tariffs_history=self._tariffs_history
+        )
+        if not tariff:
+            tariff = get_current_tariff_by_balance(balance_id=balance_id, bst_list=self._bst_list)
+
+        # Сумма транзакции
+        transaction_sum = remote_transaction['sum']
+
+        # Размер скидки
+        discount_percent = 0  # 0 / 100
+        discount_sum = transaction_sum * discount_percent
+
+        # Размер комиссионного вознаграждения
+        fee_percent = float(tariff.fee_percent) / 100 if tariff else 0
+        fee_sum = (transaction_sum - discount_sum) * fee_percent
+
+        # Получаем итоговую сумму
+        total_sum = transaction_sum - discount_percent + fee_sum
+
+        transaction_data = dict(
+            date_time=remote_transaction['timestamp'],
+            date_time_load=datetime.now(tz=TZ),
+            transaction_type=TransactionType.PURCHASE if remote_transaction['sum'] < 0 else TransactionType.REFUND,
+            system_id=self.system.id,
+            card_id=card.id,
+            balance_id=balance_id,
+            azs_code=remote_transaction['poi_id'],
+            outer_goods_id=outer_goods.id if outer_goods else None,
+            fuel_volume=remote_transaction['qty'],
+            price=remote_transaction['price'],
+            transaction_sum=transaction_sum,
+            tariff_id=tariff.id if tariff else None,
+            discount_sum=discount_sum,
+            fee_sum=fee_sum,
+            total_sum=total_sum,
+            company_balance_after=0,
+            comments='',
+        )
+
+        # Это нужно, чтобы в БД у транзакций отличалось время и можно было корректно выбрать транзакцию,
+        # которая предшествовала измененной
+        time.sleep(0.001)
+
+        return transaction_data
+
+    async def get_outer_goods(self, remote_transaction: Dict[str, Any]) -> OuterGoodsOrm:
+        # Выполняем поиск товара/услуги
+        for goods in self._outer_goods_list:
+            if goods.external_id == remote_transaction['product_id']:
+                return goods
+
+        # Если продукт не найден, то запрашиваем список продуктов у API,
+        # добавляем его к имеющемуся списку и выполняем повторный поиск
+        gpn_products = self.api.get_products()
+
+        fields = dict(
+            name=product_type,
+            system_id=self.system.id,
+            inner_goods_id=None,
+        )
+        goods = await self.insert(OuterGoodsOrm, **fields)
+        self._outer_goods_list.append(goods)
+
+        return goods

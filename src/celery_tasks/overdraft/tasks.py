@@ -56,7 +56,7 @@ def send_overdrafts_report() -> str:
     return "COMPLETE"
 
 
-@shared_task
+@shared_task(name="SET_CARD_STATES")
 def set_card_states(result):
     grouped_tasks = group(
         khnp_set_card_states.s(result),
