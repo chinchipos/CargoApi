@@ -1,12 +1,16 @@
 from typing import List, Any
 
-from src.database.models import Company as CompanyOrm, User as UserOrm
+from src.database.model.models import (Company as CompanyOrm, User as UserOrm,
+                                       BalanceSystemTariff as BalanceSystemTariffOrm)
 from src.repositories.company import CompanyRepository
 from src.repositories.transaction import TransactionRepository
 from src.repositories.user import UserRepository
-from src.schemas.company import CompanyEditSchema, CompanyReadSchema, CompanyReadMinimumSchema, CompanyBalanceEditSchema
+from src.schemas.company import CompanyEditSchema, CompanyReadSchema, CompanyReadMinimumSchema, \
+    CompanyBalanceEditSchema, CompanyCreateSchema
 from src.utils import enums
+from src.utils.enums import TransactionType
 from src.utils.exceptions import BadRequestException, ForbiddenException
+from src.celery_tasks.limits.tasks import set_card_group_limit
 
 
 class CompanyService:
@@ -14,6 +18,10 @@ class CompanyService:
     def __init__(self, repository: CompanyRepository) -> None:
         self.repository = repository
         self.logger = repository.logger
+
+    async def create(self, company_create_schema: CompanyCreateSchema) -> CompanyOrm:
+        company = await self.repository.create(company_create_schema)
+        return company
 
     async def edit(self, company_id: str, company_edit_schema: CompanyEditSchema) -> CompanyOrm:
         # Проверка прав доступа.
@@ -30,6 +38,24 @@ class CompanyService:
         else:
             raise ForbiddenException()
 
+        # Проверяем входные данные
+        if company_edit_schema.overdraft_on:
+            # Если активирован овердрафт, то обязательно должны быть заполнены поля: сумма, дни
+            if company_edit_schema.overdraft_sum is None:
+                raise BadRequestException("Не указана сумма овердрафта")
+
+            if not company_edit_schema.overdraft_days:
+                raise BadRequestException("Не указан срок овердрафта")
+
+            if not company_edit_schema.overdraft_fee_percent:
+                raise BadRequestException("Не указан размер комиссии за овердрафт")
+
+        else:
+            company_edit_schema.overdraft_on = False
+            company_edit_schema.overdraft_sum = 0
+            company_edit_schema.overdraft_days = 0
+            company_edit_schema.overdraft_fee_percent = 0.074
+
         # Получаем организацию из БД
         company = await self.repository.get_company(company_id)
         if not company:
@@ -41,6 +67,44 @@ class CompanyService:
             raise BadRequestException('Отсутствуют данные для обновления')
 
         await self.repository.update_object(company, update_data)
+
+        company = await self.repository.get_company(company_id)
+
+        # Получаем перекупной баланс
+        balance = None
+        for cb in company.balances:
+            if cb.scheme == enums.ContractScheme.OVERBOUGHT:
+                balance = cb
+                break
+
+        # Сравниваем текущие настройки тарифов с полученными
+        bst_list_current = await self.repository.get_systems_tariffs(balance.id)
+
+        # Удаляем отвязанные
+        for bst_current in bst_list_current:
+            for system_tariff_received in company_edit_schema.tariffs:
+                system_id = system_tariff_received['system_id']
+                tariff_id = system_tariff_received['tariff_id']
+                if bst_current.system_id == system_id and not tariff_id:
+                    await self.repository.delete_object(BalanceSystemTariffOrm, bst_current.id)
+
+        # Создаем новые связи, изменяем существующие
+        for system_tariff_received in company_edit_schema.tariffs:
+            system_id = system_tariff_received['system_id']
+            tariff_id = system_tariff_received['tariff_id']
+            if tariff_id:
+                found = False
+                for bst_current in bst_list_current:
+                    if bst_current.system_id == system_id:
+                        found = True
+                        if bst_current.tariff_id != tariff_id:
+                            # Меняем тариф для этой системы у этой организации
+                            await self.repository.update_object(bst_current, {"tariff_id": tariff_id})
+
+                if not found:
+                    # Создаем новую связь "Система - Тариф" для этой организации
+                    new_bst = BalanceSystemTariffOrm(balance_id=balance.id, system_id=system_id, tariff_id=tariff_id)
+                    await self.repository.save_object(new_bst)
 
         # Формируем ответ
         company = await self.repository.get_company(company_id)
@@ -70,7 +134,6 @@ class CompanyService:
     async def get_companies(self) -> List[CompanyReadSchema] | List[CompanyReadMinimumSchema]:
         # Получаем организации
         companies = await self.repository.get_companies()
-
         # Отдаем пользователю только ту информацию, которая соответствует его роли
         major_roles = [enums.Role.CARGO_SUPER_ADMIN.name, enums.Role.CARGO_MANAGER.name, enums.Role.COMPANY_ADMIN.name]
         if self.repository.user.role.name in major_roles:
@@ -101,7 +164,16 @@ class CompanyService:
 
         # Получаем перекупной баланс организации (он может быть всего 1 у организации)
         balance = await self.repository.get_overbought_balance_by_company_id(company_id)
+
         # Создаем транзакцию
         transaction_repository = TransactionRepository(self.repository.session, self.repository.user)
-        debit = True if edit_balance_schema.direction == enums.Finance.DEBIT.name else False
-        await transaction_repository.create_corrective_transaction(balance, debit, edit_balance_schema.delta_sum)
+        transaction_type = TransactionType.DECREASE if edit_balance_schema.direction == enums.Finance.DEBIT.name \
+            else TransactionType.REFILL
+        await transaction_repository.create_corrective_transaction(
+            balance=balance,
+            transaction_type=transaction_type,
+            delta_sum=edit_balance_schema.delta_sum
+        )
+
+        # В системе поставщика устанавливаем лимит на группу карт (если применимо)
+        set_card_group_limit.delay(balance_ids=[balance.id])

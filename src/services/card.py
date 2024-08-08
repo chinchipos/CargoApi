@@ -1,10 +1,14 @@
 from typing import List
 
-from src.database.models import Card as CardOrm, CardSystem as CardSystemOrm
+from src.database.model.card import CardOrm
+from src.database.model.models import CardSystem as CardSystemOrm, Company as CompanyOrm
 from src.repositories.card import CardRepository
+from src.repositories.company import CompanyRepository
 from src.schemas.card import CardCreateSchema, CardReadSchema, CardEditSchema
 from src.utils import enums
+from src.utils.enums import ContractScheme
 from src.utils.exceptions import BadRequestException, ForbiddenException
+from src.celery_tasks.gpn.tasks import gpn_cards_bind_company, gpn_cards_unbind_company
 
 
 class CardService:
@@ -84,19 +88,22 @@ class CardService:
             raise ForbiddenException()
 
         # Полученную модель с данными преобразуем в словарь
-        temporary_update_data = card_edit_schema.model_dump(exclude_unset=True)
+        card_update_data = card_edit_schema.model_dump(exclude_unset=True)
+
+        if current_company_id != new_company_id:
+            card_update_data['group_id'] = None
 
         # В зависимости от роли убираем возможность редактирования некоторых полей
         if self.repository.user.role.name == enums.Role.CARGO_MANAGER.name:
             allowed_fields = ['company_id', 'belongs_to_car_id', 'belongs_to_driver_id', 'is_active']
-            update_data = {k: v for k, v in temporary_update_data.items() if k in allowed_fields}
+            update_data = {k: v for k, v in card_update_data.items() if k in allowed_fields}
 
         elif self.repository.user.role.name in [enums.Role.COMPANY_ADMIN.name, enums.Role.COMPANY_LOGIST.name]:
             allowed_fields = ['belongs_to_car_id', 'belongs_to_driver_id']
-            update_data = {k: v for k, v in temporary_update_data.items() if k in allowed_fields}
+            update_data = {k: v for k, v in card_update_data.items() if k in allowed_fields}
 
         else:
-            update_data = temporary_update_data
+            update_data = card_update_data
 
         # Обновляем запись в БД
         await self.repository.update_object(card, update_data)
@@ -109,7 +116,33 @@ class CardService:
         )
 
         # Получаем карту из БД
-        card = await self.get_card(card_id)
+        card = await self.repository.get_card(card_id)
+
+        # Если карта ГПН, то назначаем ей группу
+        for system in card.systems:
+            if system.short_name == 'ГПН':
+                if current_company_id != new_company_id:
+                    if new_company_id:
+                        company_repository = CompanyRepository(session=self.repository.session)
+                        company = await company_repository.get_company(new_company_id)
+                        limit_sum = 1
+                        for balance in company.balances:
+                            if balance.scheme == ContractScheme.OVERBOUGHT:
+                                # Вычисляем доступный лимит
+                                overdraft_sum = card.company.overdraft_sum if card.company.overdraft_on else 0
+                                boundary_sum = card.company.min_balance - overdraft_sum
+                                limit_sum = abs(boundary_sum - balance.balance) if boundary_sum < balance.balance else 1
+                                break
+
+                        gpn_cards_bind_company.delay([card.id], card.company.personal_account, limit_sum)
+
+                    else:
+                        gpn_cards_unbind_company.delay([card.id])
+
+                break
+
+        # Получаем карту из БД
+        card = await self.repository.get_card(card_id)
         return card
 
     async def get_cards(self) -> List[CardOrm]:
@@ -160,6 +193,28 @@ class CardService:
         # Выполняем привязку к организации
         dataset = [{"id": card.id, "company_id": company_id} for card in cards]
         await self.repository.bulk_update(CardOrm, dataset)
+
+        # Если карта ГПН, то назначаем ей группу
+        card_ids = []
+        for card in cards:
+            for system in card.systems:
+                if system.short_name == 'ГПН':
+                    card_ids.append(card.id)
+                    break
+
+        if card_ids:
+            company_repository = CompanyRepository(session=self.repository.session)
+            company = await company_repository.get_company(company_id)
+            limit_sum = 1
+            for balance in company.balances:
+                if balance.scheme == ContractScheme.OVERBOUGHT:
+                    # Вычисляем доступный лимит
+                    overdraft_sum = company.overdraft_sum if company.overdraft_on else 0
+                    boundary_sum = company.min_balance - overdraft_sum
+                    limit_sum = abs(boundary_sum - balance.balance) if boundary_sum < balance.balance else 1
+                    break
+
+            gpn_cards_bind_company.delay(card_ids, company.personal_account, limit_sum)
 
     async def bulk_bind_systems(self, card_numbers: List[str], system_ids: List[str]) -> None:
         # Проверяем права доступа.
@@ -214,17 +269,28 @@ class CardService:
         else:
             raise ForbiddenException()
 
-        # Отвязываем от карт автомобиль, водителя, организацию. Блокируем карту.
+        # Отвязываем от карт автомобиль, водителя, организацию, группу. Блокируем карту.
         dataset = [
             {
                 "id": card.id,
                 "company_id": None,
                 "belongs_to_car_id": None,
                 "belongs_to_driver_id": None,
+                "group_id": None,
                 "is_active": False,
             } for card in cards
         ]
         await self.repository.bulk_update(CardOrm, dataset)
+
+        card_ids = []
+        for card in cards:
+            for system in card.systems:
+                if system.short_name == 'ГПН':
+                    card_ids.append(card.id)
+                    break
+
+        if card_ids:
+            gpn_cards_unbind_company.delay(card_ids)
 
     async def bulk_unbind_systems(self, card_numbers: List[str]) -> None:
         if not card_numbers:
@@ -290,3 +356,31 @@ class CardService:
         # Блокируем карты
         dataset = [{"id": card.id, "is_active": False, "manual_lock": True} for card in cards]
         await self.repository.bulk_update(CardOrm, dataset)
+
+    """
+    dasync def dassign_card_groups_for_gpn_cards(self, any_cards: List[CardOrm]) -> None:
+        # Получаем систему ГПН
+        system_repository = SystemRepository(self.repository.session, self.repository.user)
+        gpn_system = await system_repository.get_system_by_short_name(
+            system_fhort_name="ГПН",
+            scheme=ContractScheme.OVERBOUGHT
+        )
+
+        # Из полученного списка карт вычленяем карты ГПН
+        gpn_cards = self.repository.filter_cards_by_system(any_cards, gpn_system)
+
+        # Назначаем группы
+        await self.repository.dget_card_groups()
+        for card in gpn_cards:
+            if card.company_id:
+                group = await self.repository.get_or_create_card_group(
+                    card_group_ext_id=card.company.personal_account,
+                    card_group_name=card.company.personal_account
+                )
+                card.card_group_id = group.id
+            else:
+                card.card_group_id = None
+
+        dataset = [{"id": card.id, "card_group_id": card.card_group_id} for card in gpn_cards]
+        await self.repository.bulk_update(CardOrm, dataset)
+    """

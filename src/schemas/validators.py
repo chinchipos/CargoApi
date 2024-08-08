@@ -1,9 +1,9 @@
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import BeforeValidator, AfterValidator, Field
+from pydantic import BeforeValidator, Field
 
-from src.database.models import Balance as BalanceModel
+from src.database.model.models import Balance as BalanceModel
 from src.schemas.base import BaseSchema
 
 
@@ -32,3 +32,31 @@ class CompanyMinimumSchema(BaseSchema):
 
 
 CompanyFromBalance = Annotated[CompanyMinimumSchema | None, BeforeValidator(company_from_balance)]
+
+
+def negative_to_positive(value: float | int | str | None) -> float | int | str | None:
+    if isinstance(value, str):
+        try:
+            value = float(value)
+        except ValueError:
+            return None
+
+    if isinstance(value, float) or isinstance(value, int):
+        return value * -1 if value and value < 0 else value
+
+
+NegativeToPositive = Annotated[float | int | None, BeforeValidator(negative_to_positive)]
+
+
+def positive_to_negative(value: float | int | str | None) -> float | int | str | None:
+    if isinstance(value, str):
+        try:
+            value = float(value)
+        except ValueError:
+            return None
+
+    if isinstance(value, float) or isinstance(value, int):
+        return value * -1 if value and value > 0 else value
+
+
+PositiveToNegative = Annotated[float | int | None, BeforeValidator(positive_to_negative)]

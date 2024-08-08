@@ -4,10 +4,9 @@ import random
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select as sa_select
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from src.database.db import sessionmanager
-from src.database.models import Tariff, Company
+from src.database.model.models import Tariff, Company
 from src.repositories.base import BaseRepository
 
 

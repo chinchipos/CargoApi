@@ -1,8 +1,8 @@
 from src.auth.manager import create_user
 from src.config import SERVICE_TOKEN, BUILTIN_ADMIN_NAME, BUILTIN_ADMIN_FIRSTNAME, BUILTIN_ADMIN_LASTNAME, \
     BUILTIN_ADMIN_EMAIL
-from src.database import models
-from src.database.models import Base
+from src.database.model import models
+from src.database.model.models import Base
 from src.repositories.db.db import DBRepository
 from src.schemas.db import DBInitSchema, DBInitialSyncSchema
 from src.schemas.user import UserCreateSchema
@@ -145,9 +145,9 @@ class DBService:
         try:
             await self.repository.nnk_initial_sync(data)
 
-            self.logger.info('Пересчитываю балансы')
-            await self.calculate_balances()
-            self.logger.info('Завершено успешно')
+            # self.logger.info('Пересчитываю балансы')
+            # await self.calculate_balances()
+            # self.logger.info('Завершено успешно')
 
         except Exception:
             raise ApiError(message='Ошибка выполнения процедуры первичной синхронизации. См. лог.')

@@ -3,7 +3,7 @@ from typing import List, Annotated
 
 from pydantic import Field
 
-from src.schemas.balance import BalanceReadMinimumSchema
+from src.database.model.card import BlockingCardReason
 from src.schemas.base import BaseSchema
 from src.schemas.car import CarReadMinimumSchema
 from src.schemas.card_type import CardTypeReadSchema
@@ -12,12 +12,14 @@ from src.schemas.driver import DriverReadMinimumSchema
 from src.schemas.system import SystemReadMinimumSchema
 from src.schemas.validators import EmptyStrToNone
 
-
 pk_ = Annotated[str, Field(description="UUID карты", examples=["c39e5c5c-b980-45eb-a192-585e6823faa7"])]
 
 card_number_ = Annotated[str | None, Field(description="Номер карты", examples=["502980100000358664"])]
 
 is_active_ = Annotated[bool | None, Field(description="Признак активности", examples=[True])]
+
+reason_for_blocking_ = Annotated[
+    BlockingCardReason | None, Field(description="Причина блокировки", examples=[BlockingCardReason.PIN])]
 
 card_type_id_ = Annotated[
     EmptyStrToNone | None,
@@ -49,8 +51,6 @@ belongs_to_driver_ = Annotated[DriverReadMinimumSchema | None, Field(description
 
 date_last_use_ = Annotated[date | None, Field(description="Дата последнего использования", examples=[True])]
 
-manual_lock_ = Annotated[bool | None, Field(description="Признак ручной блокировки", examples=[True])]
-
 systems_ = Annotated[List[SystemReadMinimumSchema], Field(description="Системы")]
 
 card_numbers_ = Annotated[List[str], Field(description="Номера карт", examples=[["502980100000358664"]])]
@@ -68,7 +68,6 @@ class CardEditSchema(BaseSchema):
     company_id: company_id_ = None
     belongs_to_car_id: belongs_to_car_id_ = None
     belongs_to_driver_id: belongs_to_driver_id_ = None
-    manual_lock: manual_lock_ = None
 
 
 class CardCreateSchema(BaseSchema):
@@ -89,13 +88,13 @@ class CardMinimumReadSchema(BaseSchema):
 class CardReadSchema(BaseSchema):
     id: pk_
     is_active: is_active_
+    reason_for_blocking: reason_for_blocking_ = None
     card_number: card_number_
     card_type: card_type_ = None
     company: company_ = None
     belongs_to_car: belongs_to_car_ = None
     belongs_to_driver: belongs_to_driver_ = None
     date_last_use: date_last_use_ = None
-    manual_lock: manual_lock_
     systems: systems_ = []
 
 

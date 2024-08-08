@@ -1,6 +1,6 @@
 from typing import List
 
-from src.database.models import Tariff as TariffOrm
+from src.database.model.models import Tariff as TariffOrm
 from src.repositories.tariff import TariffRepository
 from src.schemas.tariff import TariffCreateSchema, TariffReadSchema, TariffEditSchema
 from src.utils.exceptions import BadRequestException

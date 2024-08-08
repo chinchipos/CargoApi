@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth.auth import get_current_active_user
 from src.database.db import get_session
-from src.database.models import User
+from src.database.model.models import User
 from src.repositories.car import CarRepository
 from src.repositories.card import CardRepository
 from src.repositories.card_type import CardTypeRepository

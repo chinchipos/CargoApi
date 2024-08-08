@@ -2,7 +2,7 @@ from typing import List
 
 from sqlalchemy import select as sa_select
 
-from src.database import models
+from src.database.model import models
 from src.repositories.base import BaseRepository
 from src.utils import enums
 

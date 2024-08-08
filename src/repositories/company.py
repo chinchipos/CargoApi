@@ -1,21 +1,81 @@
-from typing import List, Tuple
+from datetime import datetime, timedelta
+from typing import List
 
-from sqlalchemy import select as sa_select, and_, func as sa_func
+from sqlalchemy import select as sa_select, and_, func as sa_func, null, or_
 from sqlalchemy.orm import joinedload, selectinload, aliased, load_only
 
-from src.database.models import (Company as CompanyOrm, Balance as BalanceOrm, AdminCompany as AdminCompanyOrm,
-                                 User as UserOrm, Role as RoleOrm, BalanceSystemTariff as BalanceSystemTariffOrm,
-                                 System as SystemOrm, Car as CarOrm, Tariff as TariffOrm, Card as CardOrm)
+from src.config import TZ
+from src.celery_tasks.khnp.config import SYSTEM_SHORT_NAME
+from src.database.model.card import CardOrm
+from src.database.model.models import (Company as CompanyOrm, Balance as BalanceOrm, AdminCompany as AdminCompanyOrm,
+                                       User as UserOrm, Role as RoleOrm, BalanceSystemTariff as BalanceSystemTariffOrm,
+                                       System as SystemOrm, Car as CarOrm, Tariff as TariffOrm,
+                                       OverdraftsHistory as OverdraftsHistoryOrm)
 from src.repositories.base import BaseRepository
-from src.repositories.transaction import TransactionRepository
+from src.repositories.system import SystemRepository
+from src.schemas.company import CompanyCreateSchema
 from src.utils import enums
+from src.utils.common import make_personal_account
 from src.utils.enums import ContractScheme
 
 
 class CompanyRepository(BaseRepository):
 
+    async def create(self, company_create_schema: CompanyCreateSchema) -> CompanyOrm:
+        print('YYYYYYYYYYYYYYYYYYYYYYY')
+        # Создаем организацию
+        personal_account = make_personal_account()
+        company_data = company_create_schema.model_dump()
+        tariff_id = company_data.pop("tariff_id") if "tariff_id" in company_data else None
+        company = CompanyOrm(**company_data, personal_account=personal_account)
+        await self.save_object(company)
+        await self.session.refresh(company)
+
+        # Создаем перекупной баланс
+        balance = BalanceOrm(
+            company_id=company.id,
+            scheme=enums.ContractScheme.OVERBOUGHT.name
+        )
+        await self.save_object(balance)
+
+        # Получаем систему ХНП
+        khnp_system = await self.get_khnp_system()
+
+        # Привязываем систему ХНП к балансу и устанавливаем тариф
+        balance_sys_tariff = BalanceSystemTariffOrm(
+            balance_id=balance.id,
+            system_id=khnp_system.id,
+            tariff_id=tariff_id
+        )
+
+        await self.save_object(balance_sys_tariff)
+
+        # Получаем организацию из БД
+        company = await self.get_company(company.id)
+        return company
+
+    async def get_khnp_system(self) -> SystemOrm:
+        system_repository = SystemRepository(self.session)
+        khnp_system = await system_repository.get_system_by_short_name(
+            system_fhort_name=SYSTEM_SHORT_NAME,
+            scheme=ContractScheme.OVERBOUGHT
+        )
+        return khnp_system
+
+    async def set_tariff(self, balance_id: str, system_id: str, tariff_id: str) -> None:
+        stmt = (
+            sa_select(BalanceSystemTariffOrm)
+            .where(BalanceSystemTariffOrm.balance_id == balance_id)
+            .where(BalanceSystemTariffOrm.system_id == system_id)
+        )
+        self.statement(stmt)
+        bst = await self.select_first(stmt)
+        if bst.tariff_id != tariff_id:
+            bst.tariff_id = tariff_id
+            await self.save_object(bst)
+
     async def get_company(self, company_id: str) -> CompanyOrm:
-        # Получаем полные сведения об организации
+        # Получаем сведения об организации
         stmt = (
             sa_select(CompanyOrm)
             .options(
@@ -23,14 +83,14 @@ class CompanyRepository(BaseRepository):
                     CompanyOrm.id,
                     CompanyOrm.name,
                     CompanyOrm.inn,
+                    CompanyOrm.min_balance,
                     CompanyOrm.personal_account,
                     CompanyOrm.date_add,
                     CompanyOrm.contacts,
                     CompanyOrm.overdraft_on,
                     CompanyOrm.overdraft_sum,
                     CompanyOrm.overdraft_days,
-                    CompanyOrm.overdraft_begin_date,
-                    CompanyOrm.overdraft_end_date
+                    CompanyOrm.overdraft_fee_percent
                 )
             )
             .options(
@@ -70,12 +130,38 @@ class CompanyRepository(BaseRepository):
             .where(CompanyOrm.id == company_id)
         )
         company = await self.select_first(stmt)
+        overbought_balance_id = None
         for balance in company.balances:
             systems = []
             for bst in balance.balance_system_tariff:
                 bst.system.annotate({"tariff": bst.tariff})
                 systems.append(bst.system)
             balance.annotate({"systems": systems})
+
+            if balance.scheme == ContractScheme.OVERBOUGHT:
+                overbought_balance_id = balance.id
+
+        # Добавляем сведения об открытых овердрафтах
+        today = datetime.now(tz=TZ).date()
+        tomorrow = today + timedelta(days=1)
+        stmt = (
+            sa_select(OverdraftsHistoryOrm)
+            .where(OverdraftsHistoryOrm.balance_id == overbought_balance_id)
+            .where(or_(
+                OverdraftsHistoryOrm.end_date.is_(null()),
+                OverdraftsHistoryOrm.end_date >= tomorrow
+            ))
+        )
+        opened_overdraft = await self.select_first(stmt)
+        if opened_overdraft:
+            overdraft_end_date = opened_overdraft.end_date if opened_overdraft.end_date \
+                else opened_overdraft.begin_date + timedelta(days=company.overdraft_days - 1)
+            overdraft_payment_deadline = overdraft_end_date + timedelta(days=1)
+            company.annotate({
+                'overdraft_begin_date': opened_overdraft.begin_date,
+                'overdraft_end_date': overdraft_end_date,
+                'overdraft_payment_deadline': overdraft_payment_deadline,
+            })
 
         # Добавляем сведения о количестве карт
         # stmt = sa_select(sa_func.count(models.Card.id)).filter_by(company_id=company_id)
@@ -117,11 +203,11 @@ class CompanyRepository(BaseRepository):
                     CompanyOrm.personal_account,
                     CompanyOrm.date_add,
                     CompanyOrm.contacts,
+                    CompanyOrm.min_balance,
                     CompanyOrm.overdraft_on,
                     CompanyOrm.overdraft_sum,
                     CompanyOrm.overdraft_days,
-                    CompanyOrm.overdraft_begin_date,
-                    CompanyOrm.overdraft_end_date
+                    CompanyOrm.overdraft_fee_percent
                 )
             )
             .options(
@@ -132,15 +218,10 @@ class CompanyRepository(BaseRepository):
                     BalanceOrm.balance
                 )
                 .selectinload(BalanceOrm.balance_system_tariff)
-                .joinedload(BalanceSystemTariffOrm.system)
-                .load_only(SystemOrm.id, SystemOrm.full_name)
-            )
-            .options(
-                selectinload(CompanyOrm.balances)
-                .load_only()
-                .selectinload(BalanceOrm.balance_system_tariff)
-                .joinedload(BalanceSystemTariffOrm.tariff)
-                .load_only(TariffOrm.id, TariffOrm.name)
+                .options(
+                    joinedload(BalanceSystemTariffOrm.system).load_only(SystemOrm.id, SystemOrm.full_name),
+                    joinedload(BalanceSystemTariffOrm.tariff)
+                )
             )
             .options(
                 selectinload(CompanyOrm.users)
@@ -216,3 +297,8 @@ class CompanyRepository(BaseRepository):
         )
         balance = await self.select_first(stmt)
         return balance
+
+    async def get_systems_tariffs(self, balance_id: str) -> List[BalanceSystemTariffOrm]:
+        stmt = sa_select(BalanceSystemTariffOrm).where(BalanceSystemTariffOrm.balance_id == balance_id)
+        bst_list = await self.select_all(stmt)
+        return bst_list

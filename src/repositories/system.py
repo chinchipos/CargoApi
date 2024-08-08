@@ -1,9 +1,9 @@
 from typing import List
 
 from sqlalchemy import select as sa_select, func as sa_func, null
-from sqlalchemy.orm import aliased
 
-from src.database.models import System as SystemOrm, CardSystem as CardSystemOrm, Card as CardOrm
+from src.database.model.card import CardOrm
+from src.database.model.models import System as SystemOrm, CardSystem as CardSystemOrm
 from src.repositories.base import BaseRepository
 from src.utils.enums import ContractScheme
 
@@ -82,6 +82,7 @@ class SystemRepository(BaseRepository):
             .select_from(SystemOrm)
             .outerjoin(subq_cards_total, subq_cards_total.c.system_id == SystemOrm.id)
             .outerjoin(subq_cards_in_use, subq_cards_in_use.c.system_id == SystemOrm.id)
+            .where(SystemOrm.enabled)
         )
 
         dataset = await self.select_all(stmt, scalars=False)

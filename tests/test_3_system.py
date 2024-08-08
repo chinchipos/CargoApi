@@ -2,7 +2,7 @@ import pytest
 from httpx import AsyncClient
 
 from src.database.db import sessionmanager
-from src.database.models import System
+from src.database.model.models import System
 from src.repositories.base import BaseRepository
 from tests.conftest import headers
 

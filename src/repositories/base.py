@@ -3,10 +3,10 @@ from typing import Dict, Any
 import sqlalchemy as sa
 import sqlalchemy.exc
 import sqlparse
-from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.postgresql import insert as pg_insert, dialect as postgresql_dialect
 from sqlalchemy.exc import IntegrityError
 
-from src.database import models
+from src.database.model import models
 from src.database.db import get_session
 
 from src.utils.exceptions import DBException, DBDuplicateException, BadRequestException, api_logger
@@ -29,7 +29,7 @@ class BaseRepository:
         title = ('--------------' + description.upper() + '-' * 35)[:50]
         print(title)
         print('   ')
-        print(sqlparse.format(str(stmt.compile()), reindent=True))
+        print(sqlparse.format(str(stmt.compile(dialect=postgresql_dialect())), reindent=True))
         print('   ')
 
     async def select_helper(self, stmt, scalars=True) -> Any:

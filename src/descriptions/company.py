@@ -1,5 +1,7 @@
 company_tag_description = "Операции с организациями"
 
+create_company_description = "Создание организации"
+
 edit_company_description = "Редактирование организации"
 
 bind_manager_to_company_description = 'Привязка менеджера к компании'

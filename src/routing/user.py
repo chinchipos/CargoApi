@@ -3,7 +3,7 @@ from typing import List, Optional, Any, Annotated
 
 from fastapi import APIRouter, Depends, Body
 
-from src.database import models
+from src.database.model import models
 from src.depends import get_service_user
 from src.schemas.common import SuccessSchema
 from src.schemas.user import UserReadSchema, UserCompanyReadSchema, UserCargoReadSchema, UserCreateSchema, \

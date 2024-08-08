@@ -1,4 +1,3 @@
-import random
 import traceback
 from datetime import datetime
 from typing import Dict, Any
@@ -6,13 +5,16 @@ from typing import Dict, Any
 from sqlalchemy import select as sa_select, delete as sa_delete, null
 
 from src.auth.manager import create_user
-from src.database.models import (Role as RoleOrm, System as SystemOrm, Company as CompanyOrm, Balance as BalanceOrm,
-                                 Card as CardOrm, Tariff as TariffOrm, OuterGoods as OuterGoodsOrm, Car as CarOrm,
-                                 InnerGoods as InnerGoodsOrm, CardType as CardTypeOrm, CardSystem as CardSystemOrm,
-                                 BalanceSystemTariff as BalanceSystemTariffOrm, Transaction as TransactionOrm)
+from src.database.model.card import CardOrm
+from src.database.model.card_type import CardTypeOrm
+from src.database.model.models import (Role as RoleOrm, System as SystemOrm, Company as CompanyOrm, Balance as BalanceOrm,
+                                       Tariff as TariffOrm, OuterGoods as OuterGoodsOrm, Car as CarOrm,
+                                       InnerGoods as InnerGoodsOrm, CardSystem as CardSystemOrm,
+                                       BalanceSystemTariff as BalanceSystemTariffOrm, Transaction as TransactionOrm)
 from src.repositories.base import BaseRepository
 from src.schemas.user import UserCreateSchema
 from src.utils import enums
+from src.utils.common import make_personal_account
 from src.utils.enums import TransactionType
 from src.utils.exceptions import DBException
 
@@ -100,8 +102,9 @@ class NNKMigration(BaseRepository):
                 master_db_id=company['id'],
                 name=company['name'],
                 date_add=company['date_add'],
-                personal_account=('000000' + str(random.randint(1, 9999999)))[-7:],
-                inn=company['inn']
+                personal_account=make_personal_account(),
+                inn=company['inn'],
+                min_balance=0,
             ) for company in companies
         ]
         await self.bulk_insert_or_update(CompanyOrm, dataset)
@@ -114,7 +117,6 @@ class NNKMigration(BaseRepository):
                 company_id=self.company_ids[company['id']],
                 scheme=enums.ContractScheme.OVERBOUGHT.name,
                 balance=company['amount'],
-                min_balance=company['min_balance'],
                 min_balance_period_end_date=None if company['min_balance_date_to'] == '0000-00-00 00:00:00' else
                 company['min_balance_date_to'],
                 min_balance_on_period=company['min_balance_period'],
@@ -231,7 +233,7 @@ class NNKMigration(BaseRepository):
                 balance_id=self.balance_ids[company['id']],
                 system_id=nnk_system.id,
                 tariff_id=self.tariff_ids[company['tariff_id']],
-            ) for company in companies
+            ) for company in companies if company['tariff_id']
         ]
         await self.bulk_insert_or_update(BalanceSystemTariffOrm, dataset)
 
@@ -271,7 +273,8 @@ class NNKMigration(BaseRepository):
                 master_db_id=transaction['id'],
                 external_id=transaction['id'],
                 date_time=datetime.fromisoformat(transaction['date']),
-                date_time_load=datetime.fromisoformat(transaction['date_load']),
+                # date_time_load=datetime.fromisoformat(transaction['date_load']),
+                date_time_load=datetime.fromtimestamp(transaction['date_load_2']),
                 transaction_type=self.get_transaction_type(transaction),
                 card_id=self.card_ids[str(transaction['card_num'])] if transaction['card_num']
                 else None,
@@ -286,7 +289,7 @@ class NNKMigration(BaseRepository):
                 tariff_id=None,
                 fee_sum=transaction['sum_service'],
                 total_sum=transaction['total'],
-                company_balance=0,  # После импорта будет выполнен пересчет балансов, поле примет новые значения
+                company_balance=transaction['balance'],
                 comments=transaction['comment'],
             ) for transaction in transactions
         ]
@@ -317,12 +320,10 @@ class NNKMigration(BaseRepository):
 
         # Создаем пользователей
         self.logger.info("Создаю пользователей")
-        i = 1
         for user in users:
             if not list(filter(lambda sa: user['email'] == sa[0] + '@cargonomica.com', superadmins)):
-                self.logger.info(f"{i}. email: {user['email']}")
                 phone = ''.join([num for num in str(user['phone']) if num.isdecimal()])
-                fio = user['fio'].split()
+                fio = user['fio'].split(maxsplit=1)
                 user_schema = UserCreateSchema(
                     username=user['email'],
                     password=user['password'],

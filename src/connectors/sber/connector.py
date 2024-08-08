@@ -6,7 +6,7 @@ from sqlalchemy.orm import joinedload, load_only, selectinload
 
 from src.connectors.sber.sber_api import SberApi
 from src.connectors.sber.statement import SberStatement
-from src.database.models import User as UserOrm, Balance as BalanceOrm, Company as CompanyOrm, \
+from src.database.model.models import User as UserOrm, Balance as BalanceOrm, Company as CompanyOrm, \
     Transaction as TransactionOrm, MoneyReceipt as MoneyReceiptOrm
 from src.repositories.base import BaseRepository
 

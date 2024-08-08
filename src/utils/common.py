@@ -1,3 +1,4 @@
+import random
 import ssl
 import socket
 
@@ -23,3 +24,7 @@ def get_server_certificate(server: str, port: int, our_cert_path: str = None, ou
         sock.close()
 
     return server_cert
+
+
+def make_personal_account() -> str:
+    return ('000000' + str(random.randint(1, 9999999)))[-7:]

@@ -1,6 +1,6 @@
 from typing import List
 
-from src.database.models import System as SystemOrm
+from src.database.model.models import System as SystemOrm
 from src.repositories.system import SystemRepository
 from src.schemas.system import SystemReadSchema, SystemEditSchema, SystemReadMinimumSchema
 from src.utils import enums

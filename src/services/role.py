@@ -1,6 +1,6 @@
 from typing import List
 
-from src.database import models
+from src.database.model import models
 from src.repositories.role import RoleRepository
 
 

@@ -3,7 +3,8 @@ from httpx import AsyncClient
 from sqlalchemy import select as sa_select
 
 from src.config import SERVICE_TOKEN
-from src.database import models
+from src.database.model.card_type import CardTypeOrm
+from src.database.model.models import Role as RoleOrm, User as UserOrm
 from src.database.db import sessionmanager
 from src.repositories.base import BaseRepository
 
@@ -35,7 +36,7 @@ class TestInitDB:
         async with sessionmanager.session() as session:
             repository = BaseRepository(session, None)
 
-            stmt = sa_select(models.Role)
+            stmt = sa_select(RoleOrm)
             roles = await repository.select_all(stmt)
             role_names = [role.name for role in roles]
             roles_list = ['CARGO_SUPER_ADMIN', 'CARGO_MANAGER', 'COMPANY_ADMIN', 'COMPANY_LOGIST', 'COMPANY_DRIVER']
@@ -48,7 +49,7 @@ class TestInitDB:
         async with sessionmanager.session() as session:
             repository = BaseRepository(session, None)
 
-            stmt = sa_select(models.CardType)
+            stmt = sa_select(CardTypeOrm)
             card_types = await repository.select_all(stmt)
             card_type_names = [card_type.name for card_type in card_types]
 
@@ -61,7 +62,7 @@ class TestInitDB:
         async with sessionmanager.session() as session:
             repository = BaseRepository(session, None)
 
-            stmt = sa_select(models.User).where(models.User.email == 'cargo@cargonomica.com')
+            stmt = sa_select(UserOrm).where(UserOrm.email == 'cargo@cargonomica.com')
             cargo_superadmin = await repository.select_first(stmt)
 
             msg = "Суперпользователь не создан, при этом запрос к API не вернул ошибку"

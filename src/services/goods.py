@@ -1,8 +1,9 @@
 from typing import List
 
-from src.database import models
+from src.database.model import models
+from src.database.model.models import OuterGoods as OuterGoodsOrm
 from src.repositories.goods import GoodsRepository
-from src.schemas.goods import OuterGoodsReadSchema, InnerGoodsEditSchema
+from src.schemas.goods import InnerGoodsEditSchema
 from src.utils.exceptions import BadRequestException
 
 
@@ -45,7 +46,7 @@ class GoodsService:
         # )
         # return goods_schema
 
-    async def edit(self, outer_goods_id: str, data: InnerGoodsEditSchema) -> OuterGoodsReadSchema:
+    async def edit(self, outer_goods_id: str, data: InnerGoodsEditSchema) -> OuterGoodsOrm:
         # Получаем запись из БД
         outer_goods = await self.repository.get_single_goods(outer_goods_id)
         if not outer_goods:
