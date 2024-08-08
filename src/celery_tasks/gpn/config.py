@@ -15,3 +15,4 @@ GPN_TOKEN = os.environ.get('GPN_TOKEN')
 # GPN_USERNAME_TEST = "demo"
 # GPN_PASSWORD_TEST = "auto-generated-pas58-save-it"
 # GPN_TOKEN_TEST = "GPN.3ce7b860ece5758d1d27c7f8b4796ea79b33927e.630c2bc76676191bd6e94222d9acaaf56bc0a750"
+# TEST
