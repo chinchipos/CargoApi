@@ -27,7 +27,8 @@ class CompanyRepository(BaseRepository):
         # Создаем организацию
         personal_account = make_personal_account()
         company_data = company_create_schema.model_dump()
-        tariff_id = company_data.pop("tariff_id") if "tariff_id" in company_data else None
+        tariffs = company_data.pop("tariffs")
+        # tariff_id = company_data.pop("tariff_id") if "tariff_id" in company_data else None
         company = CompanyOrm(**company_data, personal_account=personal_account)
         await self.save_object(company)
         await self.session.refresh(company)
@@ -39,17 +40,17 @@ class CompanyRepository(BaseRepository):
         )
         await self.save_object(balance)
 
-        # Получаем систему ХНП
-        khnp_system = await self.get_khnp_system()
+        for tariff_data in tariffs:
+            system_id = tariff_data['system_id']
+            tariff_id = tariff_data['tariff_id']
 
-        # Привязываем систему ХНП к балансу и устанавливаем тариф
-        balance_sys_tariff = BalanceSystemTariffOrm(
-            balance_id=balance.id,
-            system_id=khnp_system.id,
-            tariff_id=tariff_id
-        )
-
-        await self.save_object(balance_sys_tariff)
+            # Привязываем системы к балансу и устанавливаем тариф
+            balance_sys_tariff = BalanceSystemTariffOrm(
+                balance_id=balance.id,
+                system_id=system_id,
+                tariff_id=tariff_id
+            )
+            await self.save_object(balance_sys_tariff)
 
         # Получаем организацию из БД
         company = await self.get_company(company.id)
@@ -58,7 +59,15 @@ class CompanyRepository(BaseRepository):
     async def get_khnp_system(self) -> SystemOrm:
         system_repository = SystemRepository(self.session)
         khnp_system = await system_repository.get_system_by_short_name(
-            system_fhort_name=SYSTEM_SHORT_NAME,
+            system_fhort_name='ХНП',
+            scheme=ContractScheme.OVERBOUGHT
+        )
+        return khnp_system
+
+    async def get_gpn_system(self) -> SystemOrm:
+        system_repository = SystemRepository(self.session)
+        khnp_system = await system_repository.get_system_by_short_name(
+            system_fhort_name='ГПН',
             scheme=ContractScheme.OVERBOUGHT
         )
         return khnp_system
