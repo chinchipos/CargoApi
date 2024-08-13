@@ -100,7 +100,7 @@ class CardService:
             update_data = {k: v for k, v in card_update_data.items() if k in allowed_fields}
 
         elif self.repository.user.role.name in [enums.Role.COMPANY_ADMIN.name, enums.Role.COMPANY_LOGIST.name]:
-            allowed_fields = ['belongs_to_car_id', 'belongs_to_driver_id']
+            allowed_fields = ['belongs_to_car_id', 'belongs_to_driver_id', 'limit_sum', 'limit_volume']
             update_data = {k: v for k, v in card_update_data.items() if k in allowed_fields}
 
         else:

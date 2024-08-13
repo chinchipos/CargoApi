@@ -60,6 +60,14 @@ system_ids_ = Annotated[
     Field(description="Список UUID поставщиков услуг", examples=["20f06bf0-ae28-4f32-b2ca-f57796103a71"])
 ]
 
+limit_sum_ = Annotated[
+    int | None,
+    Field(description="Лимит (рубли): 0 <= x <= 1000000", examples=[10000], ge=0, le=1000000)]
+
+limit_volume_ = Annotated[
+    int | None,
+    Field(description="Лимит (рубли): 0 <= x <= 10000", examples=[800], ge=0, le=10000)]
+
 
 class CardEditSchema(BaseSchema):
     card_number: card_number_ = None
@@ -68,6 +76,8 @@ class CardEditSchema(BaseSchema):
     company_id: company_id_ = None
     belongs_to_car_id: belongs_to_car_id_ = None
     belongs_to_driver_id: belongs_to_driver_id_ = None
+    limit_sum: limit_sum_ = None
+    limit_volume: limit_volume_ = None
 
 
 class CardCreateSchema(BaseSchema):
@@ -95,6 +105,8 @@ class CardReadSchema(BaseSchema):
     belongs_to_car: belongs_to_car_ = None
     belongs_to_driver: belongs_to_driver_ = None
     date_last_use: date_last_use_ = None
+    limit_sum: limit_sum_
+    limit_volume: limit_volume_
     systems: systems_ = []
 
 

@@ -117,6 +117,22 @@ class CardOrm(Base):
         comment="ID группы в системе"
     )
 
+    limit_sum: Mapped[int] = mapped_column(
+        sa.SmallInteger(),
+        nullable=False,
+        server_default=sa.text("0"),
+        init=False,
+        comment="Лимит (рубли)"
+    )
+
+    limit_volume: Mapped[int] = mapped_column(
+        sa.SmallInteger(),
+        nullable=False,
+        server_default=sa.text("0"),
+        init=False,
+        comment="Лимит (литры)"
+    )
+
     # Список связей этой карты с системами
     card_system_links: Mapped[List["CardSystem"]] = relationship(
         back_populates="card",
