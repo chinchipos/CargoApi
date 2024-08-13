@@ -63,12 +63,12 @@ class CardOrm(Base):
     company_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.company.id"),
         nullable=True,
-        init=True,
+        init=False,
         comment="Организация"
     )
 
     # Организация
-    company: Mapped["Company"] = relationship(
+    company: Mapped["CompanyOrm"] = relationship(
         back_populates="cards",
         lazy="noload",
         init=False
@@ -77,6 +77,7 @@ class CardOrm(Base):
     belongs_to_car_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.car.id"),
         nullable=True,
+        init=False,
         comment="Автомобиль, с которым ассоциирована карта"
     )
 
@@ -90,6 +91,7 @@ class CardOrm(Base):
     belongs_to_driver_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.user.id"),
         nullable=True,
+        init=False,
         comment="Водитель, с которым ассоциирована карта"
     )
 
@@ -111,6 +113,7 @@ class CardOrm(Base):
     group_id: Mapped[str] = mapped_column(
         sa.String(30),
         nullable=True,
+        init=False,
         comment="ID группы в системе"
     )
 

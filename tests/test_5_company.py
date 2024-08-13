@@ -6,7 +6,8 @@ from httpx import AsyncClient
 from sqlalchemy import select as sa_select
 
 from src.database.db import sessionmanager
-from src.database.model.models import Tariff, Company
+from src.database.model.models import Tariff
+from src.database.model.company import CompanyOrm
 from src.repositories.base import BaseRepository
 
 
@@ -43,9 +44,9 @@ class TestSystem:
                     "min_balance_on_period": 0,
                 } for i in range(3)
             ]
-            await repository.bulk_insert_or_update(Company, dataset)
+            await repository.bulk_insert_or_update(CompanyOrm, dataset)
 
-            stmt = sa_select(Company)
+            stmt = sa_select(CompanyOrm)
             companies = await repository.select_all(stmt)
 
             msg = "Не удалось создать организации"

@@ -1,6 +1,6 @@
 import traceback
 
-from src.celery_tasks.init import sync_task_logger
+from src.celery_app.init import sync_task_logger
 
 
 class SyncError(Exception):

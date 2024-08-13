@@ -1,6 +1,6 @@
 import traceback
 
-from src.utils.log import ColoredLogger
+from src.utils.loggers import ColoredLogger
 
 sber_api_logger = ColoredLogger(logfile_name='schedule.log', logger_name='SberApi')
 sber_connector_logger = ColoredLogger(logfile_name='schedule.log', logger_name='SberConnector')

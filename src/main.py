@@ -18,7 +18,7 @@ from src.routing.tariff import router as tariff_routing, tariff_tag_metadata
 from src.routing.transaction import router as transaction_routing, transaction_tag_metadata
 from src.routing.user import router as user_routing, user_tag_metadata
 from src.utils.exceptions import BadRequestException, ForbiddenException, DBException, DBDuplicateException, ApiError
-from src.utils.log import logger
+from src.utils.loggers import logger
 
 
 def init_app(dsn: str, tests: bool = False):

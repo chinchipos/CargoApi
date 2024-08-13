@@ -1,7 +1,8 @@
 from typing import List, Any
 
-from src.database.model.models import (Company as CompanyOrm, User as UserOrm,
+from src.database.model.models import (User as UserOrm,
                                        BalanceSystemTariff as BalanceSystemTariffOrm)
+from src.database.model.company import CompanyOrm
 from src.repositories.company import CompanyRepository
 from src.repositories.transaction import TransactionRepository
 from src.repositories.user import UserRepository
@@ -10,7 +11,7 @@ from src.schemas.company import CompanyEditSchema, CompanyReadSchema, CompanyRea
 from src.utils import enums
 from src.utils.enums import TransactionType
 from src.utils.exceptions import BadRequestException, ForbiddenException
-from src.celery_tasks.limits.tasks import set_card_group_limit
+from src.celery_app.limits.tasks import gpn_set_card_group_limit
 
 
 class CompanyService:
@@ -176,4 +177,4 @@ class CompanyService:
         )
 
         # В системе поставщика устанавливаем лимит на группу карт (если применимо)
-        set_card_group_limit.delay(balance_ids=[balance.id])
+        gpn_set_card_group_limit.delay(balance_ids=[balance.id])

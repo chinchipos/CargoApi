@@ -49,6 +49,11 @@ class LogType(StrEnum):
     COMMON = 'COMMON'
 
 
+class System(StrEnum):
+    KHNP = 'ХНП'
+    GPN = 'ГПН'
+
+
 class Finance(StrEnum):
     DEBIT = "DEBIT"
     CREDIT = "CREDIT"

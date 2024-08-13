@@ -3,7 +3,7 @@ from typing import List, Optional, Dict, Any
 
 from src.auth.manager import create_user
 from src.config import BUILTIN_ADMIN_EMAIL, JWT_SECRET
-from src.database.model import models
+from src.database.model.models import User as UserOrm
 from src.repositories.user import UserRepository
 from src.schemas.role import RoleReadSchema
 from src.schemas.user import UserCargoReadSchema, UserCreateSchema, UserEditSchema, UserReadSchema, \
@@ -24,7 +24,7 @@ class UserService:
         self,
         user_create_schema: UserCreateSchema,
         managed_companies_ids: Optional[List[str]]
-    ) -> models.User:
+    ) -> UserOrm:
         # Получаем роль из БД
         role = await self.repository.get_role(user_create_schema.role_id)
 
@@ -47,17 +47,17 @@ class UserService:
 
         return new_user
 
-    async def get_me(self) -> models.User:
+    async def get_me(self) -> UserOrm:
         me = await self.repository.get_user(self.repository.user.id)
         return me
 
-    async def get_user(self, user_id: str) -> models.User:
+    async def get_user(self, user_id: str) -> UserOrm:
         user = await self.repository.get_user(user_id)
         if not user:
             raise BadRequestException('Пользователь не найден')
         return user
 
-    async def get_companies_users(self) -> List[models.User]:
+    async def get_companies_users(self) -> List[UserOrm]:
         users = await self.repository.get_companies_users()
         return users
 
@@ -137,7 +137,7 @@ class UserService:
         if user_obj.email == BUILTIN_ADMIN_EMAIL:
             raise BadRequestException("Невозможно удалить встроенного администратора")
 
-        await self.repository.delete_object(models.User, user_id)
+        await self.repository.delete_object(UserOrm, user_id)
 
     @staticmethod
     def create_access_token(data: Dict[str, Any], expires_delta: timedelta | None = None) -> str:

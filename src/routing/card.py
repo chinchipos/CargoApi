@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends
 from src.depends import get_service_card
 from src.descriptions.card import delete_card_description, get_cards_description, edit_card_description, \
     create_card_description, card_tag_description, get_card_description, bulk_bind_description, \
-    bulk_unbind_systems_description, bulk_unbind_company_description, bulk_block_description, bulk_activate_description
+    bulk_unbind_systems_description, bulk_unbind_company_description, bulk_block_description, bulk_activate_description, \
+    change_card_state_description
 from src.schemas.card import CardReadSchema, CardCreateSchema, CardEditSchema, BulkBindSchema, BulkUnbindSchema
 from src.schemas.common import SuccessSchema
 from src.services.card import CardService
@@ -218,11 +219,35 @@ async def edit(
 async def delete(
     id: uuid.UUID,
     service: CardService = Depends(get_service_card)
-) -> dict[str, Any]:
+):
     id = str(id)
     # Удалять может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()
 
     await service.delete(id)
+    return {'success': True}
+
+
+@router.get(
+    path="/card/{id}/set-state",
+    tags=["card"],
+    responses = {400: {'model': MessageSchema, "description": "Bad request"}},
+    response_model = SuccessSchema,
+    summary = 'Установка состояния карты: активна / заблокирована',
+    description = change_card_state_description
+)
+async def set_state(
+    id: uuid.UUID,
+    activate: bool,
+    service: CardService = Depends(get_service_card)
+):
+    id = str(id)
+    # Изменять состояние карты могут только суперадмин, менеджер ПроАВТО, администратор и логист организации.
+    roles = [enums.Role.CARGO_SUPER_ADMIN.name, enums.Role.CARGO_MANAGER.name,
+             enums.Role.COMPANY_ADMIN, enums.Role.COMPANY_LOGIST]
+    if service.repository.user.role.name not in roles:
+        raise ForbiddenException()
+
+    await service.set_state(id, activate)
     return {'success': True}

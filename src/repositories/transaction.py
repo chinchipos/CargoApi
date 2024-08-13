@@ -6,10 +6,11 @@ from sqlalchemy.orm import joinedload, load_only, aliased
 
 from src.config import TZ
 from src.database.model.card import CardOrm
-from src.database.model.models import (Transaction as TransactionOrm, System as SystemOrm, Balance as BalanceOrm,
-                                       OuterGoods as OuterGoodsOrm, Tariff as TariffOrm, Company as CompanyOrm,
-                                       BalanceSystemTariff as BalanceSystemTariffOrm, CardSystem as CardSystemOrm,
-                                       BalanceTariffHistory as BalanceTariffHistoryOrm)
+from src.database.model.models import (Transaction as TransactionOrm, System as SystemOrm, OuterGoods as OuterGoodsOrm,
+                                       Tariff as TariffOrm, BalanceSystemTariff as BalanceSystemTariffOrm,
+                                       CardSystem as CardSystemOrm, BalanceTariffHistory as BalanceTariffHistoryOrm)
+from src.database.model.balance import BalanceOrm
+from src.database.model.company import CompanyOrm
 from src.repositories.base import BaseRepository
 from src.utils import enums
 from src.utils.enums import TransactionType
@@ -17,6 +18,7 @@ from src.utils.exceptions import ForbiddenException
 
 
 class TransactionRepository(BaseRepository):
+
     async def get_transactions(self, company_id: str | None, from_dt: datetime, to_dt: datetime) \
             -> List[TransactionOrm]:
         # Суперадмин ПроАВТО имеет полные права.

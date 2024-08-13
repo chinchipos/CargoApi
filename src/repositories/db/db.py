@@ -1,6 +1,7 @@
 from typing import List
 
-from src.database.model.models import Role as RoleOrm, Balance as BalanceOrm, Transaction as TransactionOrm
+from src.database.model.models import Role as RoleOrm, Transaction as TransactionOrm
+from src.database.model.balance import BalanceOrm
 from src.database.model.card_type import CardTypeOrm
 from src.repositories.base import BaseRepository
 from src.repositories.db.nnk_migration import NNKMigration

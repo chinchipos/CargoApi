@@ -14,7 +14,7 @@ from src.config import JWT_SECRET
 from src.database.db import get_session
 from src.database.model.models import User
 from src.utils.exceptions import DBException
-from src.utils.log import logger
+from src.utils.loggers import logger
 
 bearer_transport = BearerTransport(tokenUrl="auth/jwt/login")
 SECRET = JWT_SECRET

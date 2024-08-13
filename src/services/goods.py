@@ -1,7 +1,7 @@
 from typing import List
 
 from src.database.model import models
-from src.database.model.models import OuterGoods as OuterGoodsOrm
+from src.database.model.models import OuterGoods as OuterGoodsOrm, InnerGoods as InnerGoodsOrm
 from src.repositories.goods import GoodsRepository
 from src.schemas.goods import InnerGoodsEditSchema
 from src.utils.exceptions import BadRequestException
@@ -29,7 +29,7 @@ class GoodsService:
         # goods = list(map(get_schema, goods))
         return goods
 
-    async def get_all_inner_goods(self) -> List[models.InnerGoods]:
+    async def get_all_inner_goods(self) -> List[InnerGoodsOrm]:
         goods = await self.repository.get_all_inner_goods()
         return goods
 
@@ -69,7 +69,7 @@ class GoodsService:
 
         # Удаляем старый inner_goods, если на него не ссылаются другие объекты
         if current_inner_goods:
-            await self.repository.delete_object(models.InnerGoods, current_inner_goods.id, silent=True)
+            await self.repository.delete_object(InnerGoodsOrm, current_inner_goods.id, silent=True)
 
         outer_goods = await self.get_single_goods(outer_goods.id)
         return outer_goods

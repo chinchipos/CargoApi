@@ -1,14 +1,15 @@
 from typing import List
 
-from src.database.model.card import CardOrm
-from src.database.model.models import CardSystem as CardSystemOrm, Company as CompanyOrm
+from src.celery_app.khnp.tasks import khnp_set_card_state
+from src.database.model.card import CardOrm, BlockingCardReason
+from src.database.model.models import CardSystem as CardSystemOrm
 from src.repositories.card import CardRepository
 from src.repositories.company import CompanyRepository
 from src.schemas.card import CardCreateSchema, CardReadSchema, CardEditSchema
 from src.utils import enums
 from src.utils.enums import ContractScheme
 from src.utils.exceptions import BadRequestException, ForbiddenException
-from src.celery_tasks.gpn.tasks import gpn_cards_bind_company, gpn_cards_unbind_company
+from src.celery_app.gpn.tasks import gpn_cards_bind_company, gpn_cards_unbind_company, gpn_set_card_state
 
 
 class CardService:
@@ -356,6 +357,33 @@ class CardService:
         # Блокируем карты
         dataset = [{"id": card.id, "is_active": False, "manual_lock": True} for card in cards]
         await self.repository.bulk_update(CardOrm, dataset)
+
+    async def set_state(self, card_id: str, activate: bool) -> None:
+        # Получаем карту
+        card = await self.repository.get_card(card_id)
+
+        # Если карта заблокирована нами автоматически или вручную, то разблокировать её может либо суперадмин,
+        # либо менеджер ПроАВТО
+        cargo_roles = [enums.Role.CARGO_SUPER_ADMIN.name, enums.Role.CARGO_MANAGER.name]
+        if not card.is_active and card.reason_for_blocking == BlockingCardReason.NNK \
+                and activate and self.repository.user.role.name not in cargo_roles:
+            raise ForbiddenException()
+
+        # Если карта заблокирована по ПИН, то ее нельзя разблокировать программным способом
+        if not card.is_active and card.reason_for_blocking == BlockingCardReason.PIN and activate:
+            raise BadRequestException(message="Карта заблокирована по ПИН. Нельзя её разблокировать программно.")
+
+        # Меняем состояние карты
+        if card.is_active != activate:
+            card.is_active = activate
+            await self.repository.save_object(card)
+
+            # Отправляем в Celery задачу на установку состояния карты в соответствующей системе
+            for system in card.systems:
+                if system.short_name == enums.System.KHNP.value:
+                    khnp_set_card_state.delay(card.card_number, card.is_active)
+                elif system.short_name == enums.System.GPN.value:
+                    gpn_set_card_state.delay(card.external_id, card.is_active)
 
     """
     dasync def dassign_card_groups_for_gpn_cards(self, any_cards: List[CardOrm]) -> None:

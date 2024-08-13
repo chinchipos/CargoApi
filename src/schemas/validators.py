@@ -3,7 +3,7 @@ from typing import Annotated
 
 from pydantic import BeforeValidator, Field
 
-from src.database.model.models import Balance as BalanceModel
+from src.database.model.balance import BalanceOrm
 from src.schemas.base import BaseSchema
 
 
@@ -21,7 +21,7 @@ def normalize_date_time(value: datetime):
 DateTimeNormalized = Annotated[str | None, BeforeValidator(normalize_date_time)]
 
 
-def company_from_balance(balance: BalanceModel):
+def company_from_balance(balance: BalanceOrm):
     return balance.company
 
 

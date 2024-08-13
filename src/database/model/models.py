@@ -7,8 +7,7 @@ from sqlalchemy import UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database.model import Base
-from src.utils.enums import (TransactionType as TransactionTypeEnum, ContractScheme as ContractScheme,
-                             Permition as PermitionEnum, ContractScheme as ContractSchemeEnum, Bank as BankEnum)
+from src.utils.enums import (TransactionType as TransactionTypeEnum, Permition as PermitionEnum, ContractScheme as ContractSchemeEnum, Bank as BankEnum)
 
 
 class Tariff(Base):
@@ -65,231 +64,6 @@ class Tariff(Base):
     repr_cols = ("name",)
 
 
-class Company(Base):
-    __tablename__ = "company"
-    __table_args__ = {
-        'comment': 'Организации'
-    }
-
-    master_db_id: Mapped[int] = mapped_column(
-        sa.Integer(),
-        nullable=True,
-        init=False,
-        comment="Идентификатор в боевой БД (для синхронизации)"
-    )
-
-    name: Mapped[str] = mapped_column(
-        sa.String(255),
-        nullable=False,
-        comment="Наименование организации"
-    )
-
-    inn: Mapped[str] = mapped_column(
-        sa.String(12),
-        nullable=True,
-        comment="ИНН"
-    )
-
-    contacts: Mapped[str] = mapped_column(
-        sa.String(),
-        nullable=False,
-        server_default="",
-        comment="Контактные данные (имена, телефоны, email)"
-    )
-
-    personal_account: Mapped[int] = mapped_column(
-        sa.String(20),
-        unique=True,
-        nullable=False,
-        comment="Лицевой счет"
-    )
-
-    date_add: Mapped[date] = mapped_column(
-        sa.Date,
-        nullable=False,
-        server_default=sa.text("NOW()"),
-        init=False,
-        comment="Дата создания/добавления записи в БД"
-    )
-
-    min_balance: Mapped[float] = mapped_column(
-        sa.Numeric(12, 2, asdecimal=False),
-        nullable=False,
-        server_default=sa.text("0"),
-        comment="Минимальный баланс (бесплатный овердрафт)"
-    )
-
-    overdraft_on: Mapped[bool] = mapped_column(
-        sa.Boolean,
-        nullable=False,
-        server_default=sa.sql.false(),
-        comment='Услуга "Овердрафт" подключена'
-    )
-
-    overdraft_sum: Mapped[float] = mapped_column(
-        sa.Numeric(12, 2, asdecimal=False),
-        nullable=False,
-        server_default=sa.text("0"),
-        comment="Сумма овердрафта"
-    )
-
-    overdraft_days: Mapped[int] = mapped_column(
-        sa.Integer(),
-        nullable=False,
-        server_default=sa.text("0"),
-        comment="Срок овердрафта, дни"
-    )
-
-    overdraft_fee_percent: Mapped[float] = mapped_column(
-        sa.Numeric(5, 3, asdecimal=False),
-        nullable=False,
-        server_default=sa.text("0.074"),
-        comment="Комиссия за овердрафт, %"
-    )
-
-    # Список автомобилей этой организации
-    cars: Mapped[List["Car"]] = relationship(
-        back_populates="company",
-        cascade="all, delete-orphan",
-        lazy="noload",
-        init=False
-    )
-
-    # Список пользователей, привязанных к этой организации
-    users: Mapped[List["User"]] = relationship(
-        back_populates="company",
-        cascade="all, delete-orphan",
-        lazy="noload",
-        init=False
-    )
-
-    # Список менеджеров ПроАВТО, привязанных к этой организации
-    admin_company: Mapped[List["AdminCompany"]] = relationship(
-        back_populates="company",
-        cascade="all, delete-orphan",
-        lazy="noload",
-        init=False
-    )
-
-    # Список карт этой организации
-    cards: Mapped[List["CardOrm"]] = relationship(
-        back_populates="company",
-        cascade="all, delete-orphan",
-        lazy="noload",
-        init=False
-    )
-
-    # Список балансов этой организации
-    balances: Mapped[List["Balance"]] = relationship(
-        back_populates="company",
-        cascade="all, delete-orphan",
-        lazy="noload",
-        init=False,
-        order_by='desc(Balance.scheme)'
-    )
-
-    repr_cols = ("name", "inn")
-
-
-class Balance(Base):
-    __tablename__ = "balance"
-    __table_args__ = {
-        'comment': (
-            "Балансы. Для понимания таблицы и ее связей следует рассматривать ее как аналогию с банковскими счетами. "
-            "У организации может быть несколько балансов (счетов). Все договоры по перекупной схеме привязаны только к "
-            "одному конкретному балансу. Под каждый договор по агентской схеме существует отдельный баланс."
-        )
-    }
-
-    # Организация
-    company_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.company.id"),
-        nullable=False,
-        init=True,
-        comment="Организация"
-    )
-
-    # Организация
-    company: Mapped["Company"] = relationship(
-        back_populates="balances",
-        lazy="noload",
-        init=False
-    )
-
-    scheme: Mapped[ContractScheme] = mapped_column(
-        comment="Схема работы (агентская, перекупная, ...). См. соответствующий public -> Types."
-    )
-
-    balance: Mapped[float] = mapped_column(
-        sa.Numeric(12, 2, asdecimal=False),
-        nullable=False,
-        server_default=sa.text("0"),
-        init=False,
-        comment="Текущий баланс организации в системе поставщика услуг (актуален для агентской схемы)"
-    )
-
-    min_balance: Mapped[float] = mapped_column(
-        sa.Numeric(12, 2, asdecimal=False),
-        nullable=False,
-        server_default=sa.text("0"),
-        init=False,
-        comment="Постоянный овердрафт (минимальный баланс)"
-    )
-
-    min_balance_period: Mapped[float] = mapped_column(
-        sa.Numeric(12, 2, asdecimal=False),
-        nullable=False,
-        server_default=sa.text("0"),
-        init=False,
-        comment="Временный овердрафт (минимальный баланс на период)"
-    )
-
-    min_balance_period_end_date: Mapped[date] = mapped_column(
-        sa.Date,
-        nullable=True,
-        init=False,
-        comment="Дата прекращения действия временного овердрафта"
-    )
-
-    # Список поставщиков услуг, привязанных к этому балансу
-    systems: Mapped[List["System"]] = relationship(
-        back_populates="balances",
-        secondary="cargonomica.balance_system_tariff",
-        viewonly=True,
-        lazy="noload",
-        init=False
-    )
-
-    # Тарифы систем этого баланса
-    balance_system_tariff: Mapped[List["BalanceSystemTariff"]] = relationship(
-        back_populates="balance",
-        cascade="all, delete-orphan",
-        lazy="noload",
-        init=False
-    )
-
-    # Список транзакций, привязанных к этому балансу
-    transactions: Mapped[List["Transaction"]] = relationship(
-        back_populates="balance",
-        cascade="all, delete-orphan",
-        lazy="noload",
-        init=False
-    )
-
-    # История овердрафтов этого баланса
-    overdrafts_history: Mapped[List["OverdraftsHistory"]] = relationship(
-        back_populates="balance",
-        cascade="all, delete-orphan",
-        lazy="noload",
-        init=False
-    )
-
-    repr_cols = ("balance", "scheme")
-
-    def __repr__(self) -> str:
-        return self.repr(self.repr_cols)
-
-
 class BalanceSystemTariff(Base):
     __tablename__ = "balance_system_tariff"
     __table_args__ = (
@@ -309,7 +83,7 @@ class BalanceSystemTariff(Base):
     )
 
     # Баланс
-    balance: Mapped["Balance"] = relationship(
+    balance: Mapped["BalanceOrm"] = relationship(
         back_populates="balance_system_tariff",
         init=False,
         lazy="noload"
@@ -597,7 +371,7 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     )
 
     # Организация
-    company: Mapped["Company"] = relationship(
+    company: Mapped["CompanyOrm"] = relationship(
         back_populates="users",
         lazy="noload",
         init=False
@@ -689,7 +463,7 @@ class AdminCompany(Base):
     )
 
     # Организация
-    company: Mapped["Company"] = relationship(
+    company: Mapped["CompanyOrm"] = relationship(
         back_populates="admin_company",
         lazy="noload",
         init = False
@@ -731,7 +505,7 @@ class Car(Base):
     )
 
     # Организация
-    company: Mapped["Company"] = relationship(
+    company: Mapped["CompanyOrm"] = relationship(
         back_populates="cars",
         lazy="noload",
         init=False
@@ -871,7 +645,7 @@ class System(Base):
     )
 
     # Список балансов, связанных с этой системой
-    balances: Mapped[List["Balance"]] = relationship(
+    balances: Mapped[List["BalanceOrm"]] = relationship(
         back_populates="systems",
         secondary="cargonomica.balance_system_tariff",
         viewonly=True,
@@ -1087,13 +861,13 @@ class Transaction(Base):
     )
 
     # Баланс
-    balance: Mapped["Balance"] = relationship(
+    balance: Mapped["BalanceOrm"] = relationship(
         back_populates="transactions",
         lazy="noload"
     )
 
     # Организация
-    company: Mapped[List["Balance"]] = relationship(
+    company: Mapped[List["BalanceOrm"]] = relationship(
         viewonly=True,
         lazy="noload"
     )
@@ -1312,56 +1086,6 @@ class MoneyReceipt(Base):
         back_populates="money_receipt",
         lazy="noload",
         init=False
-    )
-
-
-class OverdraftsHistory(Base):
-    __tablename__ = "overdrafts_history"
-    __table_args__ = {
-        'comment': 'История овердрафтов'
-    }
-
-    # Баланс
-    balance_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.balance.id"),
-        nullable=False,
-        init=True,
-        comment="Баланс"
-    )
-
-    # Баланс
-    balance: Mapped["Balance"] = relationship(
-        back_populates="overdrafts_history",
-        lazy="noload",
-        init=False
-    )
-
-    days: Mapped[int] = mapped_column(
-        sa.Integer(),
-        nullable=False,
-        init=True,
-        comment="Значение параметра [Срок овердрафта, дни] в период пользования услугой"
-    )
-
-    sum: Mapped[float] = mapped_column(
-        sa.Numeric(12, 2, asdecimal=False),
-        nullable=False,
-        init=True,
-        comment="Значение параметра [Сумма овердрафта] в период пользования услугой"
-    )
-
-    begin_date: Mapped[date] = mapped_column(
-        sa.Date,
-        nullable=False,
-        init=True,
-        comment='Дата начала пользования услугой "Овердрафт"'
-    )
-
-    end_date: Mapped[date] = mapped_column(
-        sa.Date,
-        nullable=True,
-        init=False,
-        comment='Дата прекращения пользования услугой "Овердрафт"'
     )
 
 

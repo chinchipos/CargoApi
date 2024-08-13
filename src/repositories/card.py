@@ -8,8 +8,9 @@ from sqlalchemy.orm import joinedload, selectinload, aliased
 from src.database.model.card import CardOrm
 from src.database.model.card_type import CardTypeOrm
 from src.database.model.models import (User as UserOrm, Transaction as TransactionOrm, System as SystemOrm,
-                                       Car as CarOrm, Company as CompanyOrm, CardSystem as CardSystemOrm,
-                                       Balance as BalanceOrm)
+                                       Car as CarOrm, CardSystem as CardSystemOrm)
+from src.database.model.balance import BalanceOrm
+from src.database.model.company import CompanyOrm
 from src.repositories.base import BaseRepository
 from src.schemas.card import CardCreateSchema
 from src.utils import enums

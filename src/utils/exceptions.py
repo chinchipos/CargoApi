@@ -1,6 +1,6 @@
 import traceback
 
-from src.utils.log import ColoredLogger
+from src.utils.loggers import ColoredLogger
 
 
 class BadRequestException(Exception):

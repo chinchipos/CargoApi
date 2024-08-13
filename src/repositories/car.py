@@ -3,7 +3,8 @@ from typing import List, Optional
 from sqlalchemy import select as sa_select
 from sqlalchemy.orm import joinedload
 
-from src.database.model import models
+import src.database.model.company
+from src.database.model.models import User as UserOrm, Car as CarOrm, CarDriver as CarDriverOrm
 from src.repositories.base import BaseRepository
 from src.schemas.car import CarCreateSchema, CarReadSchema, CarEditSchema
 from src.utils import enums
@@ -18,11 +19,11 @@ class CarRepository(BaseRepository):
         if create_schema.driver_ids:
             # Получаем список водителей.
             stmt = (
-                sa_select(models.User)
+                sa_select(UserOrm)
                 .options(
-                    joinedload(models.User.role)
+                    joinedload(UserOrm.role)
                 )
-                .where(models.User.id.in_(create_schema.driver_ids))
+                .where(UserOrm.id.in_(create_schema.driver_ids))
                 .distinct()
             )
             drivers = await self.select_all(stmt)
@@ -39,13 +40,13 @@ class CarRepository(BaseRepository):
         # Создаем автомобиль
         initial_data = create_schema.model_dump(exclude_unset=True)
         initial_data.pop('driver_ids', None)
-        new_car = models.Car(**initial_data)
+        new_car = CarOrm(**initial_data)
         await self.save_object(new_car)
 
         # Привязываем водителей к автомобилю
         for driver in drivers:
             await self.insert_or_update(
-                models.CarDriver,
+                CarDriverOrm,
                 index_field = 'id',
                 car_id = new_car.id,
                 driver_id = driver.id
@@ -66,11 +67,11 @@ class CarRepository(BaseRepository):
         if edit_schema.driver_ids:
             # Получаем список водителей.
             stmt = (
-                sa_select(models.User)
+                sa_select(UserOrm)
                 .options(
-                    joinedload(models.User.role)
+                    joinedload(UserOrm.role)
                 )
-                .where(models.User.id.in_(edit_schema.driver_ids))
+                .where(UserOrm.id.in_(edit_schema.driver_ids))
                 .distinct()
             )
             drivers = await self.select_all(stmt)
@@ -87,13 +88,13 @@ class CarRepository(BaseRepository):
         # Создаем автомобиль
         initial_data = edit_schema.model_dump(exclude_unset=True)
         initial_data.pop('driver_ids', None)
-        new_car = models.Car(**initial_data)
+        new_car = CarOrm(**initial_data)
         await self.save_object(new_car)
 
         # Привязываем водителей к автомобилю
         for driver in drivers:
             await self.insert_or_update(
-                models.CarDriver,
+                CarDriverOrm,
                 index_field = 'id',
                 car_id = new_car.id,
                 driver_id = driver.id
@@ -108,41 +109,41 @@ class CarRepository(BaseRepository):
 
         return car_read_schema
 
-    async def get_car(self, car_id: str) -> Optional[models.Car]:
+    async def get_car(self, car_id: str) -> Optional[CarOrm]:
         stmt = (
-            sa_select(models.Car)
+            sa_select(CarOrm)
             .options(
-                joinedload(models.Car.car_driver).joinedload(models.CarDriver.driver),
-                joinedload(models.Car.company)
+                joinedload(CarOrm.car_driver).joinedload(CarDriverOrm.driver),
+                joinedload(CarOrm.company)
             )
-            .where(models.Car.id == car_id)
+            .where(CarOrm.id == car_id)
         )
         car = await self.select_first(stmt)
         return car
 
-    async def get_cars(self) -> List[models.Car]:
+    async def get_cars(self) -> List[CarOrm]:
         stmt = (
-            sa_select(models.Car)
+            sa_select(CarOrm)
             .options(
-                joinedload(models.Car.car_driver).joinedload(models.CarDriver.driver),
-                joinedload(models.Car.company)
+                joinedload(CarOrm.car_driver).joinedload(CarDriverOrm.driver),
+                joinedload(CarOrm.company)
             )
-            .join(models.Car.company)
-            .order_by(models.Company.name, models.Car.model)
+            .join(CarOrm.company)
+            .order_by(src.database.model.company.CompanyOrm.name, CarOrm.model)
         )
 
         if self.user.role.name == enums.Role.CARGO_MANAGER.name:
-            stmt = stmt.where(models.Car.company_id.in_(self.user.company_ids_subquery()))
+            stmt = stmt.where(CarOrm.company_id.in_(self.user.company_ids_subquery()))
 
         elif self.user.role.name in [enums.Role.COMPANY_ADMIN.name, enums.Role.COMPANY_LOGIST.name]:
-            stmt = stmt.where(models.Car.company_id == self.user.company_id)
+            stmt = stmt.where(CarOrm.company_id == self.user.company_id)
 
         elif self.user.role.name == enums.Role.COMPANY_DRIVER.name:
             stmt = (
                 stmt
-                .join(models.Car.car_driver)
-                .where(models.Car.company_id == self.user.company_id)
-                .where(models.CarDriver.driver_id == self.user.id)
+                .join(CarOrm.car_driver)
+                .where(CarOrm.company_id == self.user.company_id)
+                .where(CarDriverOrm.driver_id == self.user.id)
             )
 
         cars = await self.select_all(stmt)

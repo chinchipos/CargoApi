@@ -3,7 +3,8 @@ from httpx import AsyncClient
 from sqlalchemy import select as sa_select
 
 from src.database.db import sessionmanager
-from src.database.model.models import Company, Role
+from src.database.model.models import Role
+from src.database.model.company import CompanyOrm
 from src.repositories.base import BaseRepository
 from src.utils import enums
 from tests.conftest import headers
@@ -23,7 +24,7 @@ class TestSystem:
             repository = BaseRepository(session, None)
 
             # Получаем организацию
-            stmt = sa_select(Company).where(Company.name == 'ООО "Ромашка"')
+            stmt = sa_select(CompanyOrm).where(CompanyOrm.name == 'ООО "Ромашка"')
             company = await repository.select_first(stmt)
             print(company.id)
 
@@ -59,7 +60,7 @@ class TestSystem:
             repository = BaseRepository(session, None)
 
             # Получаем организации
-            stmt = sa_select(Company).where(Company.name.in_(['ООО "Ромашка"', 'ООО "Дильшот Логистикс"']))
+            stmt = sa_select(CompanyOrm).where(CompanyOrm.name.in_(['ООО "Ромашка"', 'ООО "Дильшот Логистикс"']))
             companies = await repository.select_all(stmt)
 
             # Получаем роль
