@@ -43,14 +43,14 @@ class CompanyRepository(BaseRepository):
         for tariff_data in tariffs:
             system_id = tariff_data['system_id']
             tariff_id = tariff_data['tariff_id']
-
-            # Привязываем системы к балансу и устанавливаем тариф
-            balance_sys_tariff = BalanceSystemTariffOrm(
-                balance_id=balance.id,
-                system_id=system_id,
-                tariff_id=tariff_id
-            )
-            await self.save_object(balance_sys_tariff)
+            if system_id and tariff_id:
+                # Привязываем системы к балансу и устанавливаем тариф
+                balance_sys_tariff = BalanceSystemTariffOrm(
+                    balance_id=balance.id,
+                    system_id=system_id,
+                    tariff_id=tariff_id
+                )
+                await self.save_object(balance_sys_tariff)
 
         # Получаем организацию из БД
         company = await self.get_company(company.id)
