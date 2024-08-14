@@ -313,7 +313,7 @@ class KHNPController(BaseRepository):
         fee_sum = (transaction_sum - discount_sum) * fee_percent
 
         # Получаем итоговую сумму
-        total_sum = transaction_sum - discount_percent + fee_sum
+        total_sum = transaction_sum - discount_sum + fee_sum
 
         transaction_data = dict(
             date_time=remote_transaction['date_time'],

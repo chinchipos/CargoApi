@@ -14,13 +14,13 @@ from src.utils.loggers import get_logger
 _logger = get_logger(name="SYNC_TASKS", filename="celery.log")
 
 
-@shared_task(name="SET_CARD_STATES_BY_BALANCE_IDS")
-def set_card_states_by_balance_ids(balance_ids: Dict[str, List[str]]):
-    grouped_tasks = group(
-        khnp_set_card_states.s(balance_ids),
-        gpn_set_card_states.s(balance_ids)
-    )
-    return grouped_tasks()
+# @shared_task(name="SET_CARD_STATES_BY_BALANCE_IDS")
+# def set_card_states_by_balance_ids(balance_ids: Dict[str, List[str]]):
+#     grouped_tasks = group(
+#         khnp_set_card_states.s(balance_ids),
+#         gpn_set_card_states.s(balance_ids)
+#     )
+#     return grouped_tasks()
 
 
 @celery.task(name="FAIL")
@@ -47,7 +47,8 @@ def after_sync(irrelevant_balances_list: List[IrrelevantBalances]):
     changed_balances = [balance_id for balance_id in irrelevant_balances.data().keys()]
     tasks = [
         calc_balances.si(irrelevant_balances),
-        set_card_states_by_balance_ids.s(),
+        # set_card_states_by_balance_ids.s(),
+        khnp_set_card_states.s(),
         gpn_set_card_group_limit.si(changed_balances)
     ]
     if messages:

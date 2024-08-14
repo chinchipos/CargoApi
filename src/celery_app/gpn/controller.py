@@ -559,6 +559,7 @@ class GPNController(BaseRepository):
         # Получаем баланс
         balance_id = self._balance_card_relations.get(card_number, None)
         if not balance_id:
+            self.logger.error(f"Не найден баланс для карты {card_number}. Пропускаю обработку транзакции.")
             return None
 
         # Получаем карту
@@ -577,23 +578,24 @@ class GPNController(BaseRepository):
             tariff = get_current_tariff_by_balance(balance_id=balance_id, bst_list=self._bst_list)
 
         # Сумма транзакции
-        transaction_sum = remote_transaction['sum']
+        transaction_type = TransactionType.PURCHASE if remote_transaction['type'] == "P" else TransactionType.REFUND
+        transaction_sum = -abs(remote_transaction['sum']) if transaction_type == TransactionType.PURCHASE \
+            else abs(remote_transaction['sum'])
 
         # Размер скидки
-        discount_percent = 0  # 0 / 100
-        discount_sum = transaction_sum * discount_percent
+        discount_percent = 2
+        discount_sum = -transaction_sum * discount_percent / 100
 
-        # Размер комиссионного вознаграждения
-        fee_percent = float(tariff.fee_percent) / 100 if tariff else 0
-        fee_sum = (transaction_sum - discount_sum) * fee_percent
+        # Размер наценки
+        fee_sum = 0
 
         # Получаем итоговую сумму
-        total_sum = transaction_sum - discount_percent + fee_sum
+        total_sum = transaction_sum + discount_sum + fee_sum
 
         transaction_data = dict(
             date_time=remote_transaction['timestamp'],
             date_time_load=datetime.now(tz=TZ),
-            transaction_type=TransactionType.PURCHASE if remote_transaction['sum'] < 0 else TransactionType.REFUND,
+            transaction_type=transaction_type,
             system_id=self.system.id,
             card_id=card.id,
             balance_id=balance_id,
@@ -617,17 +619,15 @@ class GPNController(BaseRepository):
         return transaction_data
 
     async def get_outer_goods(self, remote_transaction: Dict[str, Any]) -> OuterGoodsOrm:
+        product_id = remote_transaction['product_id']
         # Выполняем поиск товара/услуги
         for goods in self._outer_goods_list:
-            if goods.external_id == remote_transaction['product_id']:
+            if goods.name == product_id:
                 return goods
 
-        # Если продукт не найден, то запрашиваем список продуктов у API,
-        # добавляем его к имеющемуся списку и выполняем повторный поиск
-        gpn_products = self.api.get_products()
-
+        # Если товар/услуга не найден(а), то создаем его(её)
         fields = dict(
-            name=product_type,
+            name=product_id,
             system_id=self.system.id,
             inner_goods_id=None,
         )
