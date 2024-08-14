@@ -437,8 +437,8 @@ class KHNPController(BaseRepository):
         to_delete = []
         for local_transaction in local_transactions:
             if local_transaction.card:
-                system_transaction = self.get_equal_remote_transaction(local_transaction, remote_transactions)
-                if not system_transaction:
+                remote_transaction = self.get_equal_remote_transaction(local_transaction, remote_transactions)
+                if not remote_transaction:
                     # Транзакция присутствует локально, но у поставщика услуг её нет.
                     # Помечаем на удаление локальную транзакцию.
                     to_delete.append(local_transaction)
