@@ -282,6 +282,7 @@ class KHNPController(BaseRepository):
         # Получаем баланс
         balance_id = self._balance_card_relations.get(card_number, None)
         if not balance_id:
+            self.logger.error(f"Не найден баланс для карты {card_number}. Пропускаю обработку транзакции.")
             return None
 
         # Получаем товар/услугу

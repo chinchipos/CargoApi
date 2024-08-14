@@ -328,7 +328,7 @@ class GPNApi:
                     break
 
             if not group_id:
-                group_id = self.create_card_group(personal_account)
+                    group_id = self.create_card_group(personal_account)
 
             # Запрашиваем список установленных на группу товарных лимитов
             limits = self.get_card_group_limits(group_id)

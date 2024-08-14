@@ -11,7 +11,7 @@ from src.celery_app.gpn.config import SYSTEM_SHORT_NAME
 from src.celery_app.irrelevant_balances import IrrelevantBalances
 from src.celery_app.transaction_helper import get_local_cards, get_local_card, get_tariff_on_date_by_balance, \
     get_current_tariff_by_balance
-from src.config import TZ
+from src.config import TZ, PRODUCTION
 from src.database.model.card import CardOrm, BlockingCardReason
 from src.database.model.card_type import CardTypeOrm
 from src.database.model.models import (CardSystem as CardSystemOrm, Transaction as TransactionOrm,
@@ -358,8 +358,9 @@ class GPNController(BaseRepository):
         limit_sum = abs(boundary_sum - balance.balance) if boundary_sum < balance.balance else 1
 
         # Устанавливаем лимит
-        gpn_api = GPNApi()
-        gpn_api.set_card_group_limits(limits_dataset=[(balance.company.personal_account, limit_sum)])
+        if PRODUCTION:
+            gpn_api = GPNApi()
+            gpn_api.set_card_group_limits(limits_dataset=[(balance.company.personal_account, limit_sum)])
 
     async def load_transactions(self) -> None:
         await self.init_system()
