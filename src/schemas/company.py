@@ -116,6 +116,7 @@ class CompanyReadMinimumSchema(BaseSchema):
     id: id_
     name: name_
     inn: inn_
+    personal_account: personal_account_
 
 
 class CompanyReadSchema(BaseSchema):

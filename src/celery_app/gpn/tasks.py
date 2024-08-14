@@ -155,3 +155,10 @@ def gpn_set_card_state(external_card_id: str, activate: bool) -> None:
         gpn_api.activate_cards([external_card_id])
     else:
         gpn_api.block_cards([external_card_id])
+
+
+@celery.task(name="GPN_TEST")
+def gpn_test() -> None:
+    gpn_api = GPNApi()
+    # gpn_api.set_card_group_limits([('5287241', 1500000)])
+    gpn_api.get_transactions(2)

@@ -127,10 +127,10 @@ class GPNApi:
             }
         )
         res = response.json()
-        if not res['data']:
-            raise CeleryError(message=f"Не удалось удалить группу карт в ГПН | ID: {group_id} | NAME: {group_name}")
-        else:
-            self.logger.info(f"В ГПН удалена группа карт | ID: {group_id} | NAME: {group_name}")
+        if res['status']['code'] != 200:
+            raise CeleryError(
+                message=f"Не удалось удалить группу карт в ГПН | ID: {group_id} | NAME: {group_name}"
+            )
 
     def bind_cards_to_group(self, card_external_ids: List[str], group_id: str) -> None:
         # Получаем список карт ГПН.
@@ -285,7 +285,8 @@ class GPNApi:
             if res["status"]["code"] != 200:
                 raise CeleryError(message=f"Ошибка при получении транзакций. Ответ сервера API: "
                                           f"{res['status']['errors']}. Наш запрос: {params}")
-
+            print(url)
+            print(response.text)
             if not res["data"]["total_count"]:
                 self.logger.info(f"В системе ГПН отсутствуют транзакции за за указанный период {_transaction_days} дн")
                 break
@@ -304,14 +305,15 @@ class GPNApi:
 
         return transactions
 
-    def set_card_group_limits(self, limits_dataset: List[Tuple[str, int]]) -> None:
+    def set_card_group_limits(self, limits_dataset: List[Tuple[str, int]], groups = None) -> None:
         new_limits = []
 
         # Получаем все возможные категории продуктов
         product_types = self.get_product_types()
 
         # Получаем от ГПН список всех групп
-        groups = self.get_card_groups()
+        if not groups:
+            groups = self.get_card_groups()
 
         for limit_data in limits_dataset:
             personal_account = limit_data[0]
@@ -328,7 +330,7 @@ class GPNApi:
                     break
 
             if not group_id:
-                    group_id = self.create_card_group(personal_account)
+                group_id = self.create_card_group(personal_account)
 
             # Запрашиваем список установленных на группу товарных лимитов
             limits = self.get_card_group_limits(group_id)
@@ -365,6 +367,8 @@ class GPNApi:
                 raise CeleryError(message=f"Ошибка при установке лимитов. Ответ сервера API: "
                                           f"{res['status']['errors']}. Наш запрос: {data}")
 
+            self.logger.info(f"Установлен лимит {new_limit}")
+
     def get_card_group_limits(self, group_id: str) -> List[Dict[str, Any]]:
         params = {
             "contract_id": self.contract_id,
@@ -394,7 +398,7 @@ class GPNApi:
                 "value": int(limit_value)
             },
             "term": {"type": 1},
-            "time": {"number": 3, "type": 7}
+            "time": {"number": 1, "type": 2}
         }
         # Если задан параметр limit_id, то будет изменен существующий лимит.
         # Если не задан, то будет создан новый.

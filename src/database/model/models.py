@@ -801,9 +801,10 @@ class OuterGoods(Base):
 
 class Transaction(Base):
     __tablename__ = "transaction"
-    __table_args__ = {
-        'comment': 'Транзакции'
-    }
+    __table_args__ = (
+        sa.UniqueConstraint("date_time", "balance_id", "transaction_sum"),
+        {'comment': 'Транзакции'}
+    )
 
     master_db_id: Mapped[str] = mapped_column(
         sa.String(255),
