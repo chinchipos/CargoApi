@@ -130,7 +130,7 @@ class CardService:
                         for balance in company.balances:
                             if balance.scheme == ContractScheme.OVERBOUGHT:
                                 # Вычисляем доступный лимит
-                                overdraft_sum = balance.company.overdraft_sum if balance.company.overdraft_on else 0
+                                overdraft_sum = balance.company.overdraft_sum if company.overdraft_on else 0
                                 company_available_balance = int(balance.balance + overdraft_sum)
                                 break
 
