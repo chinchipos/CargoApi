@@ -357,7 +357,7 @@ class GPNApi:
         res = response.json()
 
         if res["status"]["code"] != 200:
-            raise CeleryError(message=f"Ошибка при установке лимитов. Ответ сервера API: "
+            raise CeleryError(message=f"Ошибка при установке лимита. Ответ сервера API: "
                                       f"{res['status']['errors']}. Наш запрос: {data}")
 
         self.logger.info(f"Установлен лимит {new_limit}")
@@ -427,12 +427,11 @@ class GPNApi:
         """
 
     def delete_group_limit(self, limit_id: str, group_id: str) -> None:
-        limit_data = {
+        data = {
             "contract_id": self.contract_id,
             "limit_id": limit_id,
             "group_id": group_id,
         }
-        data = {"limit": json.dumps([limit_data])}
         response = requests.post(
             url=self.endpoint(self.api_v1, "removeLimit"),
             headers=self.headers | {"session_id": self.api_session_id},
@@ -441,10 +440,10 @@ class GPNApi:
         res = response.json()
 
         if res["status"]["code"] != 200:
-            raise CeleryError(message=f"Ошибка при установке лимитов. Ответ сервера API: "
+            raise CeleryError(message=f"Ошибка при удалении лимита. Ответ сервера API: "
                                       f"{res['status']['errors']}. Наш запрос: {data}")
 
-        self.logger.info(f"Удален лимит {limit_data}")
+        self.logger.info(f"Удален лимит {data}")
 
     def get_card_group_limits(self, group_id: str) -> List[Dict[str, Any]]:
         """
