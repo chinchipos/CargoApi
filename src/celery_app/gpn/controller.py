@@ -4,7 +4,7 @@ from typing import Dict, Any, List
 
 from sqlalchemy import select as sa_select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, aliased
 
 from src.celery_app.gpn.api import GPNApi, ProductCategory
 from src.celery_app.gpn.config import SYSTEM_SHORT_NAME
@@ -81,8 +81,9 @@ class GPNController(BaseRepository):
     async def sync_cards(self) -> None:
         """
         1. Сравниваем номера карт и создаем или удаляем карты в локальной БД без присвоения групп.
-        2. Сравниваем группы карт и создаем или удаляем группы в ГПН, устанавливаем лимиты на группы.
-        3. Сверяем в правильных ли группах находятся карты и в ГПН разносим карты по группам в соответствии с
+        2. Сравниваем группы карт и создаем или удаляем группы в ГПН.
+        3. Устанавливаем лимиты на группы.
+        4. Сверяем в правильных ли группах находятся карты и в ГПН разносим карты по группам в соответствии с
         принадлежностью карт в локальной БД
         """
         await self.init_system()
@@ -127,6 +128,10 @@ class GPNController(BaseRepository):
         await self.sync_card_groups(remote_cards)
 
         # ---- 3 ----
+        # Устанавливаем лимиты на группы
+        await self.set_group_limits_by_balance_ids()
+
+        # ---- 4 ----
         # Из локальной БД получаем список карт, привязанных к ГПН
         local_cards = await get_local_cards(
             session=self.session,
@@ -155,9 +160,6 @@ class GPNController(BaseRepository):
                 card_external_ids=cards_without_company_external_ids,
                 remote_cards=remote_cards
             )
-            self.logger.info(f"Карты откреплены от группы: {cards_without_company_external_ids}")
-            self.logger.info("Пауза 40 сек")
-            time.sleep(40)
 
         # Прикрепляем к группам карты, которые должны в них состоять, но не состоят
         binding_data = {}
@@ -203,8 +205,7 @@ class GPNController(BaseRepository):
 
     async def sync_card_groups(self, remote_cards: List[Dict[str, Any]]) -> None:
         self.logger.info("Запускаю синхронизацию групп карт")
-        # Из локальной БД получаем список лицевых счетов организаций, которым присвоены карты ГПН.
-        # Лицевые счета являются наименованиями для групп карт
+        # Из локальной БД получаем список организаций, которым присвоены карты ГПН.
         stmt = (
             sa_select(CompanyOrm)
             .select_from(CompanyOrm, CardOrm, CardSystemOrm)
@@ -213,51 +214,38 @@ class GPNController(BaseRepository):
             .where(CardSystemOrm.system_id == self.system.id)
         )
         companies = await self.select_all(stmt)
-        # personal_accounts = [company.personal_account for company in companies]
 
         # Из API получаем список групп карт
-        gpn_groups = self.api.get_card_groups()
+        groups = self.api.get_card_groups()
 
         # Сравниваем непосредственно группы карт.
-        # Если группы совпадают, то устанавливаем лимиты
-        # Совпадающие записи убираем из списков для уменьшения стоимости алгоритма поиска.
+        # Совпадающие группы убираем из списков для уменьшения стоимости алгоритма.
         i = 0
         while i < len(companies):
             company = companies[i]
             personal_account = company.personal_account
             found = False
-            for gpn_group in gpn_groups:
+            for gpn_group in groups:
                 if gpn_group['name'] == personal_account:
+                    # Найдена совпадающая группа
                     found = True
-                    limit_sum = 1
-                    for balance in company.balances:
-                        if balance.scheme == ContractScheme.OVERBOUGHT:
-                            # Вычисляем доступный лимит
-                            overdraft_sum = company.overdraft_sum if company.overdraft_on else 0
-                            boundary_sum = company.min_balance - overdraft_sum
-                            limit_sum = abs(boundary_sum - balance.balance) if boundary_sum < balance.balance else 1
-                            break
-                    self.api.set_card_group_limits([(company.personal_account, limit_sum)], gpn_groups)
-
                     companies.remove(company)
-                    gpn_groups.remove(gpn_group)
+                    groups.remove(gpn_group)
                     break
 
             if not found:
+                # Совпадающая группа НЕ найдена, переходим к следующей.
                 i += 1
 
         if PRODUCTION:
             # Удаляем в API избыточные группы.
-            for group in gpn_groups:
+            for group in groups:
                 # Открепляем карты от группы
                 card_external_ids = [card['id'] for card in remote_cards if card['group_id'] == group['id']]
                 self.api.unbind_cards_from_group(
                     card_external_ids=card_external_ids,
                     remote_cards=remote_cards
                 )
-                self.logger.info(f"Карты откреплены от группы: {card_external_ids}")
-                self.logger.info("Пауза 40 сек")
-                time.sleep(40)
 
                 # Удаляем группу
                 self.api.delete_gpn_group(group_id=group['id'], group_name=group['name'])
@@ -265,15 +253,6 @@ class GPNController(BaseRepository):
             # Создаем в API недостающие группы.
             for company in companies:
                 self.api.create_card_group(company.personal_account)
-                limit_sum = 1
-                for balance in company.balances:
-                    if balance.scheme == ContractScheme.OVERBOUGHT:
-                        # Вычисляем доступный лимит
-                        overdraft_sum = company.overdraft_sum if company.overdraft_on else 0
-                        boundary_sum = company.min_balance - overdraft_sum
-                        limit_sum = abs(boundary_sum - balance.balance) if boundary_sum < balance.balance else 1
-                        break
-                self.api.set_card_group_limits([(company.personal_account, limit_sum)], gpn_groups)
 
     async def process_unbinded_local_card_or_create_new(self, external_id: str, card_number: str, card_type_name: str,
                                                         is_active: bool) -> None:
@@ -403,19 +382,28 @@ class GPNController(BaseRepository):
             ext_card_ids = [card.external_id for card in local_cards_to_block]
             self.api.block_cards(ext_card_ids)
 
-    async def set_group_limits_by_balance_ids(self, balance_ids: List[str]) -> None:
+    async def set_group_limits_by_balance_ids(self, balance_ids: List[str] | None = None) -> None:
         if not balance_ids:
             print("Получен пустой список балансов для обновления лимитов на группы карт ГПН")
             return None
 
         # Получаем параметры балансов и организаций
+        company_tbl = aliased(CompanyOrm, name="org")
         stmt = (
             sa_select(BalanceOrm)
             .options(
                 joinedload(BalanceOrm.company)
             )
-            .where(BalanceOrm.id.in_(balance_ids))
+            .select_from(BalanceOrm, company_tbl, CardOrm, CardSystemOrm)
+            .where(BalanceOrm.scheme == ContractScheme.OVERBOUGHT)
+            .where(company_tbl.id == BalanceOrm.company_id)
+            .where(CardOrm.company_id == company_tbl.id)
+            .where(CardSystemOrm.card_id == CardOrm.id)
+            .where(CardSystemOrm.system_id == self.system.id)
         )
+        if balance_ids:
+            stmt = stmt.where(BalanceOrm.id.in_(balance_ids))
+
         balances = await self.select_all(stmt)
 
         # Получаем из API список всех групп карт
@@ -443,11 +431,13 @@ class GPNController(BaseRepository):
                 current_company_limits=current_company_limits
             )
 
-            self.set_company_limits(
-                group_id=group_id,
-                current_company_limits=current_company_limits,
-                limit_sum=limit_sum
-            )
+            # Устанавливаем лимиты на группу по всем категориям
+            if PRODUCTION:
+                self.set_company_limits(
+                    group_id=group_id,
+                    current_company_limits=current_company_limits,
+                    limit_sum=limit_sum
+                )
 
     @staticmethod
     def calc_limit_sum(company_available_balance: int | float, current_company_limits) -> int:
@@ -461,6 +451,16 @@ class GPNController(BaseRepository):
         return limit_sum
 
     def set_company_limits(self, group_id: str, current_company_limits, limit_sum: int):
+        # Если текущие лимиты не относятся к постоянным, то удаляем их
+        i = 0
+        while i < len(current_company_limits):
+            current_limit = current_company_limits[i]
+            if current_limit['time']['number'] != 1 or current_limit['time']['type'] != 2:
+                self.api.delete_group_limit(limit_id=current_limit['id'], group_id=group_id)
+                current_company_limits.remove(current_limit)
+            else:
+                i += 1
+
         # Устанавливаем/изменяем лимит на категорию "Топливо"
         limit_id = None
         for current_limit in current_company_limits:
@@ -726,7 +726,6 @@ class GPNController(BaseRepository):
             )
             await self.save_object(local_card)
             print(f'----- Кол-во выпущенных карт: {i + 1} -----')
-            time.sleep(0.4)
 
         self.logger.info("Все новые виртуальные карты ГПН сохранены в локальную БД")
         card_numbers = [card['card_number'] for card in dataset]

@@ -7,7 +7,7 @@ from sqlalchemy.orm import joinedload
 
 from src.celery_app.irrelevant_balances import IrrelevantBalances
 from src.database.model.models import Transaction as TransactionOrm
-from src.database.model.balance import BalanceOrm as BalanceOrm
+from src.database.model.balance import BalanceOrm
 from src.repositories.base import BaseRepository
 from src.utils.enums import ContractScheme
 from src.utils.loggers import get_logger

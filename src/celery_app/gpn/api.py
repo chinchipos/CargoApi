@@ -3,7 +3,7 @@ import json
 import time
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List
 
 import requests
 from fake_useragent import UserAgent
@@ -217,6 +217,7 @@ class GPNApi:
                         grouped_cards[group_id].append(card)
                     else:
                         grouped_cards[group_id] = [card]
+
         for group_id, cards in grouped_cards.items():
             # открепляем карты от группы
             cards_list = [{"id": card['id'], "type": "Detach"} for card in cards]
@@ -231,13 +232,15 @@ class GPNApi:
                 data=data
             )
             res = response.json()
-            if res['status']['code'] == 200:
-                self.logger.info(f"Откреплены карты {[card['id'] for card in cards]} от группы {group_id}")
-            else:
+            if res['status']['code'] != 200:
                 raise CeleryError(
                     message=f"Не удалось открепить карту от группы. "
                             f"Ответ API ГПН: {res['status']['errors']}. Наш запрос: {data}"
                 )
+
+            self.logger.info(f"Карты {[card['id'] for card in cards]} откреплены от группы {group_id}")
+            self.logger.info("Пауза 40 сек")
+            time.sleep(40)
 
     def get_gpn_cards(self) -> List[Dict[str, Any]]:
         response = requests.get(
@@ -423,6 +426,26 @@ class GPNApi:
             self.logger.info(f"Установлен лимит {new_limit}")
         """
 
+    def delete_group_limit(self, limit_id: str, group_id: str) -> None:
+        limit_data = {
+            "contract_id": self.contract_id,
+            "limit_id": limit_id,
+            "group_id": group_id,
+        }
+        data = {"limit": json.dumps([limit_data])}
+        response = requests.post(
+            url=self.endpoint(self.api_v1, "removeLimit"),
+            headers=self.headers | {"session_id": self.api_session_id},
+            data=data
+        )
+        res = response.json()
+
+        if res["status"]["code"] != 200:
+            raise CeleryError(message=f"Ошибка при установке лимитов. Ответ сервера API: "
+                                      f"{res['status']['errors']}. Наш запрос: {data}")
+
+        self.logger.info(f"Удален лимит {limit_data}")
+
     def get_card_group_limits(self, group_id: str) -> List[Dict[str, Any]]:
         """
         Лимиты можно получить либо по договору, либо по группе карт, либо по карте.
@@ -486,4 +509,5 @@ class GPNApi:
 
         card = res['data']
         self.logger.info(f"{card['number']} | в ГПН создана виртуальная карта")
+        time.sleep(0.4)
         return card

@@ -126,7 +126,7 @@ class CardService:
                     if new_company_id:
                         company_repository = CompanyRepository(session=self.repository.session)
                         company = await company_repository.get_company(new_company_id)
-                        limit_sum = 1
+                        company_available_balance = 0
                         for balance in company.balances:
                             if balance.scheme == ContractScheme.OVERBOUGHT:
                                 # Вычисляем доступный лимит
