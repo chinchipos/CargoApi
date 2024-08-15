@@ -336,13 +336,14 @@ class Overdraft(BaseRepository):
         # Отправляем отчет клиентам
         if PRODUCTION:
             for overdraft in overdrafts:
+                balance = overdraft[0].balance
                 time.sleep(1)
-                recipients = [user.email for user in overdraft.balance.company.users
+                recipients = [user.email for user in balance.company.users
                               if user.role.name == Role.COMPANY_ADMIN.name]
 
                 text = (
                     'Уважаемый клиент, у вас имеется задолженность в системе Cargonomica в размере '
-                    f'{-overdraft.balance.balance} рублей.<br>'
+                    f'{-balance.balance} рублей.<br>'
                     'Подробная информация доступна в <a href="https://nnk.cargonomica.com">личном кабинете</a>.'
                 )
                 self.send_mail(
