@@ -79,7 +79,7 @@ class OverdraftsReport(BaseExcelReport):
                 # Согласованная сумма овердрафта
                 overdraft.sum,
                 # Сумма долга
-                last_transaction.total_sum,
+                last_transaction.company_balance,
                 # Согласованный срок овердрафта
                 overdraft.days,
                 # Дата открытия овердрафта
