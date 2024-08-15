@@ -401,6 +401,7 @@ class GPNController(BaseRepository):
             .select_from(BalanceOrm, company_tbl, CardOrm, CardSystemOrm)
             .where(BalanceOrm.scheme == ContractScheme.OVERBOUGHT)
             .where(company_tbl.id == BalanceOrm.company_id)
+            .where(company_tbl.personal_account == "9229609")
             .where(CardOrm.company_id == company_tbl.id)
             .where(CardSystemOrm.card_id == CardOrm.id)
             .where(CardSystemOrm.system_id == self.system.id)
