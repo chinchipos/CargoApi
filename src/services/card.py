@@ -130,12 +130,15 @@ class CardService:
                         for balance in company.balances:
                             if balance.scheme == ContractScheme.OVERBOUGHT:
                                 # Вычисляем доступный лимит
-                                overdraft_sum = card.company.overdraft_sum if card.company.overdraft_on else 0
-                                boundary_sum = card.company.min_balance - overdraft_sum
-                                limit_sum = abs(boundary_sum - balance.balance) if boundary_sum < balance.balance else 1
+                                overdraft_sum = balance.company.overdraft_sum if balance.company.overdraft_on else 0
+                                company_available_balance = int(balance.balance + overdraft_sum)
                                 break
 
-                        gpn_cards_bind_company.delay([card.id], card.company.personal_account, limit_sum)
+                        gpn_cards_bind_company.delay(
+                            card_ids=[card.id],
+                            personal_account=card.company.personal_account,
+                            company_available_balance=company_available_balance
+                        )
 
                     else:
                         gpn_cards_unbind_company.delay([card.id])

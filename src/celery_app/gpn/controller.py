@@ -6,7 +6,7 @@ from sqlalchemy import select as sa_select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from src.celery_app.gpn.api import GPNApi
+from src.celery_app.gpn.api import GPNApi, ProductCategory
 from src.celery_app.gpn.config import SYSTEM_SHORT_NAME
 from src.celery_app.irrelevant_balances import IrrelevantBalances
 from src.celery_app.transaction_helper import get_local_cards, get_local_card, get_tariff_on_date_by_balance, \
@@ -265,8 +265,6 @@ class GPNController(BaseRepository):
             # Создаем в API недостающие группы.
             for company in companies:
                 self.api.create_card_group(company.personal_account)
-                self.logger.info("Пауза 40 сек")
-                time.sleep(40)
                 limit_sum = 1
                 for balance in company.balances:
                     if balance.scheme == ContractScheme.OVERBOUGHT:
@@ -304,8 +302,8 @@ class GPNController(BaseRepository):
 
             self.logger.info(f"{card_number} | в БД создана новая карта и привязана к ГПН")
 
-    async def gpn_bind_company_to_cards(self, card_ids: List[str], personal_account: str, limit_sum: int | float) \
-            -> None:
+    async def gpn_bind_company_to_cards(self, card_ids: List[str], personal_account: str,
+                                        company_available_balance: int | float) -> None:
         await self.init_system()
 
         # Получаем из ГПН группу с наименованием, содержащим personal account
@@ -320,9 +318,16 @@ class GPNController(BaseRepository):
 
         if not group_id:
             group_id = self.api.create_card_group(personal_account)
-            self.logger.info("Пауза 40 сек")
-            time.sleep(40)
-            self.api.set_card_group_limits([(personal_account, limit_sum)], groups)
+            current_company_limits = self.api.get_card_group_limits(group_id)
+            limit_sum = self.calc_limit_sum(
+                company_available_balance=company_available_balance,
+                current_company_limits=current_company_limits
+            )
+            self.set_company_limits(
+                group_id=group_id,
+                current_company_limits=current_company_limits,
+                limit_sum=limit_sum
+            )
 
         # Привязываем карту к группе в API ГПН
         stmt = sa_select(CardOrm).where(CardOrm.id.in_(card_ids)).order_by(CardOrm.card_number)
@@ -398,12 +403,12 @@ class GPNController(BaseRepository):
             ext_card_ids = [card.external_id for card in local_cards_to_block]
             self.api.block_cards(ext_card_ids)
 
-    async def set_card_group_limit(self, balance_ids: List[str]) -> None:
+    async def set_group_limits_by_balance_ids(self, balance_ids: List[str]) -> None:
         if not balance_ids:
             print("Получен пустой список балансов для обновления лимитов на группы карт ГПН")
             return None
 
-        # Получаем параметры баланса и организации
+        # Получаем параметры балансов и организаций
         stmt = (
             sa_select(BalanceOrm)
             .options(
@@ -411,17 +416,85 @@ class GPNController(BaseRepository):
             )
             .where(BalanceOrm.id.in_(balance_ids))
         )
-        balance = await self.select_first(stmt)
+        balances = await self.select_all(stmt)
 
-        # Вычисляем доступный лимит
-        overdraft_sum = balance.company.overdraft_sum if balance.company.overdraft_on else 0
-        boundary_sum = balance.company.min_balance - overdraft_sum
-        limit_sum = abs(boundary_sum - balance.balance) if boundary_sum < balance.balance else 1
+        # Получаем из API список всех групп карт
+        groups = self.api.get_card_groups()
 
-        # Устанавливаем лимит
-        if PRODUCTION:
-            gpn_api = GPNApi()
-            gpn_api.set_card_group_limits(limits_dataset=[(balance.company.personal_account, limit_sum)])
+        def get_group_id_by_name(group_name: str) -> str:
+            for g in groups:
+                if g['name'] == group_name:
+                    return g['id']
+
+        for balance in balances:
+            # Получаем идентификатор группы карт
+            group_id = get_group_id_by_name(balance.company.personal_account)
+            if not group_id:
+                group_id = self.api.create_card_group(balance.company.personal_account)
+
+            # Получаем текущие лимиты организации
+            current_company_limits = self.api.get_card_group_limits(group_id)
+
+            # Вычисляем новый доступный лимит на категорию "Топливо"
+            overdraft_sum = balance.company.overdraft_sum if balance.company.overdraft_on else 0
+            company_available_balance = int(balance.balance + overdraft_sum)
+            limit_sum = self.calc_limit_sum(
+                company_available_balance=company_available_balance,
+                current_company_limits=current_company_limits
+            )
+
+            self.set_company_limits(
+                group_id=group_id,
+                current_company_limits=current_company_limits,
+                limit_sum=limit_sum
+            )
+
+    @staticmethod
+    def calc_limit_sum(company_available_balance: int | float, current_company_limits) -> int:
+        # Суммируем все произведенные расходы по каждой категории товаров
+        spent_sum = 0
+        for current_limit in current_company_limits:
+            spent_sum += current_limit['sum']['used']
+
+        # Вычисляем новый доступный лимит на категорию "Топливо"
+        limit_sum = max(int(company_available_balance) + spent_sum, 1)
+        return limit_sum
+
+    def set_company_limits(self, group_id: str, current_company_limits, limit_sum: int):
+        # Устанавливаем/изменяем лимит на категорию "Топливо"
+        limit_id = None
+        for current_limit in current_company_limits:
+            if current_limit['productType'] == ProductCategory.FUEL.value["id"]:
+                limit_id = current_limit['id']
+                break
+
+        self.api.set_group_limit(
+            limit_id=limit_id,
+            group_id=group_id,
+            product_category=ProductCategory.FUEL,
+            limit_sum=limit_sum
+        )
+
+        # Устанавливаем/изменяем лимит на остальные категории
+        for not_fuel_category in ProductCategory.not_fuel_categories():
+            limit_id = None
+            need_to_update = False
+            for current_limit in current_company_limits:
+                if current_limit['productType'] == not_fuel_category.value["id"]:
+                    limit_id = current_limit['id']
+                    if current_limit['sum']['value'] != 1:
+                        need_to_update = True
+                    break
+
+            # Создаем лимит, если его не существовало.
+            # Обновляем лимит, если его значение не равно 1.
+            if not limit_id or need_to_update:
+                self.api.set_group_limit(
+                    limit_id=limit_id,
+                    group_id=group_id,
+                    product_category=ProductCategory.FUEL,
+                    limit_sum=1
+                )
 
     async def load_transactions(self) -> None:
         await self.init_system()
@@ -502,7 +575,10 @@ class GPNController(BaseRepository):
 
         # Получаем связи карт (Карта-Баланс)
         card_numbers = [transaction['card_number'] for transaction in remote_transactions]
-        self._balance_card_relations = await transaction_repository.get_balance_card_relations(card_numbers, self.system.id)
+        self._balance_card_relations = await transaction_repository.get_balance_card_relations(
+            card_numbers,
+            self.system.id
+        )
 
         # Получаем карты
         self._local_cards = await get_local_cards(

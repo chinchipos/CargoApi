@@ -27,7 +27,7 @@ async def set_card_group_limit_fn(balance_ids: List[str]) -> None:
 
         if gpn_cards:
             gpn = GPNController(session)
-            await gpn.set_card_group_limit(balance_ids)
+            await gpn.set_group_limits_by_balance_ids(balance_ids)
 
     # Закрываем соединение с БД
     await sessionmanager.close()

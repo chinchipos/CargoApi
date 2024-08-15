@@ -2,6 +2,7 @@ import hashlib
 import json
 import time
 from datetime import datetime, timedelta
+from enum import Enum
 from typing import Dict, Any, List, Tuple
 
 import requests
@@ -11,6 +12,25 @@ from src.celery_app.exceptions import CeleryError
 from src.celery_app.gpn.config import GPN_USERNAME, GPN_URL, GPN_TOKEN, GPN_PASSWORD
 from src.config import PRODUCTION, TZ
 from src.utils.loggers import get_logger
+
+
+class ProductCategory(Enum):
+    FOOD = {"id": "1-C8J1M", "code": "40100000000", "unit": "IT"}
+    CAFE = {"id": "1-C8J1I", "code": "40200000000", "unit": "IT"}
+    NON_FOOD = {"id": "1-C8J1Z", "code": "40300000000", "unit": "IT"}
+    OTHER_SERVICES = {"id": "1-C8J2B", "code": "40400000000", "unit": "IT"}
+    CS_SERVICES = {"id": "1-4SE0LKU", "code": "CS_SERVICES", "unit": "IT"}
+    FUEL = {"id": "1-CK231", "code": "FUEL", "unit": "LIT"}
+
+    @staticmethod
+    def not_fuel_categories():
+        return [
+            ProductCategory.FOOD,
+            ProductCategory.CAFE,
+            ProductCategory.NON_FOOD,
+            ProductCategory.OTHER_SERVICES,
+            ProductCategory.CS_SERVICES
+        ]
 
 
 class GPNApi:
@@ -114,6 +134,8 @@ class GPNApi:
 
         gpn_group_id = res['data']['id']
         self.logger.info(f"{new_group_name} | в ГПН создана группа карт")
+        self.logger.info("Пауза 40 сек")
+        time.sleep(40)
         return gpn_group_id
 
     def delete_gpn_group(self, group_id: str, group_name: str) -> None:
@@ -305,7 +327,38 @@ class GPNApi:
 
         return transactions
 
-    def set_card_group_limits(self, limits_dataset: List[Tuple[str, int]], groups = None) -> None:
+    def set_group_limit(self, limit_id: str | None, group_id: str, product_category: ProductCategory, limit_sum: int) \
+            -> None:
+        data = {
+            "contract_id": self.contract_id,
+            "group_id": group_id,
+            "productType": product_category.value["id"],
+            "sum": {
+                "currency": "810",
+                "value": int(limit_sum)
+            },
+            "term": {"type": 1},
+            "time": {"number": 1, "type": 2}
+        }
+        # Если задан параметр limit_id, то будет изменен существующий лимит.
+        # Если не задан, то будет создан новый.
+        if limit_id:
+            data['id'] = limit_id
+
+        data = {"limit": json.dumps([new_limit])}
+        response = requests.post(
+            url=self.endpoint(self.api_v1, "setLimit"),
+            headers=self.headers | {"session_id": self.api_session_id},
+            data=data
+        )
+        res = response.json()
+
+        if res["status"]["code"] != 200:
+            raise CeleryError(message=f"Ошибка при установке лимитов. Ответ сервера API: "
+                                      f"{res['status']['errors']}. Наш запрос: {data}")
+
+        self.logger.info(f"Установлен лимит {new_limit}")
+        """
         new_limits = []
 
         # Получаем все возможные категории продуктов
@@ -368,8 +421,13 @@ class GPNApi:
                                           f"{res['status']['errors']}. Наш запрос: {data}")
 
             self.logger.info(f"Установлен лимит {new_limit}")
+        """
 
     def get_card_group_limits(self, group_id: str) -> List[Dict[str, Any]]:
+        """
+        Лимиты можно получить либо по договору, либо по группе карт, либо по карте.
+        Нет возможности получить все лимиты одним запросом.
+        """
         params = {
             "contract_id": self.contract_id,
             "group_id": group_id,
@@ -386,26 +444,6 @@ class GPNApi:
 
         limits = res["data"]["result"]
         return limits
-
-    def make_card_group_limit_data(self, limit_id: str | None, group_id: str, product_type_id: str,
-                                   limit_value: int | float) -> Dict[str, Any]:
-        data = {
-            "contract_id": self.contract_id,
-            "group_id": group_id,
-            "productType": product_type_id,
-            "sum": {
-                "currency": "810",
-                "value": int(limit_value)
-            },
-            "term": {"type": 1},
-            "time": {"number": 1, "type": 2}
-        }
-        # Если задан параметр limit_id, то будет изменен существующий лимит.
-        # Если не задан, то будет создан новый.
-        if limit_id:
-            data['id'] = limit_id
-
-        return data
 
     def get_product_types(self) -> List[Dict[str, Any]]:
         if not self.product_types:

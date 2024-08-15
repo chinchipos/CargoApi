@@ -1,10 +1,10 @@
-from typing import List, Dict
+from typing import List
 
-from celery import chain, chord, shared_task, group
+from celery import chain, chord
 
 from src.celery_app.balance.tasks import calc_balances
 from src.celery_app.exceptions import CeleryError
-from src.celery_app.gpn.tasks import gpn_sync, gpn_set_card_states
+from src.celery_app.gpn.tasks import gpn_sync
 from src.celery_app.irrelevant_balances import IrrelevantBalances
 from src.celery_app.khnp.tasks import khnp_sync, khnp_set_card_states
 from src.celery_app.limits.tasks import gpn_set_card_group_limit

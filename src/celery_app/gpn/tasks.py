@@ -66,24 +66,25 @@ def gpn_set_card_states(balance_ids_to_change_card_states: Dict[str, List[str]])
     return "COMPLETE"
 
 
-async def gpn_cards_bind_company_fn(card_ids: List[str], personal_account: str, limit_sum: int | float) -> None:
+async def gpn_cards_bind_company_fn(card_ids: List[str], personal_account: str, company_available_balance: int | float) \
+        -> None:
     sessionmanager = DatabaseSessionManager()
     sessionmanager.init(PROD_URI)
 
     async with sessionmanager.session() as session:
         gpn = GPNController(session)
-        await gpn.gpn_bind_company_to_cards(card_ids, personal_account, limit_sum)
+        await gpn.gpn_bind_company_to_cards(card_ids, personal_account, company_available_balance)
 
     # Закрываем соединение с БД
     await sessionmanager.close()
 
 
 @celery.task(name="GPN_CARDS_BIND_COMPANY")
-def gpn_cards_bind_company(card_ids: List[str], personal_account: str, limit_sum: int | float) -> None:
+def gpn_cards_bind_company(card_ids: List[str], personal_account: str, company_available_balance: int | float) -> None:
     if sys.platform == 'win32':
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-    asyncio.run(gpn_cards_bind_company_fn(card_ids, personal_account, limit_sum))
+    asyncio.run(gpn_cards_bind_company_fn(card_ids, personal_account, company_available_balance))
 
 
 async def gpn_cards_unbind_company_fn(card_ids: List[str]) -> None:
@@ -159,6 +160,14 @@ def gpn_set_card_state(external_card_id: str, activate: bool) -> None:
 
 @celery.task(name="GPN_TEST")
 def gpn_test() -> None:
-    gpn_api = GPNApi()
-    # gpn_api.set_card_group_limits([('5287241', 1500000)])
-    gpn_api.get_transactions(2)
+    api = GPNApi()
+    # api.set_card_group_limits([('5287241', 1500000)])
+    # api.get_transactions(2)
+    # product_types = api.get_product_types()
+    groups = api.get_card_groups()
+    for group in groups:
+        if group['name'] == "5287241":
+            limits = api.get_card_group_limits(group['id'])
+            for limit in limits:
+                print(limit)
+            break
