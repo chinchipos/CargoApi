@@ -401,7 +401,6 @@ class GPNController(BaseRepository):
             .select_from(BalanceOrm, company_tbl, CardOrm, CardSystemOrm)
             .where(BalanceOrm.scheme == ContractScheme.OVERBOUGHT)
             .where(company_tbl.id == BalanceOrm.company_id)
-            .where(company_tbl.personal_account == "9229609")
             .where(CardOrm.company_id == company_tbl.id)
             .where(CardSystemOrm.card_id == CardOrm.id)
             .where(CardSystemOrm.system_id == self.system.id)
@@ -420,22 +419,23 @@ class GPNController(BaseRepository):
                     return g['id']
 
         for balance in balances:
-            if balance.company.personal_account == "9229609":
-                print("Найден баланс организации ОВР")
+            # if balance.company.personal_account == "9229609":
+            #     print("Найден баланс организации ОВР")
 
             # Получаем идентификатор группы карт
             group_id = get_group_id_by_name(balance.company.personal_account)
             if not group_id:
                 group_id = self.api.create_card_group(balance.company.personal_account)
-            if balance.company.personal_account == "9229609":
-                print(f"Идентификатор группы ОВР: {group_id}")
+
+            # if balance.company.personal_account == "9229609":
+            #     print(f"Идентификатор группы ОВР: {group_id}")
 
             # Получаем текущие лимиты организации
             current_company_limits = self.api.get_card_group_limits(group_id)
-            if current_company_limits and balance.company.personal_account == "9229609":
-                print(f"Действующие лимиты организации ОВР:")
-                for current_company_limit in current_company_limits:
-                    print(current_company_limit)
+            # if current_company_limits and balance.company.personal_account == "9229609":
+            #     print(f"Действующие лимиты организации ОВР:")
+            #     for current_company_limit in current_company_limits:
+            #         print(current_company_limit)
 
             # Вычисляем новый доступный лимит на категорию "Топливо"
             overdraft_sum = balance.company.overdraft_sum if balance.company.overdraft_on else 0
@@ -444,8 +444,8 @@ class GPNController(BaseRepository):
                 company_available_balance=company_available_balance,
                 current_company_limits=current_company_limits
             )
-            if balance.company.personal_account == "9229609":
-                print(f"Новый лимит для организации ОВР: {limit_sum} руб")
+            # if balance.company.personal_account == "9229609":
+            #     print(f"Новый лимит для организации ОВР: {limit_sum} руб")
 
             # Устанавливаем лимиты на группу по всем категориям
             self.set_company_limits(
@@ -490,8 +490,8 @@ class GPNController(BaseRepository):
                     need_to_update = True
                 break
 
-        if group_id == "1-170U7J6K":
-            print(f"Идентификатор нового лимита на категорию Топливо: {group_id}")
+        # if group_id == "1-170U7J6K":
+        #     print(f"Идентификатор нового лимита на категорию Топливо: {group_id}")
 
         if not limit_id or need_to_update:
             if PRODUCTION:
