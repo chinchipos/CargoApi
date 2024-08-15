@@ -307,16 +307,16 @@ class GPNApi:
             if res["status"]["code"] != 200:
                 raise CeleryError(message=f"Ошибка при получении транзакций. Ответ сервера API: "
                                           f"{res['status']['errors']}. Наш запрос: {params}")
-            print(url)
+            # print(url)
             print(response.text)
             if not res["data"]["total_count"]:
                 self.logger.info(f"В системе ГПН отсутствуют транзакции за за указанный период {_transaction_days} дн")
                 break
 
             transactions.extend(res["data"]["result"])
-            print('----------------------')
-            print(f'OFFSET: {page_offset}')
-            print(res["data"]["result"])
+            # print('----------------------')
+            # print(f'OFFSET: {page_offset}')
+            # print(res["data"]["result"])
             page_offset += 100
             i += 1
             if i == 3:
@@ -453,7 +453,7 @@ class GPNApi:
 
     def get_goods(self) -> List[Dict[str, Any]]:
         goods = self.get_dictionary(dictionary_name="Goods")
-        print(goods)
+        # print(goods)
         return goods
 
     def get_dictionary(self, dictionary_name: str) -> List[Dict[str, Any]]:
