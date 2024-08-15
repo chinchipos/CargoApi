@@ -420,19 +420,19 @@ class GPNController(BaseRepository):
                     return g['id']
 
         for balance in balances:
-            if balance.company.personal_account == "4616228":
+            if balance.company.personal_account == "9229609":
                 print("Найден баланс организации ОВР")
 
             # Получаем идентификатор группы карт
             group_id = get_group_id_by_name(balance.company.personal_account)
             if not group_id:
                 group_id = self.api.create_card_group(balance.company.personal_account)
-            if balance.company.personal_account == "4616228":
+            if balance.company.personal_account == "9229609":
                 print(f"Идентификатор группы ОВР: {group_id}")
 
             # Получаем текущие лимиты организации
             current_company_limits = self.api.get_card_group_limits(group_id)
-            if current_company_limits and balance.company.personal_account == "4616228":
+            if current_company_limits and balance.company.personal_account == "9229609":
                 print(f"Действующие лимиты организации ОВР:")
                 for current_company_limit in current_company_limits:
                     print(current_company_limit)
@@ -444,11 +444,11 @@ class GPNController(BaseRepository):
                 company_available_balance=company_available_balance,
                 current_company_limits=current_company_limits
             )
-            if balance.company.personal_account == "4616228":
+            if balance.company.personal_account == "9229609":
                 print(f"Новый лимит для организации ОВР: {limit_sum}")
 
             # Устанавливаем лимиты на группу по всем категориям
-            if PRODUCTION:
+            if not PRODUCTION:
                 self.set_company_limits(
                     group_id=group_id,
                     current_company_limits=current_company_limits,
