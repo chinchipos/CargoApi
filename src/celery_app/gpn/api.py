@@ -329,7 +329,7 @@ class GPNApi:
 
     def set_group_limit(self, limit_id: str | None, group_id: str, product_category: ProductCategory, limit_sum: int) \
             -> None:
-        data = {
+        new_limit = {
             "contract_id": self.contract_id,
             "group_id": group_id,
             "productType": product_category.value["id"],
@@ -343,7 +343,7 @@ class GPNApi:
         # Если задан параметр limit_id, то будет изменен существующий лимит.
         # Если не задан, то будет создан новый.
         if limit_id:
-            data['id'] = limit_id
+            new_limit['id'] = limit_id
 
         data = {"limit": json.dumps([new_limit])}
         response = requests.post(
