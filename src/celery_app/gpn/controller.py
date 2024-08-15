@@ -471,7 +471,7 @@ class GPNController(BaseRepository):
         while i < len(current_company_limits):
             current_limit = current_company_limits[i]
             if current_limit['time']['number'] != 1 or current_limit['time']['type'] != 2:
-                if not PRODUCTION:
+                if PRODUCTION:
                     self.api.delete_group_limit(limit_id=current_limit['id'], group_id=group_id)
                 else:
                     print(f"Псевдоудален лимит на категорию | LIMIT_ID: {current_limit['id']} | GROUP_ID: {group_id}")
@@ -494,7 +494,7 @@ class GPNController(BaseRepository):
             print(f"Идентификатор нового лимита на категорию Топливо: {group_id}")
 
         if not limit_id or need_to_update:
-            if not PRODUCTION:
+            if PRODUCTION:
                 self.api.set_group_limit(
                     limit_id=limit_id,
                     group_id=group_id,
@@ -519,7 +519,7 @@ class GPNController(BaseRepository):
             # Создаем лимит, если его не существовало.
             # Обновляем лимит, если его значение не равно 1.
             if not limit_id or need_to_update:
-                if not PRODUCTION:
+                if PRODUCTION:
                     self.api.set_group_limit(
                         limit_id=limit_id,
                         group_id=group_id,
