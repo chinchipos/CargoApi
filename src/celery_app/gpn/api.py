@@ -311,7 +311,7 @@ class GPNApi:
                 raise CeleryError(message=f"Ошибка при получении транзакций. Ответ сервера API: "
                                           f"{res['status']['errors']}. Наш запрос: {params}")
             # print(url)
-            print(response.text)
+            # print(response.text)
             if not res["data"]["total_count"]:
                 self.logger.info(f"В системе ГПН отсутствуют транзакции за за указанный период {_transaction_days} дн")
                 break
