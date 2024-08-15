@@ -130,7 +130,7 @@ class GPNController(BaseRepository):
         # ---- 3 ----
         # Устанавливаем лимиты на группы
         self.logger.info("Запускаю синхронизацию лимитов на группы карт")
-        await self.set_group_limits_by_balance_ids()
+        await self.set_group_limits_by_balance_ids(balance_ids=None, force=True)
 
         # ---- 4 ----
         self.logger.info("Запускаю проверку соответствия карт группам")
@@ -384,8 +384,10 @@ class GPNController(BaseRepository):
             ext_card_ids = [card.external_id for card in local_cards_to_block]
             self.api.block_cards(ext_card_ids)
 
-    async def set_group_limits_by_balance_ids(self, balance_ids: List[str] | None = None) -> None:
-        if not balance_ids:
+    async def set_group_limits_by_balance_ids(self, balance_ids: List[str] | None, force: bool = False) -> None:
+        if not force and not balance_ids:
+            # Если force установлен в False, то выполняется алгоритм для установки лимитов после пересчета балансов.
+            # Если True, то выполняется алгоритм для установки лимитов при выполнении синхронизации карт и групп.
             print("Получен пустой список балансов для обновления лимитов на группы карт ГПН")
             return None
 
