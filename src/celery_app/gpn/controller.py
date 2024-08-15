@@ -418,7 +418,12 @@ class GPNController(BaseRepository):
                 if g['name'] == group_name:
                     return g['id']
 
+        j = 1
+        companies_amount = len(balances)
         for balance in balances:
+            print(f"Организация {j} из {companies_amount}")
+            j += 1
+
             # if balance.company.personal_account == "9229609":
             #     print("Найден баланс организации ОВР")
 
