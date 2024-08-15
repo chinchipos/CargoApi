@@ -129,9 +129,11 @@ class GPNController(BaseRepository):
 
         # ---- 3 ----
         # Устанавливаем лимиты на группы
+        self.logger.info("Запускаю синхронизацию лимитов на группы карт")
         await self.set_group_limits_by_balance_ids()
 
         # ---- 4 ----
+        self.logger.info("Запускаю проверку соответствия карт группам")
         # Из локальной БД получаем список карт, привязанных к ГПН
         local_cards = await get_local_cards(
             session=self.session,
@@ -415,13 +417,22 @@ class GPNController(BaseRepository):
                     return g['id']
 
         for balance in balances:
+            if balance.company.personal_account == "4616228":
+                print("Найден баланс организации ОВР")
+
             # Получаем идентификатор группы карт
             group_id = get_group_id_by_name(balance.company.personal_account)
             if not group_id:
                 group_id = self.api.create_card_group(balance.company.personal_account)
+            if balance.company.personal_account == "4616228":
+                print(f"Идентификатор группы ОВР: {group_id}")
 
             # Получаем текущие лимиты организации
             current_company_limits = self.api.get_card_group_limits(group_id)
+            if current_company_limits and balance.company.personal_account == "4616228":
+                print(f"Действующие лимиты организации ОВР:")
+                for current_company_limit in current_company_limits:
+                    print(current_company_limit)
 
             # Вычисляем новый доступный лимит на категорию "Топливо"
             overdraft_sum = balance.company.overdraft_sum if balance.company.overdraft_on else 0
@@ -430,6 +441,8 @@ class GPNController(BaseRepository):
                 company_available_balance=company_available_balance,
                 current_company_limits=current_company_limits
             )
+            if balance.company.personal_account == "4616228":
+                print(f"Новый лимит для организации ОВР: {limit_sum}")
 
             # Устанавливаем лимиты на группу по всем категориям
             if PRODUCTION:
