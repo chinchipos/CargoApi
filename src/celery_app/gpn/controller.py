@@ -445,15 +445,14 @@ class GPNController(BaseRepository):
                 current_company_limits=current_company_limits
             )
             if balance.company.personal_account == "9229609":
-                print(f"Новый лимит для организации ОВР: {limit_sum}")
+                print(f"Новый лимит для организации ОВР: {limit_sum} руб")
 
             # Устанавливаем лимиты на группу по всем категориям
-            if not PRODUCTION:
-                self.set_company_limits(
-                    group_id=group_id,
-                    current_company_limits=current_company_limits,
-                    limit_sum=limit_sum
-                )
+            self.set_company_limits(
+                group_id=group_id,
+                current_company_limits=current_company_limits,
+                limit_sum=limit_sum
+            )
 
     @staticmethod
     def calc_limit_sum(company_available_balance: int | float, current_company_limits) -> int:
@@ -472,7 +471,11 @@ class GPNController(BaseRepository):
         while i < len(current_company_limits):
             current_limit = current_company_limits[i]
             if current_limit['time']['number'] != 1 or current_limit['time']['type'] != 2:
-                self.api.delete_group_limit(limit_id=current_limit['id'], group_id=group_id)
+                if not PRODUCTION:
+                    self.api.delete_group_limit(limit_id=current_limit['id'], group_id=group_id)
+                else:
+                    print(f"Псевдоудален лимит на категорию | LIMIT_ID: {current_limit['id']} | GROUP_ID: {group_id}")
+
                 current_company_limits.remove(current_limit)
             else:
                 i += 1
@@ -484,12 +487,19 @@ class GPNController(BaseRepository):
                 limit_id = current_limit['id']
                 break
 
-        self.api.set_group_limit(
-            limit_id=limit_id,
-            group_id=group_id,
-            product_category=ProductCategory.FUEL,
-            limit_sum=limit_sum
-        )
+        if group_id == "1-170U7J6K":
+            print(f"Идентификатор нового лимита на категорию Топливо: {group_id}")
+
+        if not PRODUCTION:
+            self.api.set_group_limit(
+                limit_id=limit_id,
+                group_id=group_id,
+                product_category=ProductCategory.FUEL,
+                limit_sum=limit_sum
+            )
+        else:
+            print(f"Псевдо установлен/обновлен лимит на категорию Топливо | LIMIT_ID: {limit_id} | "
+                  f"GROUP_ID: {group_id} | LIMIT_SUM: {limit_sum}")
 
         # Устанавливаем/изменяем лимит на остальные категории
         for not_fuel_category in ProductCategory.not_fuel_categories():
@@ -505,12 +515,16 @@ class GPNController(BaseRepository):
             # Создаем лимит, если его не существовало.
             # Обновляем лимит, если его значение не равно 1.
             if not limit_id or need_to_update:
-                self.api.set_group_limit(
-                    limit_id=limit_id,
-                    group_id=group_id,
-                    product_category=ProductCategory.FUEL,
-                    limit_sum=1
-                )
+                if not PRODUCTION:
+                    self.api.set_group_limit(
+                        limit_id=limit_id,
+                        group_id=group_id,
+                        product_category=not_fuel_category,
+                        limit_sum=1
+                    )
+                else:
+                    print(f"Псевдо установлен/обновлен лимит на категорию {not_fuel_category} | LIMIT_ID: {limit_id} | "
+                          f"GROUP_ID: {group_id} | LIMIT_SUM: 1")
 
     async def load_transactions(self) -> None:
         await self.init_system()
