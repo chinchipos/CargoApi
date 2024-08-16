@@ -76,8 +76,8 @@ class CardEditSchema(BaseSchema):
     company_id: company_id_ = None
     belongs_to_car_id: belongs_to_car_id_ = None
     belongs_to_driver_id: belongs_to_driver_id_ = None
-    limit_sum: limit_sum_ = None
-    limit_volume: limit_volume_ = None
+    # limit_sum: limit_sum_ = None
+    # limit_volume: limit_volume_ = None
 
 
 class CardCreateSchema(BaseSchema):
