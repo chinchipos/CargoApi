@@ -673,6 +673,8 @@ class GPNController(BaseRepository):
         #     "payment_type": "Карта"
         # }
 
+        purchase = True if remote_transaction['type'] == "P" else False
+
         # Получаем баланс
         balance_id = self._balance_card_relations.get(card_number, None)
         if not balance_id:
@@ -695,9 +697,8 @@ class GPNController(BaseRepository):
             tariff = get_current_tariff_by_balance(balance_id=balance_id, bst_list=self._bst_list)
 
         # Сумма транзакции
-        transaction_type = TransactionType.PURCHASE if remote_transaction['type'] == "P" else TransactionType.REFUND
-        transaction_sum = -abs(remote_transaction['sum']) if transaction_type == TransactionType.PURCHASE \
-            else abs(remote_transaction['sum'])
+        transaction_type = TransactionType.PURCHASE if purchase else TransactionType.REFUND
+        transaction_sum = -abs(remote_transaction['sum']) if purchase else abs(remote_transaction['sum'])
 
         # Размер скидки
         discount_percent = 2
@@ -718,7 +719,7 @@ class GPNController(BaseRepository):
             balance_id=balance_id,
             azs_code=remote_transaction['poi_id'],
             outer_goods_id=outer_goods.id if outer_goods else None,
-            fuel_volume=remote_transaction['qty'],
+            fuel_volume=-remote_transaction['qty'] if purchase else remote_transaction['qty'],
             price=remote_transaction['price'],
             transaction_sum=transaction_sum,
             tariff_id=tariff.id if tariff else None,
