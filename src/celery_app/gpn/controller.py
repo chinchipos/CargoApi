@@ -391,6 +391,8 @@ class GPNController(BaseRepository):
             print("Получен пустой список балансов для обновления лимитов на группы карт ГПН")
             return None
 
+        await self.init_system()
+
         # Получаем параметры балансов и организаций
         company_tbl = aliased(CompanyOrm, name="org")
         stmt = (
