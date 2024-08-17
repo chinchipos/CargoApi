@@ -606,10 +606,8 @@ class GPNController(BaseRepository):
     def get_equal_remote_transaction(local_transaction: TransactionOrm, remote_transactions: List[Dict[str, Any]]) \
             -> Dict[str, Any] | None:
         for remote_transaction in remote_transactions:
-            if remote_transaction['timestamp'] == local_transaction.date_time:
-                if remote_transaction['qty'] == abs(local_transaction.fuel_volume):
-                    if remote_transaction['sum'] == abs(local_transaction.transaction_sum):
-                        return remote_transaction
+            if str(remote_transaction['id']) == local_transaction.external_id:
+                return remote_transaction
 
     async def process_new_remote_transactions(self, remote_transactions: List[Dict[str, Any]],
                                               transaction_repository: TransactionRepository) -> None:
@@ -729,6 +727,7 @@ class GPNController(BaseRepository):
         total_sum = transaction_sum + discount_sum + fee_sum
 
         transaction_data = dict(
+            external_id=str(remote_transaction['id']),
             date_time=remote_transaction['timestamp'],
             date_time_load=datetime.now(tz=TZ),
             transaction_type=transaction_type,
