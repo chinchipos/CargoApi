@@ -459,7 +459,6 @@ class GPNController(BaseRepository):
                 company_available_balance=company_available_balance,
                 current_company_limits=current_company_limits
             )
-            print(f"limit_sum: {limit_sum}")
             # if balance.company.personal_account == "9229609":
             #     print(f"Новый лимит для организации ОВР: {limit_sum} руб")
 
