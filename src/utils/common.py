@@ -37,4 +37,11 @@ def calc_available_balance(current_balance: float, min_balance: float, overdraft
     _overdraft_sum = overdraft_sum if overdraft_on else 0
     boundary = min_balance - _overdraft_sum
     available_balance = current_balance - boundary if current_balance > boundary else 0
+    print(f"current_balance: {current_balance}")
+    print(f"min_balance: {min_balance}")
+    print(f"overdraft_on: {overdraft_on}")
+    print(f"overdraft_sum: {overdraft_sum}")
+    print(f"_overdraft_sum: {_overdraft_sum}")
+    print(f"boundary: {boundary}")
+    print(f"available_balance: {available_balance}")
     return available_balance
