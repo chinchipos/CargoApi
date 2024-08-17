@@ -34,8 +34,9 @@ def calc_available_balance(current_balance: float, min_balance: float, overdraft
         -> float:
     # overdraft_on - переменная добавлена в функцию для устранения ошибки когда в БД записано, что овердрафт отключен,
     # о сумма задана не нулевая
+    # overdraft_sum - всегда отрицательное значение
     _overdraft_sum = overdraft_sum if overdraft_on else 0
-    boundary = min_balance - _overdraft_sum
+    boundary = min_balance + _overdraft_sum
     available_balance = current_balance - boundary if current_balance > boundary else 0
     print(f"current_balance: {current_balance}")
     print(f"min_balance: {min_balance}")
