@@ -4,7 +4,7 @@ from typing import List
 import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.database.model.base import Base
+from src.database.models.base import Base
 
 
 class GoodsCategory(Enum):
@@ -45,7 +45,7 @@ class OuterGoodsCategoryOrm(Base):
     )
 
     # Система
-    system: Mapped["System"] = relationship(
+    system: Mapped["SystemOrm"] = relationship(
         back_populates="outer_goods_categories",
         lazy="noload"
     )

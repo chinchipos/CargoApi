@@ -7,7 +7,9 @@ from src.schemas.base import BaseSchema
 from src.schemas.tariff import TariffMinimumReadSchema
 from src.utils import enums
 
-system_id_ = Annotated[str, Field(description="UUID поставщика услуг", examples=["68425199-ac93-4733-becb-de2e89e85303"])]
+system_id_ = Annotated[
+    str,
+    Field(description="UUID поставщика услуг", examples=["68425199-ac93-4733-becb-de2e89e85303"])]
 
 system_full_name_ = Annotated[str | None, Field(description="Полное наименование", examples=["Роснефть"])]
 

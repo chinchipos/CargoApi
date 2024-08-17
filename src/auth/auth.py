@@ -12,7 +12,7 @@ from sqlalchemy.orm import joinedload
 from src.auth.manager import get_user_manager
 from src.config import JWT_SECRET
 from src.database.db import get_session
-from src.database.model.models import User
+from src.database.models.user import UserOrm
 from src.utils.exceptions import DBException
 from src.utils.loggers import logger
 
@@ -33,7 +33,7 @@ auth_backend = AuthenticationBackend(
     get_strategy=get_jwt_strategy,
 )
 
-fastapi_users = FastAPIUsers[User, uuid.UUID](
+fastapi_users = FastAPIUsers[UserOrm, uuid.UUID](
     get_user_manager,
     [auth_backend],
 )
@@ -44,13 +44,13 @@ current_active_user = fastapi_users.current_user(active=True)
 
 async def get_current_active_user(
         session: AsyncSession = Depends(get_session),
-        user: User = Depends(current_active_user)
+        user: UserOrm = Depends(current_active_user)
 ):
     try:
         stmt = (
-            sa_select(User)
-            .options(joinedload(User.role))
-            .where(User.id == user.id)
+            sa_select(UserOrm)
+            .options(joinedload(UserOrm.role))
+            .where(UserOrm.id == user.id)
             .limit(1)
         )
         result = await session.scalars(

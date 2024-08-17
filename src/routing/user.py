@@ -3,7 +3,6 @@ from typing import List, Optional, Any, Annotated
 
 from fastapi import APIRouter, Depends, Body
 
-from src.database.model import models
 from src.depends import get_service_user
 from src.schemas.common import SuccessSchema
 from src.schemas.user import UserReadSchema, UserCompanyReadSchema, UserCargoReadSchema, UserCreateSchema, \
@@ -41,7 +40,7 @@ async def create(
         )
     ] = None,
     service: UserService = Depends(get_service_user)
-) -> models.User:
+):
     if not managed_companies:
         managed_companies = []
 
@@ -64,7 +63,7 @@ async def create(
 )
 async def get_me(
     user_service: UserService = Depends(get_service_user)
-) -> models.User:
+):
     user = await user_service.get_me()
     return user
 
@@ -79,7 +78,7 @@ async def get_me(
 )
 async def get_companies_users(
     service: UserService = Depends(get_service_user)
-) -> List[models.User]:
+):
     # Проверка прав доступа.
     # Суперадмин ПроАВТО не имеет ограничений.
     # Менеджер ПроАВТО имеет права в рамках своих организаций.

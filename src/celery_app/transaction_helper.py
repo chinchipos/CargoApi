@@ -4,9 +4,10 @@ from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.celery_app.exceptions import CeleryError
-from src.database.model import CardOrm
-from src.database.model.models import Tariff as TariffOrm, BalanceTariffHistory as BalanceTariffHistoryOrm, \
-    BalanceSystemTariff as BalanceSystemTariffOrm
+from src.database.models import CardOrm
+from src.database.models.tariff import TariffOrm
+from src.database.models.balance_tariff_history import BalanceTariffHistoryOrm
+from src.database.models.balance_system_tariff import BalanceSystemTariffOrm
 from src.repositories.card import CardRepository
 
 

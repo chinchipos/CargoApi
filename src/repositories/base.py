@@ -6,8 +6,8 @@ import sqlparse
 from sqlalchemy.dialects.postgresql import insert as pg_insert, dialect as postgresql_dialect
 from sqlalchemy.exc import IntegrityError
 
-from src.database.model import models
 from src.database.db import get_session
+from src.database.models.user import UserOrm
 
 from src.utils.exceptions import DBException, DBDuplicateException, BadRequestException, api_logger
 
@@ -16,7 +16,7 @@ import traceback
 
 class BaseRepository:
 
-    def __init__(self, session: get_session, user: models.User | None = None):
+    def __init__(self, session: get_session, user: UserOrm | None = None):
         self.session = session
         self.user = user
         self.logger = api_logger

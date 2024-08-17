@@ -5,7 +5,7 @@ from typing import List
 import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.database.model import Base
+from src.database.models import Base
 
 
 class BlockingCardReason(Enum):
@@ -82,7 +82,7 @@ class CardOrm(Base):
     )
 
     # Автомобиль, с которым ассоциирована карта
-    belongs_to_car: Mapped["Car"] = relationship(
+    belongs_to_car: Mapped["CarOrm"] = relationship(
         back_populates="cards",
         lazy="noload",
         init=False
@@ -96,7 +96,7 @@ class CardOrm(Base):
     )
 
     # Водитель, с которым ассоциирована карта
-    belongs_to_driver: Mapped["User"] = relationship(
+    belongs_to_driver: Mapped["UserOrm"] = relationship(
         back_populates="cards",
         lazy="noload",
         init=False
@@ -134,7 +134,7 @@ class CardOrm(Base):
     )
 
     # Список связей этой карты с системами
-    card_system_links: Mapped[List["CardSystem"]] = relationship(
+    card_system_links: Mapped[List["CardSystemOrm"]] = relationship(
         back_populates="card",
         cascade="all, delete-orphan",
         lazy="noload",
@@ -142,7 +142,7 @@ class CardOrm(Base):
     )
 
     # Список систем, связанных с этой картой
-    systems: Mapped[List["System"]] = relationship(
+    systems: Mapped[List["SystemOrm"]] = relationship(
         back_populates="cards",
         secondary="cargonomica.card_system",
         viewonly=True,
@@ -151,7 +151,7 @@ class CardOrm(Base):
     )
 
     # Список транзакций, привязанных к этой карте
-    transactions: Mapped[List["Transaction"]] = relationship(
+    transactions: Mapped[List["TransactionOrm"]] = relationship(
         back_populates="card",
         cascade="all, delete-orphan",
         lazy="noload",

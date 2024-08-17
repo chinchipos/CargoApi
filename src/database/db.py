@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from sqlalchemy.sql.ddl import CreateSchema
 
 from src.config import SQLALCHEMY_ECHO, SCHEMA
-from src.database.model.base import Base
+from src.database.models.base import Base
 
 
 class DatabaseSessionManager:

@@ -3,8 +3,7 @@ from typing import Any
 from fastapi import APIRouter, Depends
 
 from src.depends import get_service_db
-from src.descriptions.db import db_tag_description, db_initial_sync_description, \
-    db_init_description
+from src.descriptions.db import db_tag_description, db_initial_sync_description, db_init_description
 from src.schemas.common import SuccessSchema
 from src.schemas.db import DBInitSchema, DBInitialSyncSchema
 from src.services.db import DBService
@@ -20,7 +19,7 @@ db_tag_metadata = {
 @router.post(
     path="/db/init",
     tags=["db"],
-    responses = {400: {'model': MessageSchema, "description": "Bad request"}},
+    responses = {400: {"model": MessageSchema, "description": "Bad request"}},
     response_model = SuccessSchema,
     summary = 'Инициализация',
     description = db_init_description
@@ -28,7 +27,7 @@ db_tag_metadata = {
 async def init(
     data: DBInitSchema,
     db_service: DBService = Depends(get_service_db)
-) -> dict[str, Any]:
+):
     await db_service.db_init(data)
     return {'success': True}
 
@@ -53,7 +52,7 @@ async def initial_sync(
 @router.post(
     path="/db/sync/nnk/regular",
     tags=["db"],
-    responses = {400: {'model': MessageSchema, "description": "Bad request"}},
+    responses = {400: {'models': MessageSchema, "description": "Bad request"}},
     response_model = MessageSchema,
     summary = 'Регулярная синхронизация с мигрируемой БД ННК',
     description = db_regular_sync_description

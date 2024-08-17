@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends
 from src.depends import get_service_card
 from src.descriptions.card import delete_card_description, get_cards_description, edit_card_description, \
     create_card_description, card_tag_description, get_card_description, bulk_bind_description, \
-    bulk_unbind_systems_description, bulk_unbind_company_description, bulk_block_description, bulk_activate_description, \
-    change_card_state_description
+    bulk_unbind_systems_description, bulk_unbind_company_description, bulk_block_description, \
+    bulk_activate_description, change_card_state_description
 from src.schemas.card import CardReadSchema, CardCreateSchema, CardEditSchema, BulkBindSchema, BulkUnbindSchema
 from src.schemas.common import SuccessSchema
 from src.services.card import CardService

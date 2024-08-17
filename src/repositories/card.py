@@ -5,12 +5,14 @@ from sqlalchemy import select as sa_select, delete as sa_delete, func as sa_func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload, aliased
 
-from src.database.model.card import CardOrm
-from src.database.model.card_type import CardTypeOrm
-from src.database.model.models import (User as UserOrm, Transaction as TransactionOrm, System as SystemOrm,
-                                       Car as CarOrm, CardSystem as CardSystemOrm)
-from src.database.model.balance import BalanceOrm
-from src.database.model.company import CompanyOrm
+from src.database.models.card import CardOrm
+from src.database.models.card_type import CardTypeOrm
+from src.database.models.user import UserOrm
+from src.database.models.transaction import TransactionOrm
+from src.database.models.system import SystemOrm, CardSystemOrm
+from src.database.models.car import CarOrm
+from src.database.models.balance import BalanceOrm
+from src.database.models.company import CompanyOrm
 from src.repositories.base import BaseRepository
 from src.schemas.card import CardCreateSchema
 from src.utils import enums

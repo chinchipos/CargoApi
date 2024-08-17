@@ -2,7 +2,7 @@ import pytest
 from httpx import AsyncClient
 
 from src.database.db import sessionmanager
-from src.database.model.models import System
+from src.database.models.system import SystemOrm
 from src.repositories.base import BaseRepository
 from tests.conftest import headers
 
@@ -106,7 +106,7 @@ class TestSystem:
 
         async with sessionmanager.session() as session:
             repository = BaseRepository(session, None)
-            stmt = sa_select(System).where(System.full_name == 'Лукойл')
+            stmt = sa_select(SystemOrm).where(SystemOrm.full_name == 'Лукойл')
             system = await repository.select_first(stmt)
 
         correct_response_data = {
@@ -133,7 +133,7 @@ class TestSystem:
     async def test_edit_system(self, aclient: AsyncClient, token: str):
         async with sessionmanager.session() as session:
             repository = BaseRepository(session, None)
-            stmt = sa_select(System).where(System.full_name == 'Газпромнефть1')
+            stmt = sa_select(SystemOrm).where(SystemOrm.full_name == 'Газпромнефть1')
             system = await repository.select_first(stmt)
 
         response = await aclient.put(
@@ -191,7 +191,7 @@ class TestSystem:
     async def test_delete_system(self, aclient: AsyncClient, token: str):
         async with sessionmanager.session() as session:
             repository = BaseRepository(session, None)
-            stmt = sa_select(System).where(System.full_name == 'Лукойл')
+            stmt = sa_select(SystemOrm).where(SystemOrm.full_name == 'Лукойл')
             system = await repository.select_first(stmt)
 
         response = await aclient.delete(
@@ -201,7 +201,7 @@ class TestSystem:
 
         async with sessionmanager.session() as session:
             repository = BaseRepository(session, None)
-            stmt = sa_select(System).where(System.full_name == 'Лукойл')
+            stmt = sa_select(SystemOrm).where(SystemOrm.full_name == 'Лукойл')
             system = await repository.select_first(stmt)
 
         msg = "Не пройдена проверка на удаление записи"

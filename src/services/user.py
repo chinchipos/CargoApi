@@ -3,7 +3,7 @@ from typing import List, Optional, Dict, Any
 
 from src.auth.manager import create_user
 from src.config import BUILTIN_ADMIN_EMAIL, JWT_SECRET
-from src.database.model.models import User as UserOrm
+from src.database.models.user import UserOrm
 from src.repositories.user import UserRepository
 from src.schemas.role import RoleReadSchema
 from src.schemas.user import UserCargoReadSchema, UserCreateSchema, UserEditSchema, UserReadSchema, \

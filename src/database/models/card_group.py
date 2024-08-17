@@ -3,7 +3,7 @@ from typing import List
 import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.database.model import Base
+from src.database.models import Base
 
 
 class CardGroupOrm(Base):

@@ -11,7 +11,7 @@ from src.descriptions.goods import goods_tag_description, get_all_goods_descript
     edit_goods_description, get_all_inner_goods_description
 from src.utils.exceptions import ForbiddenException
 from src.utils.schemas import MessageSchema
-from src.database.model.goods import InnerGoodsOrm, OuterGoodsOrm
+from src.database.models.goods import InnerGoodsOrm, OuterGoodsOrm
 
 router = APIRouter()
 goods_tag_metadata = {

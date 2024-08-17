@@ -2,8 +2,8 @@ from datetime import timedelta, datetime, date
 from typing import List, Tuple
 
 from src.config import TZ
-from src.database.model.overdrafts_history import OverdraftsHistoryOrm
-from src.database.model.models import Transaction as TransactionOrm
+from src.database.models.overdrafts_history import OverdraftsHistoryOrm
+from src.database.models.transaction import TransactionOrm
 from src.utils.report_base import BaseExcelReport, ExcelDataType, ExcelAlign
 
 

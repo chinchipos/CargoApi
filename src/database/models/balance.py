@@ -4,8 +4,8 @@ from typing import List
 import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.database.model.base import Base
-from src.database.model.overdrafts_history import OverdraftsHistoryOrm
+from src.database.models.base import Base
+from src.database.models.overdrafts_history import OverdraftsHistoryOrm
 from src.utils.enums import ContractScheme as ContractScheme
 
 
@@ -70,7 +70,7 @@ class BalanceOrm(Base):
     )
 
     # Список поставщиков услуг, привязанных к этому балансу
-    systems: Mapped[List["System"]] = relationship(
+    systems: Mapped[List["SystemOrm"]] = relationship(
         back_populates="balances",
         secondary="cargonomica.balance_system_tariff",
         viewonly=True,
@@ -79,7 +79,7 @@ class BalanceOrm(Base):
     )
 
     # Тарифы систем этого баланса
-    balance_system_tariff: Mapped[List["BalanceSystemTariff"]] = relationship(
+    balance_system_tariff: Mapped[List["BalanceSystemTariffOrm"]] = relationship(
         back_populates="balance",
         cascade="all, delete-orphan",
         lazy="noload",
@@ -87,7 +87,7 @@ class BalanceOrm(Base):
     )
 
     # Список транзакций, привязанных к этому балансу
-    transactions: Mapped[List["Transaction"]] = relationship(
+    transactions: Mapped[List["TransactionOrm"]] = relationship(
         back_populates="balance",
         cascade="all, delete-orphan",
         lazy="noload",

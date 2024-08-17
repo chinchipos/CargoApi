@@ -3,8 +3,9 @@ from typing import List, Optional
 from sqlalchemy import select as sa_select
 from sqlalchemy.orm import joinedload
 
-import src.database.model.company
-from src.database.model.models import User as UserOrm, Car as CarOrm, CarDriver as CarDriverOrm
+import src.database.models.company
+from src.database.models.user import UserOrm
+from src.database.models.car import CarOrm, CarDriverOrm
 from src.repositories.base import BaseRepository
 from src.schemas.car import CarCreateSchema, CarReadSchema, CarEditSchema
 from src.utils import enums

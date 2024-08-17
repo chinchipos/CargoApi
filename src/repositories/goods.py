@@ -3,7 +3,7 @@ from typing import List
 from sqlalchemy import select as sa_select, nulls_first
 from sqlalchemy.orm import joinedload
 
-from src.database.model.goods import OuterGoodsOrm, InnerGoodsOrm
+from src.database.models.goods import OuterGoodsOrm, InnerGoodsOrm
 from src.repositories.base import BaseRepository
 
 

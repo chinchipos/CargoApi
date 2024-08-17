@@ -12,14 +12,15 @@ from src.celery_app.irrelevant_balances import IrrelevantBalances
 from src.celery_app.transaction_helper import get_local_cards, get_local_card, get_tariff_on_date_by_balance, \
     get_current_tariff_by_balance
 from src.config import TZ, PRODUCTION
-from src.database.model import CompanyOrm
-from src.database.model.card import CardOrm, BlockingCardReason
-from src.database.model.card_type import CardTypeOrm
-from src.database.model.models import (CardSystem as CardSystemOrm, Transaction as TransactionOrm,
-                                       BalanceTariffHistory as BalanceTariffHistoryOrm,
-                                       BalanceSystemTariff as BalanceSystemTariffOrm)
-from src.database.model.balance import BalanceOrm as BalanceOrm
-from src.database.model.goods import OuterGoodsOrm
+from src.database.models import CompanyOrm
+from src.database.models.card import CardOrm, BlockingCardReason
+from src.database.models.card_type import CardTypeOrm
+from src.database.models.system import CardSystemOrm
+from src.database.models.transaction import TransactionOrm
+from src.database.models.balance_tariff_history import BalanceTariffHistoryOrm
+from src.database.models.balance_system_tariff import BalanceSystemTariffOrm
+from src.database.models.balance import BalanceOrm as BalanceOrm
+from src.database.models.goods import OuterGoodsOrm
 from src.repositories.base import BaseRepository
 from src.repositories.card import CardRepository
 from src.repositories.system import SystemRepository

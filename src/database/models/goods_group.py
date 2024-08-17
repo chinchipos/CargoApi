@@ -3,8 +3,8 @@ from typing import List
 import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.database.model.base import Base
-from src.database.model.goods_category import GoodsCategory
+from src.database.models.base import Base
+from src.database.models.goods_category import GoodsCategory
 
 
 class InnerGoodsGroupOrm(Base):
@@ -20,7 +20,7 @@ class InnerGoodsGroupOrm(Base):
         comment="Наименование группы"
     )
 
-    inner_category: Mapped["GoodsCategory"] = mapped_column(
+    inner_category: Mapped[GoodsCategory] = mapped_column(
         nullable=True,
         init=False,
         comment="Соответствующая категория продуктов в нашей системе"
@@ -64,7 +64,7 @@ class OuterGoodsGroupOrm(Base):
     )
 
     # Система
-    system: Mapped["System"] = relationship(
+    system: Mapped["SystemOrm"] = relationship(
         back_populates="outer_goods_groups",
         lazy="noload"
     )

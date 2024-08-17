@@ -3,7 +3,6 @@ from typing import List, Any
 
 from fastapi import APIRouter, Depends
 
-from src.database.model import models
 from src.depends import get_service_company
 from src.descriptions.company import company_tag_description, edit_company_description, get_company_description, \
     get_companies_description, get_company_drivers_description, bind_manager_to_company_description, \
@@ -186,7 +185,7 @@ async def bind_manager(
 async def get_company_drivers(
     id: uuid.UUID,
     service: CompanyService = Depends(get_service_company)
-) -> models.User:
+):
     id = str(id)
     # Проверка прав доступа.
     # Суперадмин может получать любые данные.

@@ -3,7 +3,7 @@ from httpx import AsyncClient
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from src.database.db import sessionmanager
-from src.database.model.models import Tariff
+from src.database.models.tariff import TariffOrm
 from tests.conftest import headers
 
 
@@ -41,7 +41,7 @@ class TestSystem:
             },
         ]
         async with sessionmanager.session() as session:
-            stmt = pg_insert(Tariff)
+            stmt = pg_insert(TariffOrm)
             async with session.begin():
                 await session.execute(stmt, dataset)
                 await session.commit()

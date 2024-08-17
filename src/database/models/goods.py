@@ -3,7 +3,7 @@ from typing import List
 import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.database.model.base import Base
+from src.database.models.base import Base
 
 
 class InnerGoodsOrm(Base):
@@ -58,7 +58,7 @@ class OuterGoodsOrm(Base):
     )
 
     # Система
-    system: Mapped["System"] = relationship(
+    system: Mapped["SystemOrm"] = relationship(
         back_populates="outer_goods",
         lazy="noload"
     )
@@ -90,7 +90,7 @@ class OuterGoodsOrm(Base):
     )
 
     # Список транзакций, привязанных к этому продукту
-    transactions: Mapped[List["Transaction"]] = relationship(
+    transactions: Mapped[List["TransactionOrm"]] = relationship(
         back_populates="outer_goods",
         cascade="all, delete-orphan",
         lazy="noload",

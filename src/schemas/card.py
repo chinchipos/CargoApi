@@ -3,7 +3,7 @@ from typing import List, Annotated
 
 from pydantic import Field
 
-from src.database.model.card import BlockingCardReason
+from src.database.models.card import BlockingCardReason
 from src.schemas.base import BaseSchema
 from src.schemas.car import CarReadMinimumSchema
 from src.schemas.card_type import CardTypeReadSchema

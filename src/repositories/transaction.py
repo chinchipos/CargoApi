@@ -5,13 +5,16 @@ from sqlalchemy import select as sa_select, and_, func, update as sa_update
 from sqlalchemy.orm import joinedload, load_only, aliased
 
 from src.config import TZ
-from src.database.model.card import CardOrm
-from src.database.model.models import (Transaction as TransactionOrm, System as SystemOrm,
-                                       Tariff as TariffOrm, BalanceSystemTariff as BalanceSystemTariffOrm,
-                                       CardSystem as CardSystemOrm, BalanceTariffHistory as BalanceTariffHistoryOrm)
-from src.database.model.balance import BalanceOrm
-from src.database.model.company import CompanyOrm
-from src.database.model.goods import OuterGoodsOrm
+from src.database.models.card import CardOrm
+from src.database.models.transaction import TransactionOrm
+from src.database.models.system import SystemOrm
+from src.database.models.tariff import TariffOrm
+from src.database.models.balance_system_tariff import BalanceSystemTariffOrm
+from src.database.models.system import CardSystemOrm
+from src.database.models.balance_tariff_history import BalanceTariffHistoryOrm
+from src.database.models.balance import BalanceOrm
+from src.database.models.company import CompanyOrm
+from src.database.models.goods import OuterGoodsOrm
 from src.repositories.base import BaseRepository
 from src.utils import enums
 from src.utils.enums import TransactionType

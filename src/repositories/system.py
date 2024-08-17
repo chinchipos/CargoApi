@@ -2,8 +2,8 @@ from typing import List
 
 from sqlalchemy import select as sa_select, func as sa_func, null
 
-from src.database.model.card import CardOrm
-from src.database.model.models import System as SystemOrm, CardSystem as CardSystemOrm
+from src.database.models.card import CardOrm
+from src.database.models.system import SystemOrm, CardSystemOrm
 from src.repositories.base import BaseRepository
 from src.utils.enums import ContractScheme
 

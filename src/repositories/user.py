@@ -4,7 +4,8 @@ from typing import List
 from sqlalchemy import select as sa_select, delete as sa_delete
 from sqlalchemy.orm import joinedload, aliased
 
-from src.database.model.models import User as UserOrm, AdminCompany as AdminCompanyOrm, Role as RoleOrm
+from src.database.models.user import UserOrm, AdminCompanyOrm
+from src.database.models.role import RoleOrm
 from src.repositories.base import BaseRepository
 from src.schemas.user import UserCreateSchema
 from src.utils import enums

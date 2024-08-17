@@ -1,10 +1,10 @@
 from typing import List
 
-from src.database.model import models
 from src.repositories.car import CarRepository
 from src.schemas.car import CarCreateSchema, CarReadSchema, CarEditSchema
 from src.utils import enums
 from src.utils.exceptions import BadRequestException, ForbiddenException
+from src.database.models.car import CarOrm
 
 
 class CarService:
@@ -67,8 +67,7 @@ class CarService:
             raise ForbiddenException()
 
         # Обновляем данные, сохраняем в БД
-        car_read_schema = await self.repository.edit(car_edit_schema)
-
+        # car_read_schema = await self.repository.edit(car_edit_schema)
 
         update_data = car_edit_schema.model_dump(exclude_unset=True)
         await self.repository.update_object(car_obj, update_data)
@@ -80,7 +79,7 @@ class CarService:
         car_read_schema = CarReadSchema(**car_data)
         return car_read_schema
 
-    async def get_cars(self) -> List[models.Car]:
+    async def get_cars(self) -> List[CarOrm]:
         cars = await self.repository.get_cars()
         return cars
 
@@ -112,4 +111,4 @@ class CarService:
         else:
             raise ForbiddenException()
 
-        await self.repository.delete_object(models.Car, car_id)
+        await self.repository.delete_object(CarOrm, car_id)

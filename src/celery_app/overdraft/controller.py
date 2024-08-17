@@ -15,10 +15,11 @@ from sqlalchemy.orm import joinedload, aliased
 
 from src.config import TZ, MAIL_SERVER, MAIL_PORT, MAIL_USER, MAIL_PASSWORD, OVERDRAFTS_MAIL_TO, MAIL_FROM, PRODUCTION
 from src.celery_app.irrelevant_balances import IrrelevantBalances
-from src.database.model.models import (Transaction as TransactionOrm, User as UserOrm)
-from src.database.model.overdrafts_history import OverdraftsHistoryOrm as OverdraftsHistoryOrm
-from src.database.model.balance import BalanceOrm as BalanceOrm
-from src.database.model.company import CompanyOrm as CompanyOrm
+from src.database.models.transaction import TransactionOrm
+from src.database.models.user import UserOrm
+from src.database.models.overdrafts_history import OverdraftsHistoryOrm as OverdraftsHistoryOrm
+from src.database.models.balance import BalanceOrm as BalanceOrm
+from src.database.models.company import CompanyOrm as CompanyOrm
 from src.celery_app.overdraft.reports import OverdraftsReport
 from src.repositories.base import BaseRepository
 from src.utils.enums import TransactionType, ContractScheme, Role

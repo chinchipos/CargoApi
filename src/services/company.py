@@ -1,8 +1,8 @@
 from typing import List, Any
 
-from src.database.model.models import (User as UserOrm,
-                                       BalanceSystemTariff as BalanceSystemTariffOrm)
-from src.database.model.company import CompanyOrm
+from src.database.models.user import UserOrm
+from src.database.models.balance_system_tariff import BalanceSystemTariffOrm
+from src.database.models.company import CompanyOrm
 from src.repositories.company import CompanyRepository
 from src.repositories.transaction import TransactionRepository
 from src.repositories.user import UserRepository

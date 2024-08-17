@@ -1,6 +1,6 @@
 from typing import List
 
-from src.database.model.card_type import CardTypeOrm
+from src.database.models.card_type import CardTypeOrm
 from src.repositories.card_type import CardTypeRepository
 from src.schemas.card_type import CardTypeCreateSchema, CardTypeReadSchema, CardTypeEditSchema
 from src.utils.exceptions import BadRequestException

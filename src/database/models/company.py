@@ -4,8 +4,8 @@ from typing import List
 import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.database.model.base import Base
-from src.database.model.balance import BalanceOrm
+from src.database.models.base import Base
+from src.database.models.balance import BalanceOrm
 
 
 class CompanyOrm(Base):
@@ -91,7 +91,7 @@ class CompanyOrm(Base):
     )
 
     # Список автомобилей этой организации
-    cars: Mapped[List["Car"]] = relationship(
+    cars: Mapped[List["CarOrm"]] = relationship(
         back_populates="company",
         cascade="all, delete-orphan",
         lazy="noload",
@@ -99,7 +99,7 @@ class CompanyOrm(Base):
     )
 
     # Список пользователей, привязанных к этой организации
-    users: Mapped[List["User"]] = relationship(
+    users: Mapped[List["UserOrm"]] = relationship(
         back_populates="company",
         cascade="all, delete-orphan",
         lazy="noload",
@@ -107,7 +107,7 @@ class CompanyOrm(Base):
     )
 
     # Список менеджеров ПроАВТО, привязанных к этой организации
-    admin_company: Mapped[List["AdminCompany"]] = relationship(
+    admin_company: Mapped[List["AdminCompanyOrm"]] = relationship(
         back_populates="company",
         cascade="all, delete-orphan",
         lazy="noload",

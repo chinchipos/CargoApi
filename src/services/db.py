@@ -1,10 +1,10 @@
-import src.database.model.balance
+from src.database.models.balance import BalanceOrm
 from src.auth.manager import create_user
 from src.config import SERVICE_TOKEN, BUILTIN_ADMIN_NAME, BUILTIN_ADMIN_FIRSTNAME, BUILTIN_ADMIN_LASTNAME, \
     BUILTIN_ADMIN_EMAIL
 
-from src.database.model.base import Base
-from src.database.model.models import Transaction as TransactionOrm
+from src.database.models.base import Base
+from src.database.models.transaction import TransactionOrm
 from src.repositories.db.db import DBRepository
 from src.schemas.db import DBInitSchema, DBInitialSyncSchema
 from src.schemas.user import UserCreateSchema
@@ -102,7 +102,7 @@ class DBService:
         # Создание суперадмина
         await self.create_superadmin(data.superuser_password)
 
-    async def calculate_balance(self, balance: src.database.model.balance.BalanceOrm, transactions) -> None:
+    async def calculate_balance(self, balance: BalanceOrm, transactions) -> None:
         if transactions:
             # Формируем историю баланса
             previous_transaction = transactions[0]

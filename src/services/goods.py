@@ -1,6 +1,6 @@
 from typing import List
 
-from src.database.model.goods import OuterGoodsOrm, InnerGoodsOrm
+from src.database.models.goods import OuterGoodsOrm, InnerGoodsOrm
 from src.repositories.goods import GoodsRepository
 from src.schemas.goods import InnerGoodsEditSchema
 from src.utils.exceptions import BadRequestException

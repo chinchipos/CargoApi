@@ -3,8 +3,9 @@ from httpx import AsyncClient
 from sqlalchemy import select as sa_select
 
 from src.config import SERVICE_TOKEN
-from src.database.model.card_type import CardTypeOrm
-from src.database.model.models import Role as RoleOrm, User as UserOrm
+from src.database.models.card_type import CardTypeOrm
+from src.database.models.role import RoleOrm
+from src.database.models.user import UserOrm
 from src.database.db import sessionmanager
 from src.repositories.base import BaseRepository
 

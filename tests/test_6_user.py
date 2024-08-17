@@ -3,8 +3,8 @@ from httpx import AsyncClient
 from sqlalchemy import select as sa_select
 
 from src.database.db import sessionmanager
-from src.database.model.models import Role
-from src.database.model.company import CompanyOrm
+from src.database.models.role import RoleOrm
+from src.database.models.company import CompanyOrm
 from src.repositories.base import BaseRepository
 from src.utils import enums
 from tests.conftest import headers
@@ -29,7 +29,7 @@ class TestSystem:
             print(company.id)
 
             # Получаем роль
-            stmt = sa_select(Role).where(Role.name == enums.Role.COMPANY_ADMIN.name)
+            stmt = sa_select(RoleOrm).where(RoleOrm.name == enums.Role.COMPANY_ADMIN.name)
             role = await repository.select_first(stmt)
             print(role.id)
 
@@ -64,7 +64,7 @@ class TestSystem:
             companies = await repository.select_all(stmt)
 
             # Получаем роль
-            stmt = sa_select(Role).where(Role.name == enums.Role.CARGO_MANAGER.name)
+            stmt = sa_select(RoleOrm).where(RoleOrm.name == enums.Role.CARGO_MANAGER.name)
             role = await repository.select_first(stmt)
 
             response = await aclient.post(

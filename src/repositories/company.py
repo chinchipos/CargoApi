@@ -5,13 +5,16 @@ from sqlalchemy import select as sa_select, and_, func as sa_func, null, or_
 from sqlalchemy.orm import joinedload, selectinload, aliased, load_only
 
 from src.config import TZ
-from src.database.model.balance import BalanceOrm
-from src.database.model.card import CardOrm
-from src.database.model.company import CompanyOrm
-from src.database.model.models import (AdminCompany as AdminCompanyOrm,
-                                       User as UserOrm, Role as RoleOrm, BalanceSystemTariff as BalanceSystemTariffOrm,
-                                       System as SystemOrm, Car as CarOrm, Tariff as TariffOrm)
-from src.database.model.overdrafts_history import OverdraftsHistoryOrm
+from src.database.models.balance import BalanceOrm
+from src.database.models.card import CardOrm
+from src.database.models.company import CompanyOrm
+from src.database.models.user import AdminCompanyOrm, UserOrm
+from src.database.models.role import RoleOrm
+from src.database.models.balance_system_tariff import BalanceSystemTariffOrm
+from src.database.models.system import SystemOrm
+from src.database.models.car import CarOrm
+from src.database.models.tariff import TariffOrm
+from src.database.models.overdrafts_history import OverdraftsHistoryOrm
 from src.repositories.base import BaseRepository
 from src.repositories.system import SystemRepository
 from src.schemas.company import CompanyCreateSchema

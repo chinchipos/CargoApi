@@ -3,7 +3,7 @@ from typing import Annotated
 
 from pydantic import BeforeValidator, Field
 
-from src.database.model.balance import BalanceOrm
+from src.database.models.balance import BalanceOrm
 from src.schemas.base import BaseSchema
 
 

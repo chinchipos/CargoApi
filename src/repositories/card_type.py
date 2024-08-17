@@ -2,7 +2,7 @@ from typing import List
 
 from sqlalchemy import select as sa_select
 
-from src.database.model.card_type import CardTypeOrm
+from src.database.models.card_type import CardTypeOrm
 from src.repositories.base import BaseRepository
 from src.schemas.card_type import CardTypeCreateSchema
 

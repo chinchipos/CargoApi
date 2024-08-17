@@ -1,8 +1,8 @@
 from typing import List
 
 from src.celery_app.khnp.tasks import khnp_set_card_state
-from src.database.model.card import CardOrm, BlockingCardReason
-from src.database.model.models import CardSystem as CardSystemOrm
+from src.database.models.card import CardOrm, BlockingCardReason
+from src.database.models.system import CardSystemOrm
 from src.repositories.card import CardRepository
 from src.repositories.company import CompanyRepository
 from src.schemas.card import CardCreateSchema, CardReadSchema, CardEditSchema
