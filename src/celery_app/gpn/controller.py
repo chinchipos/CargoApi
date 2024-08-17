@@ -666,7 +666,7 @@ class GPNController(BaseRepository):
         Обработка транзакции, сохранение в БД. Примеры транзакций см. в файле transaction_examples.txt
         """
 
-        purchase = False if remote_transaction['is_storno'] else True
+        purchase = True if remote_transaction['type'] == "P" else False
         comments = ''
 
         # Получаем баланс
