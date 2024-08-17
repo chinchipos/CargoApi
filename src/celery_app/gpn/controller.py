@@ -455,10 +455,16 @@ class GPNController(BaseRepository):
                 overdraft_on=balance.company.overdraft_on,
                 overdraft_sum=balance.company.overdraft_sum
             )
+            print(f"current_balance: {balance.balance}")
+            print(f"min_balance: {balance.company.min_balance}")
+            print(f"overdraft_on: {balance.company.overdraft_on}")
+            print(f"overdraft_sum: {balance.company.overdraft_sum}")
+            print(f"company_available_balance: {company_available_balance}")
             limit_sum = self.calc_limit_sum(
                 company_available_balance=company_available_balance,
                 current_company_limits=current_company_limits
             )
+            print(f"limit_sum: {limit_sum}")
             # if balance.company.personal_account == "9229609":
             #     print(f"Новый лимит для организации ОВР: {limit_sum} руб")
 
