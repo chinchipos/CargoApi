@@ -613,6 +613,12 @@ class GPNController(BaseRepository):
 
     async def process_new_remote_transactions(self, remote_transactions: List[Dict[str, Any]],
                                               transaction_repository: TransactionRepository) -> None:
+        # Сортируем транзакции по времени совершения
+        def sorting(tr):
+            return tr['timestamp']
+
+        remote_transactions = sorted(remote_transactions, key=sorting)
+
         # Получаем текущие тарифы
         self._bst_list = await transaction_repository.get_balance_system_tariff_list(self.system.id)
 
