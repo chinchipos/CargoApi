@@ -20,7 +20,7 @@ from src.utils.exceptions import ForbiddenException
 
 class TransactionRepository(BaseRepository):
 
-    async def get_transactions(self, company_id: str | None, from_dt: datetime, to_dt: datetime) \
+    async def get_transactions(self, company_id: str | None, from_dt: datetime, to_dt: datetime, rows_limit: int = 0) \
             -> List[TransactionOrm]:
         # Суперадмин ПроАВТО имеет полные права.
         # Менеджер ПроАВТО может получать информацию только по своим организациям.
@@ -132,6 +132,8 @@ class TransactionRepository(BaseRepository):
             .where(TransactionOrm.id == base_subquery.c.id)
             .order_by(TransactionOrm.date_time_load.desc())
         )
+        if rows_limit:
+            stmt = stmt.limit(rows_limit)
 
         # self.statement(stmt)
         transactions = await self.select_all(stmt)

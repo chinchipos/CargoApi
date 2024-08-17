@@ -16,11 +16,15 @@ class TransactionService:
 
     async def get_transactions(self, company_id: str | None, from_dt: datetime | None, to_dt: datetime | None) \
             -> List[TransactionOrm]:
+        rows_limit = 0
+
         if not from_dt:
-            from_dt = datetime.now(tz=TZ).date() - relativedelta(months = 3 if company_id else 1)
+            rows_limit = 500
+            relative_delta = relativedelta(years = 3) if company_id else relativedelta(months=1)
+            from_dt = datetime.now(tz=TZ).date() - relative_delta
 
         if not to_dt:
             to_dt = datetime.now(tz=TZ).date() + timedelta(days=1)
 
-        transactions = await self.repository.get_transactions(company_id, from_dt, to_dt)
+        transactions = await self.repository.get_transactions(company_id, from_dt, to_dt, rows_limit)
         return transactions
