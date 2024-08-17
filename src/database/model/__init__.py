@@ -6,3 +6,6 @@ from src.database.model.card_type import CardTypeOrm
 from src.database.model.card import CardOrm
 from src.database.model.models import *
 from src.database.model.overdrafts_history import OverdraftsHistoryOrm
+from src.database.model.goods_category import OuterGoodsCategoryOrm
+from src.database.model.goods_group import InnerGoodsGroupOrm, OuterGoodsGroupOrm
+from src.database.model.goods import OuterGoodsOrm, InnerGoodsOrm

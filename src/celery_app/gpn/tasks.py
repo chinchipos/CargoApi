@@ -66,8 +66,8 @@ def gpn_set_card_states(balance_ids_to_change_card_states: Dict[str, List[str]])
     return "COMPLETE"
 
 
-async def gpn_cards_bind_company_fn(card_ids: List[str], personal_account: str, company_available_balance: int | float) \
-        -> None:
+async def gpn_cards_bind_company_fn(card_ids: List[str], personal_account: str,
+                                    company_available_balance: int | float) -> None:
     sessionmanager = DatabaseSessionManager()
     sessionmanager.init(PROD_URI)
 
@@ -162,12 +162,12 @@ def gpn_set_card_state(external_card_id: str, activate: bool) -> None:
 def gpn_test() -> None:
     api = GPNApi()
     # api.set_card_group_limits([('5287241', 1500000)])
-    # api.get_transactions(2)
+    api.get_transactions(5)
     # product_types = api.get_product_types()
-    groups = api.get_card_groups()
-    for group in groups:
-        if group['name'] == "5287241":
-            limits = api.get_card_group_limits(group['id'])
-            for limit in limits:
-                print(limit)
-            break
+    # groups = api.get_card_groups()
+    # for group in groups:
+    #     if group['name'] == "5287241":
+    #         limits = api.get_card_group_limits(group['id'])
+    #         for limit in limits:
+    #             print(limit)
+    #         break

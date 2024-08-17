@@ -16,13 +16,15 @@ from src.database.model import CompanyOrm
 from src.database.model.card import CardOrm, BlockingCardReason
 from src.database.model.card_type import CardTypeOrm
 from src.database.model.models import (CardSystem as CardSystemOrm, Transaction as TransactionOrm,
-                                       OuterGoods as OuterGoodsOrm, BalanceTariffHistory as BalanceTariffHistoryOrm,
+                                       BalanceTariffHistory as BalanceTariffHistoryOrm,
                                        BalanceSystemTariff as BalanceSystemTariffOrm)
 from src.database.model.balance import BalanceOrm as BalanceOrm
+from src.database.model.goods import OuterGoodsOrm
 from src.repositories.base import BaseRepository
 from src.repositories.card import CardRepository
 from src.repositories.system import SystemRepository
 from src.repositories.transaction import TransactionRepository
+from src.utils.common import calc_available_balance
 from src.utils.enums import ContractScheme, TransactionType
 from src.utils.loggers import get_logger
 
@@ -445,8 +447,14 @@ class GPNController(BaseRepository):
             #         print(current_company_limit)
 
             # Вычисляем новый доступный лимит на категорию "Топливо"
-            overdraft_sum = balance.company.overdraft_sum if balance.company.overdraft_on else 0
-            company_available_balance = int(balance.balance + overdraft_sum)
+            # overdraft_sum = balance.company.overdraft_sum if balance.company.overdraft_on else 0
+            # company_available_balance = int(balance.balance + overdraft_sum)
+            company_available_balance = calc_available_balance(
+                current_balance=balance.balance,
+                min_balance=balance.company.min_balance,
+                overdraft_on=balance.company.overdraft_on,
+                overdraft_sum=balance.company.overdraft_sum
+            )
             limit_sum = self.calc_limit_sum(
                 company_available_balance=company_available_balance,
                 current_company_limits=current_company_limits
@@ -648,32 +656,12 @@ class GPNController(BaseRepository):
 
     async def process_new_remote_transaction(self, card_number: str, remote_transaction: Dict[str, Any]) \
             -> Dict[str, Any] | None:
-        # remote_transaction = {
-        #     "id": 9281938435,
-        #     "timestamp": "2002-11-28 00:10:00",
-        #     "card_id": "15844989",
-        #     "poi_id": "1-3GQFQPF",
-        #     "terminal_id": "RZ142481",
-        #     "type": "P",
-        #     "product_id": "00000000000003",
-        #     "product_category_id": "НП",
-        #     "currency": "RUR",
-        #     "check_id": 127523194203,
-        #     "stor_transaction_id": 9282453912,
-        #     "is_storno": true,
-        #     "is_manual_corrention": false,
-        #     "qty": -53.10 ,
-        #     "price": 54.90,
-        #     "price_no_discount": 52.79,
-        #     "sum": -2915.19,
-        #     "sum_no_discount": -2803.15,
-        #     "discount": 112.04,
-        #     "exchange_rate": 1,
-        #     "card_number": "7005830007328081",
-        #     "payment_type": "Карта"
-        # }
+        """
+        Обработка транзакции, сохранение в БД. Примеры транзакций см. в файле transaction_examples.txt
+        """
 
-        purchase = True if remote_transaction['type'] == "P" else False
+        purchase = False if remote_transaction['is_storno'] else True
+        comments = ''
 
         # Получаем баланс
         balance_id = self._balance_card_relations.get(card_number, None)
@@ -698,14 +686,38 @@ class GPNController(BaseRepository):
 
         # Сумма транзакции
         transaction_type = TransactionType.PURCHASE if purchase else TransactionType.REFUND
-        transaction_sum = -abs(remote_transaction['sum']) if purchase else abs(remote_transaction['sum'])
+        transaction_sum = -abs(remote_transaction['sum_no_discount']) if purchase \
+            else abs(remote_transaction['sum_no_discount'])
 
-        # Размер скидки
-        discount_percent = 2
-        discount_sum = -transaction_sum * discount_percent / 100
+        if remote_transaction['poi_id'] in ["1-11WJG5CA"]:
+            # Расчет скидки/наценки для франчайзи
+            # Размер скидки
+            discount_sum = 0
 
-        # Размер наценки
-        fee_sum = 0
+            # Размер наценки
+            fee_percent = 5
+            fee_sum = transaction_sum * fee_percent / 100
+
+            comments = "франчайзи: +5%"
+
+        elif remote_transaction['product_id'] in ["00000000000007"]:
+            # Расчет скидки/наценки для категории "Бензины"
+            # Размер скидки
+            discount_sum = 0
+
+            # Размер наценки
+            fee_percent = 1
+            fee_sum = transaction_sum * fee_percent / 100
+
+            comments = "бензины: +1%"
+
+        else:
+            # Размер скидки
+            discount_percent = 2
+            discount_sum = -transaction_sum * discount_percent / 100
+
+            # Размер наценки
+            fee_sum = 0
 
         # Получаем итоговую сумму
         total_sum = transaction_sum + discount_sum + fee_sum
@@ -719,15 +731,15 @@ class GPNController(BaseRepository):
             balance_id=balance_id,
             azs_code=remote_transaction['poi_id'],
             outer_goods_id=outer_goods.id if outer_goods else None,
-            fuel_volume=-remote_transaction['qty'] if purchase else remote_transaction['qty'],
-            price=remote_transaction['price'],
+            fuel_volume=-remote_transaction['qty'],
+            price=remote_transaction['price_no_discount'],
             transaction_sum=transaction_sum,
             tariff_id=tariff.id if tariff else None,
             discount_sum=discount_sum,
             fee_sum=fee_sum,
             total_sum=total_sum,
             company_balance_after=0,
-            comments='',
+            comments=comments,
         )
 
         # Это нужно, чтобы в БД у транзакций отличалось время и можно было корректно выбрать транзакцию,

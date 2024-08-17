@@ -4,7 +4,7 @@ from typing import List
 import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.database.model.models import Base, System, BalanceSystemTariff, Transaction
+from src.database.model.base import Base
 from src.database.model.overdrafts_history import OverdraftsHistoryOrm
 from src.utils.enums import ContractScheme as ContractScheme
 

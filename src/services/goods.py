@@ -1,7 +1,6 @@
 from typing import List
 
-from src.database.model import models
-from src.database.model.models import OuterGoods as OuterGoodsOrm, InnerGoods as InnerGoodsOrm
+from src.database.model.goods import OuterGoodsOrm, InnerGoodsOrm
 from src.repositories.goods import GoodsRepository
 from src.schemas.goods import InnerGoodsEditSchema
 from src.utils.exceptions import BadRequestException
@@ -13,7 +12,7 @@ class GoodsService:
         self.repository = repository
         self.logger = repository.logger
 
-    async def get_all_outer_goods(self) -> List[models.OuterGoods]:
+    async def get_all_outer_goods(self) -> List[OuterGoodsOrm]:
         goods = await self.repository.get_all_outer_goods()
 
         # def get_schema(goods_obj: models.OuterGoods):
@@ -33,7 +32,7 @@ class GoodsService:
         goods = await self.repository.get_all_inner_goods()
         return goods
 
-    async def get_single_goods(self, outer_goods_id: str) -> models.OuterGoods:
+    async def get_single_goods(self, outer_goods_id: str) -> OuterGoodsOrm:
         goods = await self.repository.get_single_goods(outer_goods_id)
         return goods
 

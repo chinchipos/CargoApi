@@ -7,6 +7,7 @@ from src.repositories.card import CardRepository
 from src.repositories.company import CompanyRepository
 from src.schemas.card import CardCreateSchema, CardReadSchema, CardEditSchema
 from src.utils import enums
+from src.utils.common import calc_available_balance
 from src.utils.enums import ContractScheme
 from src.utils.exceptions import BadRequestException, ForbiddenException
 from src.celery_app.gpn.tasks import gpn_cards_bind_company, gpn_cards_unbind_company, gpn_set_card_state
@@ -130,8 +131,14 @@ class CardService:
                         for balance in company.balances:
                             if balance.scheme == ContractScheme.OVERBOUGHT:
                                 # Вычисляем доступный лимит
-                                overdraft_sum = balance.company.overdraft_sum if company.overdraft_on else 0
-                                company_available_balance = int(balance.balance + overdraft_sum)
+                                # overdraft_sum = balance.company.overdraft_sum if company.overdraft_on else 0
+                                # company_available_balance = int(balance.balance + overdraft_sum)
+                                company_available_balance = calc_available_balance(
+                                    current_balance=balance.balance,
+                                    min_balance=balance.company.min_balance,
+                                    overdraft_on=balance.company.overdraft_on,
+                                    overdraft_sum=balance.company.overdraft_sum
+                                )
                                 break
 
                         gpn_cards_bind_company.delay(

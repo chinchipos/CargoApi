@@ -8,7 +8,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from src.config import PROD_URI
-from src.database.model.models import Base
+from src.database.model.base import Base
 
 config = context.config
 

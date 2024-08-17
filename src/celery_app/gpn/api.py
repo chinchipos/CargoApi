@@ -296,7 +296,7 @@ class GPNApi:
             params = {
                 "date_from": date_from.isoformat(),
                 "date_to": self.today.isoformat(),
-                "page_limit": 100,
+                "page_limit": 500,
                 "page_offset": page_offset
             }
             url = self.endpoint(self.api_v2, "transactions", params)
@@ -317,10 +317,10 @@ class GPNApi:
                 break
 
             transactions.extend(res["data"]["result"])
-            # print('----------------------')
-            # print(f'OFFSET: {page_offset}')
-            # print(res["data"]["result"])
-            page_offset += 100
+            print('----------------------')
+            print(f'OFFSET: {page_offset}')
+            print(res["data"]["result"])
+            page_offset += 500
             i += 1
             if i == 3:
                 break

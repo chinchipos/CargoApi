@@ -78,6 +78,10 @@ class CompanyService:
                 balance = cb
                 break
 
+        # Запускаем установку лимитов в системе ГПН
+        if balance:
+            gpn_set_card_group_limit.delay(balance_ids=[balance.id])
+
         # Сравниваем текущие настройки тарифов с полученными
         bst_list_current = await self.repository.get_systems_tariffs(balance.id)
 

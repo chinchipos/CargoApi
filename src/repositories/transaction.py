@@ -6,11 +6,12 @@ from sqlalchemy.orm import joinedload, load_only, aliased
 
 from src.config import TZ
 from src.database.model.card import CardOrm
-from src.database.model.models import (Transaction as TransactionOrm, System as SystemOrm, OuterGoods as OuterGoodsOrm,
+from src.database.model.models import (Transaction as TransactionOrm, System as SystemOrm,
                                        Tariff as TariffOrm, BalanceSystemTariff as BalanceSystemTariffOrm,
                                        CardSystem as CardSystemOrm, BalanceTariffHistory as BalanceTariffHistoryOrm)
 from src.database.model.balance import BalanceOrm
 from src.database.model.company import CompanyOrm
+from src.database.model.goods import OuterGoodsOrm
 from src.repositories.base import BaseRepository
 from src.utils import enums
 from src.utils.enums import TransactionType

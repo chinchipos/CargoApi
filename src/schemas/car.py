@@ -33,6 +33,7 @@ class CarReadMinimumSchema(BaseSchema):
     model: model_
     reg_number: reg_number_
 
+
 class CarReadSchema(BaseSchema):
     id: id_
     model: model_

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict
 
 
 class IrrelevantBalances(dict):
@@ -15,8 +15,7 @@ class IrrelevantBalances(dict):
                     self.irrelevant_balances[balance_id] = irrelevancy_date_time
             else:
                 self.irrelevant_balances[balance_id] = irrelevancy_date_time
-        except Exception as e:
-            print('1111111111111111111111111111111111111111111111')
+        except Exception:
             print(self.irrelevant_balances)
             print(irrelevancy_date_time)
 

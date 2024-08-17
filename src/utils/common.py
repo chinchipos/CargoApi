@@ -28,3 +28,13 @@ def get_server_certificate(server: str, port: int, our_cert_path: str = None, ou
 
 def make_personal_account() -> str:
     return ('000000' + str(random.randint(1, 9999999)))[-7:]
+
+
+def calc_available_balance(current_balance: float, min_balance: float, overdraft_on: bool, overdraft_sum: float) \
+        -> float:
+    # overdraft_on - переменная добавлена в функцию для устранения ошибки когда в БД записано, что овердрафт отключен,
+    # о сумма задана не нулевая
+    _overdraft_sum = overdraft_sum if overdraft_on else 0
+    boundary = min_balance - _overdraft_sum
+    available_balance = current_balance - boundary if current_balance > boundary else 0
+    return available_balance

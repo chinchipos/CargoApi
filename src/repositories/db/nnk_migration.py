@@ -8,11 +8,11 @@ from src.auth.manager import create_user
 from src.database.model.card import CardOrm
 from src.database.model.card_type import CardTypeOrm
 from src.database.model.models import (Role as RoleOrm, System as SystemOrm, Tariff as TariffOrm,
-                                       OuterGoods as OuterGoodsOrm, Car as CarOrm, InnerGoods as InnerGoodsOrm,
-                                       CardSystem as CardSystemOrm, BalanceSystemTariff as BalanceSystemTariffOrm,
-                                       Transaction as TransactionOrm)
+                                       Car as CarOrm, Transaction as TransactionOrm,
+                                       CardSystem as CardSystemOrm, BalanceSystemTariff as BalanceSystemTariffOrm)
 from src.database.model.balance import BalanceOrm
 from src.database.model.company import CompanyOrm
+from src.database.model.goods import InnerGoodsOrm, OuterGoodsOrm
 from src.repositories.base import BaseRepository
 from src.schemas.user import UserCreateSchema
 from src.utils import enums

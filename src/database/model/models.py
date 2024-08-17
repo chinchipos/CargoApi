@@ -670,7 +670,7 @@ class System(Base):
         init=False
     )
 
-    # Список транзакций, привязанных к этому поставщику услуг
+    # Список транзакций, привязанных к этой системе
     transactions: Mapped[List["Transaction"]] = relationship(
         back_populates="system",
         cascade="all, delete-orphan",
@@ -678,8 +678,24 @@ class System(Base):
         init=False
     )
 
-    # Список товаров и услуг, привязанных к этому поставщику услуг
-    outer_goods: Mapped[List["OuterGoods"]] = relationship(
+    # Список товаров и услуг, привязанных к этой системе
+    outer_goods: Mapped[List["OuterGoodsOrm"]] = relationship(
+        back_populates="system",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
+    # Список групп товаров, привязанных к этой системе
+    outer_goods_groups: Mapped[List["OuterGoodsGroupOrm"]] = relationship(
+        back_populates="system",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
+    # Список категорий товаров, привязанных к этой системе
+    outer_goods_categories: Mapped[List["OuterGoodsCategoryOrm"]] = relationship(
         back_populates="system",
         cascade="all, delete-orphan",
         lazy="noload",
@@ -722,81 +738,6 @@ class CardSystem(Base):
     )
 
     repr_cols = ("card_id",)
-
-
-class InnerGoods(Base):
-    __tablename__ = "inner_goods"
-    __table_args__ = {
-        'comment': 'Товары/услуги в нашей системе'
-    }
-
-    name: Mapped[str] = mapped_column(
-        sa.String(50),
-        nullable=False,
-        unique=True,
-        comment="Наименование в нашей системе"
-    )
-
-    # Список внешних товаров и услуг, привязанных к этой номенклатуре внутренних товаров/услуг
-    outer_goods: Mapped[List["OuterGoods"]] = relationship(
-        back_populates="inner_goods",
-        cascade="all, delete-orphan",
-        lazy="noload",
-        init=False
-    )
-
-    repr_cols = ("name",)
-
-
-class OuterGoods(Base):
-    __tablename__ = "outer_goods"
-    __table_args__ = (
-        sa.UniqueConstraint("name", "system_id"),
-        {'comment': 'Товары/услуги в системе поставщика услуг'}
-    )
-
-    name: Mapped[str] = mapped_column(
-        sa.String(50),
-        nullable=False,
-        comment="Наименование в системе поставщика услуг"
-    )
-
-    system_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.system.id"),
-        nullable=False,
-        comment="Система"
-    )
-
-    # Система
-    system: Mapped["System"] = relationship(
-        back_populates="outer_goods",
-        lazy="noload"
-    )
-
-    inner_goods_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.inner_goods.id"),
-        nullable=True,
-        init=False,
-        comment="Внутренняя номенклатура товара/услуги"
-    )
-
-    # Внутренняя номенклатура товаров/услуг, с которой ассоциирована данная номенклатура
-    # внешних товаров/услуг
-    inner_goods: Mapped["InnerGoods"] = relationship(
-        back_populates="outer_goods",
-        lazy="noload",
-        init=False
-    )
-
-    # Список транзакций, привязанных к этому товару / этой услуге
-    transactions: Mapped[List["Transaction"]] = relationship(
-        back_populates="outer_goods",
-        cascade="all, delete-orphan",
-        lazy="noload",
-        init=False
-    )
-
-    repr_cols = ("name",)
 
 
 class Transaction(Base):
@@ -909,7 +850,7 @@ class Transaction(Base):
     )
 
     # Товар/услуга
-    outer_goods: Mapped["OuterGoods"] = relationship(
+    outer_goods: Mapped["OuterGoodsOrm"] = relationship(
         back_populates="transactions",
         lazy="noload"
     )

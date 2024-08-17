@@ -13,9 +13,10 @@ from src.celery_app.transaction_helper import get_local_cards, get_local_card, g
 from src.config import TZ
 from src.database.model.card import CardOrm, BlockingCardReason
 from src.database.model.card_type import CardTypeOrm
-from src.database.model.models import (OuterGoods as OuterGoodsOrm, Transaction as TransactionOrm,
+from src.database.model.models import (Transaction as TransactionOrm,
                                        BalanceTariffHistory as BalanceTariffHistoryOrm,
                                        CardSystem as CardSystemOrm, BalanceSystemTariff as BalanceSystemTariffOrm)
+from src.database.model.goods import OuterGoodsOrm
 from src.repositories.base import BaseRepository
 from src.repositories.card import CardRepository
 from src.repositories.system import SystemRepository

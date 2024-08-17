@@ -1,13 +1,11 @@
 from datetime import date
+from typing import Annotated, List
 
 from pydantic import Field
 
 from src.schemas.base import BaseSchema
-from src.schemas.system import SystemReadMinimumSchema
 from src.schemas.tariff import TariffMinimumReadSchema
 from src.utils import enums
-
-from typing import Annotated, List
 
 system_id_ = Annotated[str, Field(description="UUID поставщика услуг", examples=["68425199-ac93-4733-becb-de2e89e85303"])]
 

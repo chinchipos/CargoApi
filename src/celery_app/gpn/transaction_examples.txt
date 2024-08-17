@@ -1,0 +1,77 @@
+Покупка:
+{
+    'id': 48300753960,
+    'timestamp': '2024-08-16T12:01:44.000000Z',
+    'card_id': '103178390',
+    'poi_id': '1-3SZTSEH',
+    'terminal_id': 'RZ12060G',
+    'type': 'P',
+    'product_id': '00000000000006',
+    'product_category_id': 'НП',
+    'currency': 'RUR',
+    'check_id': 422933182262,
+    'stor_transaction_id': None,
+    'is_storno': False,
+    'is_manual_corrention': False,
+    'qty': 90,
+    'price': 60.01,
+    'price_no_discount': 64.95,
+    'sum': 5400.9,
+    'sum_no_discount': 5845.5,
+    'discount': 444.6,
+    'exchange_rate': 1,
+    'card_number': '7005830902059195',
+    'payment_type': 'Онлайн из МП'
+}
+
+Покупка у франчайзи:
+{
+    'id': 48302269070,
+    'timestamp': '2024-08-16T12:27:25.000000Z',
+    'card_id': '101890690',
+    'poi_id': '1-11WJG5CA',
+    'terminal_id': 'RF705081',
+    'type': 'P',
+    'product_id': '00000000000006',
+    'product_category_id': 'НП',
+    'currency': 'RUR',
+    'check_id': 422913288507,
+    'stor_transaction_id': None,
+    'is_storno': False,
+    'is_manual_corrention': False,
+    'qty': 153.13,
+    'price': 64.32,
+    'price_no_discount': 65.3,
+    'sum': 9849.32,
+    'sum_no_discount': 9999.39,
+    'discount': 150.07,
+    'exchange_rate': 1,
+    'card_number': '7005830021278528',
+    'payment_type': 'Карта'
+}
+
+Возврат:
+{
+    'id': 48300666280,
+    'timestamp': '2024-08-16T12:00:13.000000Z',
+    'card_id': '103178390',
+    'poi_id': '1-3SZTSEH',
+    'terminal_id': 'RZ12060G',
+    'type': 'R',
+    'product_id': '00000000000006',
+    'product_category_id': 'НП',
+    'currency': 'RUR',
+    'check_id': 422934182256,
+    'stor_transaction_id': 48300472180,
+    'is_storno': True,
+    'is_manual_corrention': False,
+    'qty': -100,
+    'price': 60.01,
+    'price_no_discount': 64.95,
+    'sum': -6001,
+    'sum_no_discount': -6495,
+    'discount': -494,
+    'exchange_rate': 1,
+    'card_number': '7005830902059195',
+    'payment_type': 'Онлайн из МП'
+}

@@ -3,7 +3,6 @@ from typing import List
 
 from fastapi import APIRouter, Depends
 
-from src.database.model import models
 from src.depends import get_service_goods
 from src.schemas.goods import OuterGoodsReadSchema, InnerGoodsReadSchema, InnerGoodsEditSchema
 from src.services.goods import GoodsService
@@ -12,6 +11,7 @@ from src.descriptions.goods import goods_tag_description, get_all_goods_descript
     edit_goods_description, get_all_inner_goods_description
 from src.utils.exceptions import ForbiddenException
 from src.utils.schemas import MessageSchema
+from src.database.model.goods import InnerGoodsOrm, OuterGoodsOrm
 
 router = APIRouter()
 goods_tag_metadata = {
@@ -30,7 +30,7 @@ goods_tag_metadata = {
 )
 async def get_all_outer_goods(
     service: GoodsService = Depends(get_service_goods)
-) -> List[models.OuterGoods]:
+) -> List[OuterGoodsOrm]:
     # Нет ограничений доступа.
     goods = await service.get_all_outer_goods()
     return goods
@@ -46,7 +46,7 @@ async def get_all_outer_goods(
 )
 async def get_all_inner_goods(
     service: GoodsService = Depends(get_service_goods)
-) -> List[models.InnerGoods]:
+) -> List[InnerGoodsOrm]:
     # Нет ограничений доступа.
     goods = await service.get_all_inner_goods()
     return goods
@@ -63,7 +63,7 @@ async def get_all_inner_goods(
 async def get_single_goods(
     id: uuid.UUID,
     service: GoodsService = Depends(get_service_goods)
-) -> models.OuterGoods:
+) -> OuterGoodsOrm:
     id = str(id)
     # Доступ не ограничивается
     goods = await service.get_single_goods(id)

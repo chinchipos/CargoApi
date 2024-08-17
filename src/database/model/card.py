@@ -24,7 +24,7 @@ class CardOrm(Base):
     external_id: Mapped[str] = mapped_column(
         sa.String(30),
         nullable=True,
-        comment="ID арты в системе"
+        comment="ID карты в системе"
     )
 
     card_number: Mapped[str] = mapped_column(
