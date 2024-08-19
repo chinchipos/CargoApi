@@ -34,6 +34,22 @@ class InnerGoodsGroupOrm(Base):
         init=False
     )
 
+    # Список лимитов, привязанных к этой группе нашей системы
+    limits: Mapped[List["CardLimitOrm"]] = relationship(
+        back_populates="inner_goods_group",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
+    # Список лимитов, привязанных к этой группе нашей системы
+    tariffs: Mapped[List["TariffNewOrm"]] = relationship(
+        back_populates="inner_goods_group",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
 
 class OuterGoodsGroupOrm(Base):
     __tablename__ = "outer_goods_group"

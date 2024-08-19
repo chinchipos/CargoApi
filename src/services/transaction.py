@@ -19,7 +19,7 @@ class TransactionService:
         rows_limit = 0
 
         if not from_dt:
-            rows_limit = 500
+            rows_limit = 1000
             relative_delta = relativedelta(years = 3) if company_id else relativedelta(months=1)
             from_dt = datetime.now(tz=TZ).date() - relative_delta
 

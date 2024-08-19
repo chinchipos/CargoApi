@@ -95,12 +95,10 @@ class TransactionRepository(BaseRepository):
                     TransactionOrm.date_time_load,
                     TransactionOrm.transaction_type,
                     TransactionOrm.azs_code,
-                    TransactionOrm.azs_address,
                     TransactionOrm.fuel_volume,
                     TransactionOrm.price,
                     TransactionOrm.transaction_sum,
                     TransactionOrm.discount_sum,
-                    TransactionOrm.fee_percent,
                     TransactionOrm.fee_sum,
                     TransactionOrm.total_sum,
                     TransactionOrm.card_balance,
@@ -129,7 +127,7 @@ class TransactionRepository(BaseRepository):
                 joinedload(TransactionOrm.company)
                 .load_only()
                 .joinedload(BalanceOrm.company)
-                .load_only(CompanyOrm.id, CompanyOrm.name, CompanyOrm.inn)
+                .load_only(CompanyOrm.id, CompanyOrm.name, CompanyOrm.inn, CompanyOrm.personal_account)
             )
             .select_from(base_subquery, TransactionOrm)
             .where(TransactionOrm.id == base_subquery.c.id)

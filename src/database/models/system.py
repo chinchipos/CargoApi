@@ -149,6 +149,22 @@ class SystemOrm(Base):
         init=False
     )
 
+    # Список тарифов, привязанных к этой системе
+    tariffs: Mapped[List["TariffNewOrm"]] = relationship(
+        back_populates="system",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
+    # Список АЗС, этой системы
+    azs_list: Mapped[List["AzsOrm"]] = relationship(
+        back_populates="system",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
     repr_cols = ("full_name",)
 
     def __repr__(self) -> str:

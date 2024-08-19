@@ -12,7 +12,6 @@ class ExcelDataType(Enum):
     INTEGER_SEPARATED = {'num_format': '# ##0'}
     FLOAT = {'num_format': '###0.00'}
     FLOAT_SEPARATED = {'num_format': '# ##0.00'}
-    DATE = {}
 
 
 class ExcelAlign(Enum):

@@ -17,7 +17,7 @@ class ColoredLogger:
         self.logger = logging.getLogger(logger_name)
         self.logger.setLevel(logging.INFO)
 
-        formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s", '%Y-%m-%d %H:%M:%S')
+        formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s", '%Y-%m-%d %H:%M:%S')
 
         handler = logging.StreamHandler()
         handler.setFormatter(formatter)
@@ -49,7 +49,7 @@ def get_logger(name: str, filename: str = "celery.log"):
     if not len(_logger.handlers):
         _logger.setLevel(logging.INFO)
 
-        formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s", '%Y-%m-%d %H:%M:%S')
+        formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s", '%Y-%m-%d %H:%M:%S')
 
         handler = logging.StreamHandler()
         handler.setFormatter(formatter)

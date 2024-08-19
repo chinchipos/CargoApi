@@ -74,14 +74,12 @@ class TransactionReadSchema(BaseSchema):
     card: card_ = None
     company: company_ = None
     azs_code: azs_code_
-    azs_address: azs_address_
     outer_goods: outer_goods_ = None
     fuel_volume: fuel_volume_
     price: price_
     transaction_sum: transaction_sum_
     discount_sum: discount_sum_
     tariff: tariff_ = None
-    fee_percent: fee_percent_
     fee_sum: fee_sum_
     total_sum: total_sum_
     card_balance: card_balance_

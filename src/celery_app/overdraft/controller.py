@@ -303,19 +303,6 @@ class Overdraft(BaseRepository):
         self.logger.info(message)
 
     async def send_overdrafts_report(self) -> None:
-        """
-        stmt = (
-            sa_select(OverdraftsHistoryOrm)
-            .options(
-                joinedload(OverdraftsHistoryOrm.balance)
-                .joinedload(BalanceOrm.company)
-                .selectinload(CompanyOrm.users)
-                .joinedload(UserOrm.role)
-            )
-            .where(OverdraftsHistoryOrm.end_date.is_(null()))
-        )
-        overdrafts = await self.select_all(stmt)
-        """
         overdrafts = await self.get_opened_overdrafts()
 
         # Отправляем отчет для СБ

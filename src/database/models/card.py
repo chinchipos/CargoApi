@@ -158,4 +158,12 @@ class CardOrm(Base):
         init=False
     )
 
+    # Список лимитов, привязанных к этой карте
+    limits: Mapped[List["CardLimitOrm"]] = relationship(
+        back_populates="card",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
     repr_cols = ("card_number",)

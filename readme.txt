@@ -1,4 +1,4 @@
-alembic revision --autogenerate -m "Deleted fields LOGIN, PASSWORD, CONTRACT_NUM from table SYSTEM"
+alembic revision --autogenerate -m "DB updated"
 alembic upgrade head
 
 ---------------------------------------

@@ -29,6 +29,7 @@ class CompanyMinimumSchema(BaseSchema):
     id: Annotated[str, Field(description="UUID организации", examples=["20f06bf0-ae28-4f32-b2ca-f57796103a71"])]
     name: Annotated[str | None, Field(description="Наименование", examples=['ООО "Современные технологии"'])]
     inn: Annotated[str | None, Field(description="ИНН", examples=["77896534678800"])]
+    personal_account: Annotated[str | None, Field(description="Лицевой счет", examples=["6590100"])]
 
 
 CompanyFromBalance = Annotated[CompanyMinimumSchema | None, BeforeValidator(company_from_balance)]
