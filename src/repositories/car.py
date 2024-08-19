@@ -3,7 +3,7 @@ from typing import List, Optional
 from sqlalchemy import select as sa_select
 from sqlalchemy.orm import joinedload
 
-import src.database.models.company
+from src.database.models.company import CompanyOrm
 from src.database.models.user import UserOrm
 from src.database.models.car import CarOrm, CarDriverOrm
 from src.repositories.base import BaseRepository
@@ -130,7 +130,7 @@ class CarRepository(BaseRepository):
                 joinedload(CarOrm.company)
             )
             .join(CarOrm.company)
-            .order_by(src.database.model.company.CompanyOrm.name, CarOrm.model)
+            .order_by(CompanyOrm.name, CarOrm.model)
         )
 
         if self.user.role.name == enums.Role.CARGO_MANAGER.name:
