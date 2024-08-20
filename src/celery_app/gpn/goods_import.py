@@ -4,7 +4,7 @@ import sys
 import pandas as pd
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.config import PROD_URI
+from src.config import PROD_URI, GOODS_FILE_PATH
 from src.database.db import DatabaseSessionManager
 from src.database.models import OuterGoodsGroupOrm, OuterGoodsOrm
 from src.database.models.goods_category import OuterGoodsCategoryOrm
@@ -14,7 +14,6 @@ from src.utils.enums import ContractScheme
 from src.utils.loggers import get_logger
 
 _logger = get_logger(name="GpnGoodsImporter", filename="celery.log")
-file_path = "d:\\temp\\gpn_goods.xlsx"
 
 
 async def process_categories(imported_data: pd.DataFrame, goods_repository: GoodsRepository, gpn_system_id: str):
@@ -121,7 +120,7 @@ async def process_goods(imported_data: pd.DataFrame, goods_repository: GoodsRepo
 
 async def import_goods(session: AsyncSession):
     # Считываем информацию из файла
-    imported_data = pd.read_excel(file_path)
+    imported_data = pd.read_excel(GOODS_FILE_PATH)
     length = len(imported_data)
     _logger.info(f"Файл прочитан успешно. Количество записей: {length}")
 
