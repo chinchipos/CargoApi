@@ -1,8 +1,12 @@
+from datetime import datetime
 from typing import List, Any
 
-from src.database.models.user import UserOrm
+from src.celery_app.limits.tasks import gpn_set_card_group_limit
+from src.config import TZ
 from src.database.models.balance_system_tariff import BalanceSystemTariffOrm
 from src.database.models.company import CompanyOrm
+from src.database.models.notification import NotificationMailingOrm
+from src.database.models.user import UserOrm
 from src.repositories.company import CompanyRepository
 from src.repositories.transaction import TransactionRepository
 from src.repositories.user import UserRepository
@@ -11,7 +15,6 @@ from src.schemas.company import CompanyEditSchema, CompanyReadSchema, CompanyRea
 from src.utils import enums
 from src.utils.enums import TransactionType
 from src.utils.exceptions import BadRequestException, ForbiddenException
-from src.celery_app.limits.tasks import gpn_set_card_group_limit
 
 
 class CompanyService:
@@ -182,3 +185,18 @@ class CompanyService:
 
         # В системе поставщика устанавливаем лимит на группу карт (если применимо)
         gpn_set_card_group_limit.delay(balance_ids=[balance.id])
+
+    async def get_notifications(self) -> List[NotificationMailingOrm]:
+        mailings = await self.repository.get_notification_mailings(self.repository.user.company_id)
+        # for mailing in mailings:
+        #     mailing.annotate({
+        #         "date_create": mailing.notification.date_create,
+        #         "caption": mailing.notification.caption,
+        #         "text": mailing.notification.text,
+        #     })
+        return mailings
+
+    async def notification_read(self, mailing_id: str) -> None:
+        notification_mailing = await self.repository.session.get(NotificationMailingOrm, mailing_id)
+        notification_mailing.date_time_read = datetime.now(tz=TZ)
+        await self.repository.save_object(notification_mailing)

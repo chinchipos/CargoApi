@@ -5,6 +5,7 @@ from pydantic import Field
 
 from src.schemas.balance import BalanceReadSchema
 from src.schemas.base import BaseSchema
+from src.schemas.notification import NotifcationMailingReadSchema
 from src.schemas.role import RoleReadMinimumSchema
 from src.schemas.validators import NegativeToPositive, PositiveToNegative
 from src.utils.enums import Finance as FinanceEnum
@@ -87,6 +88,8 @@ overdraft_payment_deadline_ = Annotated[
 
 tariffs_ = Annotated[List[Dict[str, str]], Field(description="Тарифы систем")]
 
+notification_mailings_ = Annotated[List[NotifcationMailingReadSchema] | None, Field(description="Список уведомлений")]
+
 
 class CompanyCreateSchema(BaseSchema):
     name: name_
@@ -138,6 +141,7 @@ class CompanyReadSchema(BaseSchema):
     overdraft_begin_date: overdraft_begin_date_ = None
     overdraft_end_date: overdraft_end_date_ = None
     overdraft_payment_deadline: overdraft_payment_deadline_ = None
+    notification_mailings: notification_mailings_ = None
 
 
 class CompanyBalanceEditSchema(BaseSchema):

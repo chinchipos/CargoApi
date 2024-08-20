@@ -19,6 +19,20 @@ class InnerGoodsOrm(Base):
         comment="Наименование в нашей системе"
     )
 
+    # Группа продуктов в нашей системе
+    inner_group_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.inner_goods_group.id"),
+        nullable=True,
+        init=True,
+        comment="Группа продуктов в нашей системе"
+    )
+
+    # Группа продуктов в нашей системе
+    inner_group: Mapped["InnerGoodsGroupOrm"] = relationship(
+        back_populates="inner_goods",
+        lazy="noload"
+    )
+
     # Список внешних товаров и услуг, привязанных к этой номенклатуре внутренних товаров/услуг
     outer_goods: Mapped[List["OuterGoodsOrm"]] = relationship(
         back_populates="inner_goods",
@@ -45,7 +59,7 @@ class OuterGoodsOrm(Base):
 
     # Наименование продукта в системе поставщика
     name: Mapped[str] = mapped_column(
-        sa.String(50),
+        sa.String(255),
         nullable=False,
         comment="Наименование продукта в системе поставщика"
     )

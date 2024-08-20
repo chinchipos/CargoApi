@@ -21,3 +21,4 @@ from src.database.models.user import UserOrm
 from src.database.models.card_limit import CardLimitOrm
 from src.database.models.azs import AzsOrm
 from src.database.models.tariff import TariffPolicyOrm, TariffNewOrm
+from src.database.models.notification import NotificationOrm, NotificationMailingOrm

@@ -5,6 +5,7 @@ from sqlalchemy import select as sa_select, and_, func as sa_func, null, or_
 from sqlalchemy.orm import joinedload, selectinload, aliased, load_only
 
 from src.config import TZ
+from src.database.models import NotificationMailingOrm
 from src.database.models.balance import BalanceOrm
 from src.database.models.card import CardOrm
 from src.database.models.company import CompanyOrm
@@ -141,6 +142,7 @@ class CompanyRepository(BaseRepository):
             )
             .where(CompanyOrm.id == company_id)
         )
+
         company = await self.select_first(stmt)
         overbought_balance_id = None
         for balance in company.balances:
@@ -179,6 +181,11 @@ class CompanyRepository(BaseRepository):
         # stmt = sa_select(sa_func.count(models.Card.id)).filter_by(company_id=company_id)
         # amount = await self.select_single_field(stmt)
         # company.annotate({'cards_amount': amount})
+
+        # Добавляем непрочитанные рассылки
+        if self.user and self.user.role.name == enums.Role.COMPANY_ADMIN.name:
+            mailings = await self.get_notification_mailings(company_id=company.id, unread_only=True)
+            company.notification_mailings = mailings
 
         return company
 
@@ -314,3 +321,18 @@ class CompanyRepository(BaseRepository):
         stmt = sa_select(BalanceSystemTariffOrm).where(BalanceSystemTariffOrm.balance_id == balance_id)
         bst_list = await self.select_all(stmt)
         return bst_list
+
+    async def get_notification_mailings(self, company_id: str, unread_only: bool = False) -> List[NotificationMailingOrm]:
+        stmt = (
+            sa_select(NotificationMailingOrm)
+            .options(
+                joinedload(NotificationMailingOrm.notification)
+            )
+            .where(NotificationMailingOrm.company_id == company_id)
+        )
+
+        if unread_only:
+            stmt = stmt.where(NotificationMailingOrm.date_time_read.is_(null()))
+
+        mailings = await self.select_all(stmt)
+        return mailings

@@ -4,6 +4,7 @@ from typing import Dict, List
 
 from src.celery_app.gpn.api import GPNApi
 from src.celery_app.gpn.controller import GPNController
+from src.celery_app.gpn.goods_import import import_goods
 from src.celery_app.irrelevant_balances import IrrelevantBalances
 from src.celery_app.main import celery
 from src.config import PROD_URI

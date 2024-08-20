@@ -116,7 +116,7 @@ class TransactionRepository(BaseRepository):
             )
             .options(
                 joinedload(TransactionOrm.outer_goods)
-                .load_only(OuterGoodsOrm.id, OuterGoodsOrm.name)
+                .load_only(OuterGoodsOrm.id, OuterGoodsOrm.name, OuterGoodsOrm.external_id)
                 .joinedload(OuterGoodsOrm.inner_goods)
             )
             .options(

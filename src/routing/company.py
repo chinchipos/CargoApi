@@ -6,10 +6,11 @@ from fastapi import APIRouter, Depends
 from src.depends import get_service_company
 from src.descriptions.company import company_tag_description, edit_company_description, get_company_description, \
     get_companies_description, get_company_drivers_description, bind_manager_to_company_description, \
-    edit_balance_description, create_company_description
+    edit_balance_description, create_company_description, get_notifications_description
 from src.schemas.common import SuccessSchema
 from src.schemas.company import CompanyReadSchema, CompanyEditSchema, CompanyBalanceEditSchema, CompanyCreateSchema
 from src.schemas.driver import DriverReadSchema
+from src.schemas.notification import NotifcationMailingReadSchema
 from src.services.company import CompanyService
 from src.utils import enums
 from src.utils.exceptions import ForbiddenException
@@ -40,6 +41,45 @@ async def get_companies(
     companies = await service.get_companies()
     return companies
 
+
+@router.get(
+    path="/company/notifications",
+    tags=["company"],
+    responses = {400: {'model': MessageSchema, "description": "Bad request"}},
+    response_model = List[NotifcationMailingReadSchema],
+    summary = 'Получение списка уведомлений для организации',
+    description = get_notifications_description
+)
+async def get_notifications(
+    service: CompanyService = Depends(get_service_company)
+):
+    # Получить список уведомлений может только администратор организации
+    if service.repository.user.role.name != enums.Role.COMPANY_ADMIN.name:
+        raise ForbiddenException()
+
+    notifications = await service.get_notifications()
+    return notifications
+
+
+@router.get(
+    path="/company/notifications/{mailing_id}/read",
+    tags=["company"],
+    responses = {400: {'model': MessageSchema, "description": "Bad request"}},
+    response_model = SuccessSchema,
+    summary = 'Уведомление прочитано',
+    description = 'Уведомление прочитано'
+)
+async def notification_read(
+    mailing_id: str,
+    service: CompanyService = Depends(get_service_company)
+):
+    # Прочитать уведомление может только администратор организации
+    if service.repository.user.role.name != enums.Role.COMPANY_ADMIN.name:
+        raise ForbiddenException()
+
+    await service.notification_read(mailing_id)
+    return {'success': True}
+
 """
 @router.get(
     path="/company/all/drivers",
@@ -59,6 +99,26 @@ async def get_companies_drivers(
     drivers = await service.get_drivers()
     return drivers
 """
+
+
+@router.post(
+    path="/company/create",
+    tags=["company"],
+    responses = {400: {'model': MessageSchema, "description": "Bad request"}},
+    response_model = CompanyReadSchema,
+    summary = 'Создание организации',
+    description = create_company_description
+)
+async def create(
+    data: CompanyCreateSchema,
+    service: CompanyService = Depends(get_service_company)
+):
+    # Проверка прав доступа. Создавать системы может только суперадмин.
+    if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
+        raise ForbiddenException()
+
+    system = await service.create(data)
+    return system
 
 
 @router.get(
@@ -92,26 +152,6 @@ async def get_company(
 
     company = await service.get_company(id)
     return company
-
-
-@router.post(
-    path="/company/create",
-    tags=["company"],
-    responses = {400: {'model': MessageSchema, "description": "Bad request"}},
-    response_model = CompanyReadSchema,
-    summary = 'Создание организации',
-    description = create_company_description
-)
-async def create(
-    data: CompanyCreateSchema,
-    service: CompanyService = Depends(get_service_company)
-):
-    # Проверка прав доступа. Создавать системы может только суперадмин.
-    if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
-        raise ForbiddenException()
-
-    system = await service.create(data)
-    return system
 
 
 @router.put(

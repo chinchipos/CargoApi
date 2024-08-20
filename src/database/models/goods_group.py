@@ -26,8 +26,16 @@ class InnerGoodsGroupOrm(Base):
         comment="Соответствующая категория продуктов в нашей системе"
     )
 
-    # Список групп продукктов от систем поставщиков, привязанных к этой группе нашей системы
+    # Список групп продуктов от систем поставщиков, привязанных к этой группе нашей системы
     outer_goods_groups: Mapped[List["OuterGoodsGroupOrm"]] = relationship(
+        back_populates="inner_group",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
+    # Список продуктов нашей системы, привязанных к этой группе
+    inner_goods: Mapped[List["InnerGoodsOrm"]] = relationship(
         back_populates="inner_group",
         cascade="all, delete-orphan",
         lazy="noload",
@@ -42,7 +50,7 @@ class InnerGoodsGroupOrm(Base):
         init=False
     )
 
-    # Список лимитов, привязанных к этой группе нашей системы
+    # Список тарифов, привязанных к этой группе нашей системы
     tariffs: Mapped[List["TariffNewOrm"]] = relationship(
         back_populates="inner_goods_group",
         cascade="all, delete-orphan",
@@ -102,7 +110,7 @@ class OuterGoodsGroupOrm(Base):
     # Соответствующая группа продуктов в нашей системе
     inner_group_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.inner_goods_group.id"),
-        nullable=False,
+        nullable=True,
         init=True,
         comment="Соответствующая группа продуктов в нашей системе"
     )

@@ -13,7 +13,7 @@ class GoodsService:
         self.logger = repository.logger
 
     async def get_all_outer_goods(self) -> List[OuterGoodsOrm]:
-        goods = await self.repository.get_all_outer_goods()
+        goods = await self.repository.get_outer_goods(limit=500)
 
         # def get_schema(goods_obj: models.OuterGoods):
         #     system_schema = SystemReadMinimumSchema(**goods_obj.system.dumps())

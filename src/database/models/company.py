@@ -131,4 +131,12 @@ class CompanyOrm(Base):
         order_by='desc(BalanceOrm.scheme)'
     )
 
+    # Список уведомлений этой организации
+    notification_mailings: Mapped[List["NotificationMailingOrm"]] = relationship(
+        back_populates="company",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
     repr_cols = ("name", "inn")
