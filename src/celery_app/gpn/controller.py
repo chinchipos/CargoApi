@@ -12,9 +12,10 @@ from src.celery_app.irrelevant_balances import IrrelevantBalances
 from src.celery_app.transaction_helper import get_local_cards, get_local_card, get_tariff_on_date_by_balance, \
     get_current_tariff_by_balance
 from src.config import TZ, PRODUCTION
-from src.database.models import CompanyOrm
+from src.database.models import CompanyOrm, CardLimitOrm
 from src.database.models.card import CardOrm, BlockingCardReason
 from src.database.models.card_type import CardTypeOrm
+from src.database.models.goods_category import GoodsCategory
 from src.database.models.system import CardSystemOrm
 from src.database.models.transaction import TransactionOrm
 from src.database.models.balance_tariff_history import BalanceTariffHistoryOrm
@@ -23,6 +24,7 @@ from src.database.models.balance import BalanceOrm as BalanceOrm
 from src.database.models.goods import OuterGoodsOrm
 from src.repositories.base import BaseRepository
 from src.repositories.card import CardRepository
+from src.repositories.goods import GoodsRepository
 from src.repositories.system import SystemRepository
 from src.repositories.transaction import TransactionRepository
 from src.utils.common import calc_available_balance
@@ -790,3 +792,98 @@ class GPNController(BaseRepository):
         self.logger.info("Все новые виртуальные карты ГПН сохранены в локальную БД")
         card_numbers = [card['card_number'] for card in dataset]
         return card_numbers
+
+    async def delete_card_limits(self, limit_ids: List[str]) -> None:
+        for limit_id in limit_ids:
+            self.api.delete_card_limit(limit_id=limit_id)
+
+    async def set_card_limits(self, card_external_id: str, limit_ids: List[str]) -> None:
+        await self.init_system()
+
+        # Получаем лимиты из БД
+        stmt = (
+            sa_select(CardLimitOrm)
+            .where(CardLimitOrm.id.in_(limit_ids))
+        )
+        limits: List[CardLimitOrm] = await self.select_all(stmt)
+
+        # В локальной БД, если не указано поле лимита inner_goods_category, это означает, что лимит
+        # действет в отношении всех категорий. В ГПН так не работает - категория обязательно должна быть указана.
+        new_limits = []
+        for limit in limits:
+            if limit.inner_goods_category:
+                new_limit = {
+                    "obj": limit,
+                    "inner_goods_category": limit.inner_goods_category,
+                    "inner_goods_group_id": limit.inner_goods_group_id,
+                    "value": limit.value,
+                    "unit": limit.unit,
+                    "period": limit.period,
+                }
+                new_limits.append(new_limit)
+            else:
+                for category in GoodsCategory:
+                    new_limit = {
+                        "obj": limit,
+                        "inner_goods_category": category,
+                        "inner_goods_group_id": limit.inner_goods_group_id,
+                        "value": limit.value,
+                        "unit": limit.unit,
+                        "period": limit.period,
+                    }
+                    new_limits.append(new_limit)
+
+        # Дополняем записи сведениями об идентификаторах категорий и групп в ГПН
+        goods_repository = GoodsRepository(session=self.session, user=None)
+        gpn_groups = await goods_repository.get_outer_groups(self.system.id)
+        gpn_categories = await goods_repository.get_outer_categories(self.system.id)
+        i = 0
+        while i < len(new_limits):
+            limit = new_limits[i]
+            # Получаем идентификатор категории в ГПН
+            found = False
+            for gpn_category in gpn_categories:
+                if limit["inner_goods_category"] == gpn_category.inner_category:
+                    found = True
+                    limit["gpn_goods_category_id"] = gpn_category.external_id
+                    break
+
+            # Если не найдено совпадение, то удаляем запись из списка
+            if not found:
+                self.logger.error(f"При создании лимита в ГПН не удалось определить идентификатор категории. "
+                                  f"Лимит не создан: {limit}")
+                new_limits.remove(limit)
+                continue
+
+            if limit["inner_goods_group_id"]:
+                found = False
+                for gpn_group in gpn_groups:
+                    if limit["inner_goods_group_id"] == gpn_group.inner_group_id:
+                        found = True
+                        limit["gpn_goods_group_id"] = gpn_group.external_id
+
+            # Если не найдено совпадение, то удаляем запись из списка
+            if not found:
+                self.logger.error(f"При создании лимита в ГПН не удалось определить идентификатор категории. "
+                                  f"Лимит не создан: {limit}")
+                new_limits.remove(limit)
+                continue
+
+            # Лимит успешно обработан - увеличиваем счетчик
+            i += 1
+
+        # В ГПН создаем лимиты по карте
+        for limit in new_limits:
+            gpn_limit_id = self.api.set_card_limit(
+                card_id=card_external_id,
+                goods_category_id=limit["gpn_goods_category_id"],
+                goods_group_id=limit.get("gpn_goods_group_id", None),
+                value=limit["value"],
+                unit=limit["unit"],
+                period=limit["period"],
+            )
+            limit["obj"].external_id = gpn_limit_id
+            await self.save_object(limit["obj"])
+
+        # В ГПН изменяем лимиты по группе карт
+

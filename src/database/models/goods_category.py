@@ -8,12 +8,13 @@ from src.database.models.base import Base
 
 
 class GoodsCategory(Enum):
-    FOOD = "FOOD"
-    CAFE = "CAFE"
-    NON_FOOD = "NON_FOOD"
-    OTHER_SERVICES = "OTHER_SERVICES"
-    ROAD_PAYING = "ROAD_PAYING"
-    FUEL = "FUEL"
+    __order__ = 'FUEL OTHER_SERVICES CAFE FOOD NON_FOOD ROAD_PAYING'
+    FUEL = "Топливо"
+    OTHER_SERVICES = "Прочие сервисы"
+    CAFE = "Кафе"
+    FOOD = "Продукты питания"
+    NON_FOOD = "Прочие товары"
+    ROAD_PAYING = "Дорожные сборы"
 
 
 class OuterGoodsCategoryOrm(Base):

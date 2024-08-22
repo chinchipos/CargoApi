@@ -11,6 +11,7 @@ from fake_useragent import UserAgent
 from src.celery_app.exceptions import CeleryError
 from src.celery_app.gpn.config import GPN_USERNAME, GPN_URL, GPN_TOKEN, GPN_PASSWORD
 from src.config import PRODUCTION, TZ
+from src.database.models.card_limit import Unit, LimitPeriod
 from src.utils.loggers import get_logger
 
 
@@ -361,6 +362,8 @@ class GPNApi:
                                       f"{res['status']['errors']}. Наш запрос: {data}")
 
         self.logger.info(f"Установлен лимит {new_limit}")
+        time.sleep(0.4)
+
         """
         new_limits = []
 
@@ -440,10 +443,30 @@ class GPNApi:
         res = response.json()
 
         if res["status"]["code"] != 200:
-            raise CeleryError(message=f"Ошибка при удалении лимита. Ответ сервера API: "
+            raise CeleryError(message=f"Ошибка при удалении лимита группы карт. Ответ сервера API: "
                                       f"{res['status']['errors']}. Наш запрос: {data}")
 
-        self.logger.info(f"Удален лимит {data}")
+        self.logger.info(f"Удален лимит группы карт {data}")
+        time.sleep(0.4)
+
+    def delete_card_limit(self, limit_id: str) -> None:
+        data = {
+            "contract_id": self.contract_id,
+            "limit_id": limit_id,
+        }
+        response = requests.post(
+            url=self.endpoint(self.api_v1, "removeLimit"),
+            headers=self.headers | {"session_id": self.api_session_id},
+            data=data
+        )
+        res = response.json()
+
+        if res["status"]["code"] != 200:
+            raise CeleryError(message=f"Ошибка при удалении лимита карты. Ответ сервера API: "
+                                      f"{res['status']['errors']}. Наш запрос: {data}")
+
+        self.logger.info(f"Удален лимит карты {data}")
+        time.sleep(0.4)
 
     def get_card_group_limits(self, group_id: str) -> List[Dict[str, Any]]:
         """
@@ -510,3 +533,42 @@ class GPNApi:
         self.logger.info(f"{card['number']} | в ГПН создана виртуальная карта")
         time.sleep(0.4)
         return card
+
+    def set_card_limit(self, card_id: str, goods_category_id: str, goods_group_id: str | None, value: int,
+                       unit: Unit, period: LimitPeriod) -> str:
+        new_limit = {
+            "contract_id": self.contract_id,
+            "card_id": card_id,
+            "productType": goods_category_id,
+            "term": {"type": 1},
+        }
+        if goods_group_id:
+            new_limit["productGroup"] = goods_group_id
+
+        if unit == Unit.RUB:
+            new_limit["sum"] = {"currency": "810", "value": value}
+        elif unit == Unit.LITERS:
+            new_limit["amount"] = {"unit": "LIT", "value": value}
+        elif unit == Unit.ITEMS:
+            new_limit["amount"] = {"unit": "IT", "value": value}
+
+        if period == LimitPeriod.DAY:
+            new_limit["time"] = {"number": 1, "type": 3}
+        elif period == LimitPeriod.MONTH:
+            new_limit["time"] = {"number": 1, "type": 5}
+
+        data = {"limit": json.dumps([new_limit])}
+        response = requests.post(
+            url=self.endpoint(self.api_v1, "setLimit"),
+            headers=self.headers | {"session_id": self.api_session_id},
+            data=data
+        )
+        res = response.json()
+
+        if res["status"]["code"] != 200:
+            raise CeleryError(message=f"Ошибка при установке лимита по карте. Ответ сервера API: "
+                                      f"{res['status']['errors']}. Наш запрос: {data}")
+
+        self.logger.info(f"Установлен лимит по карте {new_limit}")
+        time.sleep(0.4)
+        return res["data"][0]

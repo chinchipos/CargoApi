@@ -56,6 +56,13 @@ class SystemOrm(Base):
         server_default=ContractScheme.OVERBOUGHT.name
     )
 
+    limits_on: Mapped[bool] = mapped_column(
+        sa.Boolean,
+        nullable=False,
+        server_default=sa.sql.true(),
+        comment='Признак - в системе доступна функция установки лимитов'
+    )
+
     enabled: Mapped[bool] = mapped_column(
         sa.Boolean,
         nullable=False,

@@ -5,6 +5,7 @@ from sqlalchemy import select as sa_select, delete as sa_delete, func as sa_func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload, aliased
 
+from src.database.models import CardLimitOrm, InnerGoodsGroupOrm
 from src.database.models.card import CardOrm
 from src.database.models.card_type import CardTypeOrm
 from src.database.models.user import UserOrm
@@ -65,7 +66,7 @@ class CardRepository(BaseRepository):
             sa_select(CardOrm)
             .options(
                 selectinload(CardOrm.systems)
-                .load_only(SystemOrm.id, SystemOrm.full_name, SystemOrm.short_name)
+                .load_only(SystemOrm.id, SystemOrm.full_name, SystemOrm.short_name, SystemOrm.limits_on)
             )
             .options(
                 joinedload(CardOrm.card_type)
@@ -303,3 +304,16 @@ class CardRepository(BaseRepository):
 
         return system_cards
     """
+
+    async def get_limits(self, card_id: str | None = None) -> List[CardLimitOrm]:
+        stmt = (
+            sa_select(CardLimitOrm)
+            .options(
+                joinedload(CardLimitOrm.inner_goods_group)
+                .selectinload(InnerGoodsGroupOrm.outer_goods_groups)
+            )
+        )
+        if card_id:
+            stmt = stmt.where(CardLimitOrm.card_id == card_id)
+        limits = await self.select_all(stmt)
+        return limits

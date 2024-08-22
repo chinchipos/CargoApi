@@ -9,6 +9,7 @@ from src.descriptions.card import delete_card_description, get_cards_description
     bulk_unbind_systems_description, bulk_unbind_company_description, bulk_block_description, \
     bulk_activate_description, change_card_state_description
 from src.schemas.card import CardReadSchema, CardCreateSchema, CardEditSchema, BulkBindSchema, BulkUnbindSchema
+from src.schemas.card_limit import CardLimitParamsSchema, CardLimitReadSchema, CardLimitCreateSchema
 from src.schemas.common import SuccessSchema
 from src.services.card import CardService
 from src.utils import enums
@@ -61,6 +62,21 @@ async def create(
     systems = [str(system) for system in systems]
     card = await service.create(card, systems)
     return card
+
+
+@router.get(
+    path="/card/get-limit-params",
+    tags=["card"],
+    responses={400: {'model': MessageSchema, "description": "Bad request"}},
+    response_model=CardLimitParamsSchema,
+    summary='Получение сведений о базовых параметрах лимитов',
+    description='Получение сведений о базовых параметрах лимитов'
+)
+async def get_limit_params(
+        service: CardService = Depends(get_service_card)
+):
+    limit_params = await service.get_limit_params()
+    return limit_params
 
 
 @router.put(
@@ -251,3 +267,39 @@ async def set_state(
 
     await service.set_state(id, activate)
     return {'success': True}
+
+
+@router.post(
+    path="/card/{id}/set-limits",
+    tags=["card"],
+    responses = {400: {'model': MessageSchema, "description": "Bad request"}},
+    response_model = List[CardLimitReadSchema],
+    summary = 'Установка новых лимитов взамен существующих',
+    description = 'Установка новых лимитов взамен существующих'
+)
+async def set_limits(
+    id: uuid.UUID,
+    limits: List[CardLimitCreateSchema],
+    service: CardService = Depends(get_service_card)
+):
+    id = str(id)
+    card = await service.get_card(id)
+
+    # Проверка прав доступа.
+    # Суперадмин имеет права на все карты.
+    # Менеджер ПроАВТО имеет права на карты в отношении администрируемых им организаций.
+    # Администратор компанииимеет права только по своей организации.
+    # У остальных ролей нет прав
+    if service.repository.user.role.name == enums.Role.CARGO_SUPER_ADMIN.name:
+        pass
+    
+    elif service.repository.user.role.name == enums.Role.CARGO_MANAGER.name:
+        if not service.repository.user.is_admin_for_company(card.company_id):
+            raise ForbiddenException()
+
+    elif service.repository.user.role.name == enums.Role.COMPANY_ADMIN.name:
+        if not service.repository.user.is_worker_of_company(card.company_id):
+            raise ForbiddenException()
+
+    new_limits = await service.set_limits(card=card, company=card.company, limits=limits)
+    return new_limits

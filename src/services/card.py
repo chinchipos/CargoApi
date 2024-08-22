@@ -1,16 +1,23 @@
+import math
 from typing import List
 
+from src.celery_app.gpn.tasks import gpn_cards_bind_company, gpn_cards_unbind_company, gpn_set_card_state, \
+    gpn_delete_card_limits, gpn_create_card_limits
 from src.celery_app.khnp.tasks import khnp_set_card_state
+from src.database.models import CompanyOrm
 from src.database.models.card import CardOrm, BlockingCardReason
+from src.database.models.card_limit import Unit, LimitPeriod, CardLimitOrm
+from src.database.models.goods_category import GoodsCategory
 from src.database.models.system import CardSystemOrm
 from src.repositories.card import CardRepository
 from src.repositories.company import CompanyRepository
+from src.repositories.goods import GoodsRepository
 from src.schemas.card import CardCreateSchema, CardReadSchema, CardEditSchema
+from src.schemas.card_limit import CardLimitParamsSchema, CardLimitCreateSchema
 from src.utils import enums
 from src.utils.common import calc_available_balance
 from src.utils.enums import ContractScheme
 from src.utils.exceptions import BadRequestException, ForbiddenException
-from src.celery_app.gpn.tasks import gpn_cards_bind_company, gpn_cards_unbind_company, gpn_set_card_state
 
 
 class CardService:
@@ -42,6 +49,17 @@ class CardService:
         # Формируем ответ
         card_read_schema = CardReadSchema.model_validate(card_obj)
         return card_read_schema
+
+    @staticmethod
+    def available_balance(company: CompanyOrm) -> float:
+        for balance in company.balances:
+            if balance.scheme == ContractScheme.OVERBOUGHT:
+                return calc_available_balance(
+                    current_balance=balance.balance,
+                    min_balance=balance.company.min_balance,
+                    overdraft_on=balance.company.overdraft_on,
+                    overdraft_sum=balance.company.overdraft_sum
+                )
 
     async def edit(self, card_id: str, card_edit_schema: CardEditSchema, systems: List[str]) -> CardOrm:
         # Получаем карту из БД
@@ -127,19 +145,7 @@ class CardService:
                     if new_company_id:
                         company_repository = CompanyRepository(session=self.repository.session)
                         company = await company_repository.get_company(new_company_id)
-                        company_available_balance = 0
-                        for balance in company.balances:
-                            if balance.scheme == ContractScheme.OVERBOUGHT:
-                                # Вычисляем доступный лимит
-                                # overdraft_sum = balance.company.overdraft_sum if company.overdraft_on else 0
-                                # company_available_balance = int(balance.balance + overdraft_sum)
-                                company_available_balance = calc_available_balance(
-                                    current_balance=balance.balance,
-                                    min_balance=balance.company.min_balance,
-                                    overdraft_on=balance.company.overdraft_on,
-                                    overdraft_sum=balance.company.overdraft_sum
-                                )
-                                break
+                        company_available_balance = self.available_balance(company)
 
                         gpn_cards_bind_company.delay(
                             card_ids=[card.id],
@@ -395,30 +401,133 @@ class CardService:
                 elif system.short_name == enums.System.GPN.value:
                     gpn_set_card_state.delay(card.external_id, card.is_active)
 
-    """
-    dasync def dassign_card_groups_for_gpn_cards(self, any_cards: List[CardOrm]) -> None:
-        # Получаем систему ГПН
-        system_repository = SystemRepository(self.repository.session, self.repository.user)
-        gpn_system = await system_repository.get_system_by_short_name(
-            system_fhort_name="ГПН",
-            scheme=ContractScheme.OVERBOUGHT
-        )
+    async def get_limit_params(self) -> CardLimitParamsSchema:
+        # Получаем список групп продуктов нашей системы
+        goods_repository = GoodsRepository(session=self.repository.session, user=self.repository.user)
+        inner_groups = await goods_repository.get_inner_groups()
 
-        # Из полученного списка карт вычленяем карты ГПН
-        gpn_cards = self.repository.filter_cards_by_system(any_cards, gpn_system)
+        # Формируем справочник "Категория -> Продукты"
+        categories = [
+            {
+                "id": category.name,
+                "name": category.value,
+                "groups": [group for group in inner_groups if group.inner_category == category]
+            } for category in GoodsCategory
+        ]
 
-        # Назначаем группы
-        await self.repository.dget_card_groups()
-        for card in gpn_cards:
-            if card.company_id:
-                group = await self.repository.get_or_create_card_group(
-                    card_group_ext_id=card.company.personal_account,
-                    card_group_name=card.company.personal_account
+        # Формируем справочник единиц измерения
+        units = [
+            {"id": Unit.ITEMS.name, "name": Unit.ITEMS.value, "type": "base"},
+            {"id": Unit.LITERS.name, "name": Unit.LITERS.value, "type": "base"},
+            {"id": Unit.RUB.name, "name": Unit.RUB.value, "type": "addable"},
+        ]
+
+        # Формируем справочник периодов
+        periods = [
+            {"id": LimitPeriod.MONTH.name, "name": LimitPeriod.MONTH.value},
+            {"id": LimitPeriod.DAY.name, "name": LimitPeriod.DAY.value},
+        ]
+
+        # Формируем выходную структуру
+        limit_params_data = {
+            "categories": categories,
+            "units": units,
+            "periods": periods,
+        }
+        limit_params = CardLimitParamsSchema(**limit_params_data)
+        return limit_params
+
+    async def set_limits(self, card: CardOrm, company: CompanyOrm, limits: List[CardLimitCreateSchema]) -> List[CardLimitOrm]:
+        # Оптимизируем полученные лимиты - убираем избыточные и дублирующиеся
+        received_limits: List[CardLimitCreateSchema] = []
+        while len(limits) > 0:
+            limit = limits[0]
+            found = False
+            for unique_limit in received_limits:
+                if limit.inner_goods_category == unique_limit.inner_goods_category \
+                        and limit.inner_goods_group_id == unique_limit.inner_goods_group_id \
+                        and limit.period == unique_limit.period and limit.unit == unique_limit.unit:
+
+                    found = True
+
+                    # Сравниваем суммы. Оставляем только одну из записей.
+                    if limit.value < unique_limit.value:
+                        unique_limit.value = limit.value
+
+                    break
+
+            if not found:
+                received_limits.append(limit)
+
+            limits.remove(limit)
+
+        # Получаем доступный баланс организации
+        company_available_balance = self.available_balance(company)
+
+        # Все рублевые лимиты не должны превышать доступный баланс организации
+        for limit in received_limits:
+            if limit.value > company_available_balance:
+                limit.value = int(math.floor(company_available_balance))
+
+        """
+        # Сравниваем полученные лимиты с существующими
+        # Одинаковые убираем из обоих списков
+        i = 0
+        while i < len(received_limits):
+            found = False
+            received_limit = received_limits[i]
+            for existing_limit in existing_limits:
+                if received_limit.inner_goods_category == existing_limit.inner_goods_category \
+                        and received_limit.inner_goods_group_id == existing_limit.inner_goods_group_id \
+                        and received_limit.period == existing_limit.period \
+                        and received_limit.unit == existing_limit.unit \
+                        and received_limit.value == existing_limit.value:
+
+                    found = True
+                    received_limits.remove(received_limit)
+                    existing_limits.remove(existing_limit)
+                    break
+
+            if not found:
+                i += 1                
+        """
+
+        # Получаем действующие лимиты
+        limits_to_delete = await self.repository.get_limits(card_id=card.id)
+
+        # Удаляем из БД действующие лимиты
+        await self.repository.delete_card_limits(card_id=card.id)
+
+        # Сохраняем в БД новые лимиты
+        new_limits = [
+            {
+                "card_id": card.id,
+                "value": limit.value,
+                "unit": limit.unit,
+                "period": limit.period,
+                "inner_goods_group_id": limit.inner_goods_group_id,
+                "inner_goods_category": limit.inner_goods_category,
+            } for limit in received_limits
+        ]
+        await self.repository.bulk_insert_or_update(CardLimitOrm, new_limits)
+
+        # Получаем новые действующие лимиты
+        new_limits = await self.repository.get_limits(card_id=card.id)
+
+        # Изменяем сведения о лимитах в API систем
+        for system in card.systems:
+            if system.short_name == 'ГПН':
+                # Удаляем в ГПН текущие лимиты
+                gpn_delete_card_limits.delay(
+                    limit_ids=[limit.external_id for limit in limits_to_delete if limit.external_id]
                 )
-                card.card_group_id = group.id
-            else:
-                card.card_group_id = None
 
-        dataset = [{"id": card.id, "card_group_id": card.card_group_id} for card in gpn_cards]
-        await self.repository.bulk_update(CardOrm, dataset)
-    """
+                # Создаем в ГПН новые лимиты
+                gpn_create_card_limits.delay(
+                    card_external_id=card.external_id,
+                    limit_ids=[limit.id for limit in new_limits]
+                )
+                break
+
+        return new_limits
+

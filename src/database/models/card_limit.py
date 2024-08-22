@@ -1,6 +1,7 @@
 from enum import Enum
 
 import sqlalchemy as sa
+from sqlalchemy import UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database.models.base import Base
@@ -10,19 +11,27 @@ from src.database.models.goods_category import GoodsCategory
 class Unit(Enum):
     ITEMS = "шт"
     LITERS = "л."
-    RUB = "руб."
+    RUB = "руб"
 
 
 class LimitPeriod(Enum):
-    DAY = "день"
     MONTH = "месяц"
+    DAY = "день"
 
 
 class CardLimitOrm(Base):
     __tablename__ = "card_limit"
-    __table_args__ = {
-        'comment': 'Лимиты по картам'
-    }
+    __table_args__ = (
+        UniqueConstraint("card_id", "inner_goods_category", "inner_goods_group_id", "period", "unit"),
+        {'comment': 'Лимиты по картам'}
+    )
+
+    external_id: Mapped[str] = mapped_column(
+        sa.String(50),
+        nullable=True,
+        init=False,
+        comment="Внешний идентификатор (идентификатор в системе поставщика)"
+    )
 
     # Карта
     card_id: Mapped[str] = mapped_column(

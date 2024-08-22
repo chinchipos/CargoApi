@@ -1,7 +1,7 @@
 from typing import List
 
 from sqlalchemy import select as sa_select, nulls_first
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from src.database.models import OuterGoodsGroupOrm, InnerGoodsGroupOrm
 from src.database.models.goods_category import OuterGoodsCategoryOrm
@@ -79,5 +79,17 @@ class GoodsRepository(BaseRepository):
         if system_id:
             stmt = stmt.where(OuterGoodsGroupOrm.system_id == system_id)
 
+        groups = await self.select_all(stmt)
+        return groups
+
+    async def get_inner_groups(self) -> List[InnerGoodsGroupOrm]:
+        stmt = (
+            sa_select(InnerGoodsGroupOrm)
+            .options(
+                selectinload(InnerGoodsGroupOrm.outer_goods_groups)
+                .joinedload(OuterGoodsGroupOrm.outer_category)
+            )
+            .order_by(InnerGoodsGroupOrm.name)
+        )
         groups = await self.select_all(stmt)
         return groups

@@ -39,6 +39,8 @@ transaction_days_ = Annotated[
 
 card_icon_url_ = Annotated[str | None, Field(description="Ссылка на иконку карты")]
 
+limits_on_ = Annotated[bool, Field(description="В системе доступен функционал работы с лимитами")]
+
 
 class SystemEditSchema(BaseSchema):
     full_name: full_name_ = None
@@ -48,6 +50,7 @@ class SystemEditSchema(BaseSchema):
 class SystemReadMinimumSchema(BaseSchema):
     id: id_
     full_name: full_name_
+    limits_on: limits_on_
 
 
 class SystemReadSchema(BaseSchema):

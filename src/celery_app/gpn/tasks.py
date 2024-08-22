@@ -1,6 +1,6 @@
 import asyncio
 import sys
-from typing import Dict, List
+from typing import Dict, List, Any
 
 from src.celery_app.gpn.api import GPNApi
 from src.celery_app.gpn.controller import GPNController
@@ -157,6 +157,46 @@ def gpn_set_card_state(external_card_id: str, activate: bool) -> None:
         gpn_api.activate_cards([external_card_id])
     else:
         gpn_api.block_cards([external_card_id])
+
+
+async def delete_card_limits_fn(limit_ids: List[str]) -> None:
+    sessionmanager = DatabaseSessionManager()
+    sessionmanager.init(PROD_URI)
+
+    async with sessionmanager.session() as session:
+        gpn_controller = GPNController(session)
+        await gpn_controller.delete_card_limits(limit_ids)
+
+    # Закрываем соединение с БД
+    await sessionmanager.close()
+
+
+@celery.task(name="GPN_DELETE_CARD_LIMITS")
+def gpn_delete_card_limits(limit_ids: List[str]) -> None:
+    if sys.platform == 'win32':
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+    asyncio.run(delete_card_limits_fn(limit_ids))
+
+
+async def create_card_limits_fn(card_external_id: str, limit_ids: List[str]) -> None:
+    sessionmanager = DatabaseSessionManager()
+    sessionmanager.init(PROD_URI)
+
+    async with sessionmanager.session() as session:
+        gpn_controller = GPNController(session)
+        await gpn_controller.set_card_limits(card_external_id, limit_ids)
+
+    # Закрываем соединение с БД
+    await sessionmanager.close()
+
+
+@celery.task(name="GPN_CREATE_CARD_LIMITS")
+def gpn_create_card_limits(card_external_id: str, limit_ids: List[str]) -> None:
+    if sys.platform == 'win32':
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+    asyncio.run(create_card_limits_fn(card_external_id, limit_ids))
 
 
 @celery.task(name="GPN_TEST")
