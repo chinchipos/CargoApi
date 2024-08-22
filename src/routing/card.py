@@ -284,7 +284,6 @@ async def set_limits(
 ):
     id = str(id)
     card = await service.get_card(id)
-
     # Проверка прав доступа.
     # Суперадмин имеет права на все карты.
     # Менеджер ПроАВТО имеет права на карты в отношении администрируемых им организаций.
@@ -301,5 +300,5 @@ async def set_limits(
         if not service.repository.user.is_worker_of_company(card.company_id):
             raise ForbiddenException()
 
-    new_limits = await service.set_limits(card=card, company=card.company, limits=limits)
+    new_limits = await service.set_limits(card=card, limits=limits)
     return new_limits

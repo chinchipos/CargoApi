@@ -6,7 +6,7 @@ from src.database.models.card_limit import Unit, LimitPeriod
 from src.database.models.goods_category import GoodsCategory
 from src.schemas.base import BaseSchema
 from src.schemas.goods import InnerGoodsGroupReadSchema
-from src.schemas.validators import UnitNameByValue
+from src.schemas.validators import UnitNameByValue, LimitPeriodNameByValue
 
 
 class GoodsGroupSchema(BaseSchema):
@@ -40,10 +40,9 @@ class CardLimitParamsSchema(BaseSchema):
 
 
 class CardLimitCreateSchema(BaseSchema):
-    card_id: Annotated[str, Field(description="UUID топливной карты")]
     value: Annotated[int, Field(description="Значение лимита", examples=["57000"])]
-    unit: Annotated[Unit, Field(description="Единицы измерения")]
-    period: Annotated[LimitPeriod, Field(description="Период")]
+    unit: Annotated[UnitNameByValue, Field(description="Единицы измерения")]
+    period: Annotated[LimitPeriodNameByValue, Field(description="Период")]
     inner_goods_group_id: Annotated[str | None, Field(description="UUID лимита")] = None
     inner_goods_category: Annotated[GoodsCategory | None, Field(description="UUID лимита")] = None
 

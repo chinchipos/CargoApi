@@ -56,9 +56,9 @@ class CardService:
             if balance.scheme == ContractScheme.OVERBOUGHT:
                 return calc_available_balance(
                     current_balance=balance.balance,
-                    min_balance=balance.company.min_balance,
-                    overdraft_on=balance.company.overdraft_on,
-                    overdraft_sum=balance.company.overdraft_sum
+                    min_balance=company.min_balance,
+                    overdraft_on=company.overdraft_on,
+                    overdraft_sum=company.overdraft_sum
                 )
 
     async def edit(self, card_id: str, card_edit_schema: CardEditSchema, systems: List[str]) -> CardOrm:
@@ -147,14 +147,15 @@ class CardService:
                         company = await company_repository.get_company(new_company_id)
                         company_available_balance = self.available_balance(company)
 
-                        gpn_cards_bind_company.delay(
-                            card_ids=[card.id],
-                            personal_account=card.company.personal_account,
-                            company_available_balance=company_available_balance
-                        )
+                        # gpn_cards_bind_company.delay(
+                        #     card_ids=[card.id],
+                        #     personal_account=card.company.personal_account,
+                        #     company_available_balance=company_available_balance
+                        # )
 
                     else:
-                        gpn_cards_unbind_company.delay([card.id])
+                        # gpn_cards_unbind_company.delay([card.id])
+                        pass
 
                 break
 
@@ -437,7 +438,7 @@ class CardService:
         limit_params = CardLimitParamsSchema(**limit_params_data)
         return limit_params
 
-    async def set_limits(self, card: CardOrm, company: CompanyOrm, limits: List[CardLimitCreateSchema]) -> List[CardLimitOrm]:
+    async def set_limits(self, card: CardOrm, limits: List[CardLimitCreateSchema]) -> List[CardLimitOrm]:
         # Оптимизируем полученные лимиты - убираем избыточные и дублирующиеся
         received_limits: List[CardLimitCreateSchema] = []
         while len(limits) > 0:
@@ -462,6 +463,8 @@ class CardService:
             limits.remove(limit)
 
         # Получаем доступный баланс организации
+        company_repository = CompanyRepository(session=self.repository.session, user=self.repository.user)
+        company = await company_repository.get_company(card.company_id)
         company_available_balance = self.available_balance(company)
 
         # Все рублевые лимиты не должны превышать доступный баланс организации

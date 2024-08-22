@@ -4,7 +4,7 @@ from typing import Annotated
 from pydantic import BeforeValidator, Field
 
 from src.database.models.balance import BalanceOrm
-from src.database.models.card_limit import Unit
+from src.database.models.card_limit import Unit, LimitPeriod
 from src.schemas.base import BaseSchema
 
 
@@ -64,15 +64,26 @@ def positive_to_negative(value: float | int | str | None) -> float | int | str |
 PositiveToNegative = Annotated[float | int | None, BeforeValidator(positive_to_negative)]
 
 
-def unit_name_by_value(unit: Unit | None) -> str | None:
-    if unit.value == Unit.ITEMS.value:
-        return unit.name
+def unit_name_by_value(unit: str | None) -> str | None:
+    if unit == Unit.ITEMS.value:
+        return Unit.ITEMS.name
 
-    elif unit.value == Unit.LITERS.value:
-        return unit.name
+    elif unit == Unit.LITERS.value:
+        return Unit.LITERS.name
 
-    elif unit.value == Unit.RUB.value:
-        return unit.name
+    elif unit == Unit.RUB.value:
+        return Unit.RUB.name
 
 
 UnitNameByValue = Annotated[str | None, BeforeValidator(unit_name_by_value)]
+
+
+def limit_period_name_by_value(period: str | None) -> str | None:
+    if period == LimitPeriod.DAY.value:
+        return LimitPeriod.DAY.name
+
+    elif period == LimitPeriod.MONTH.value:
+        return LimitPeriod.MONTH.name
+
+
+LimitPeriodNameByValue = Annotated[str | None, BeforeValidator(limit_period_name_by_value)]
