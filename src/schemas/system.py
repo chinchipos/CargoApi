@@ -50,7 +50,6 @@ class SystemEditSchema(BaseSchema):
 class SystemReadMinimumSchema(BaseSchema):
     id: id_
     full_name: full_name_
-    limits_on: limits_on_
 
 
 class SystemReadSchema(BaseSchema):
