@@ -27,7 +27,9 @@ tariff_id_ = Annotated[str, Field(description="UUID тарифа",  examples=["e
 inner_category_ = Annotated[GoodsCategory | None, Field(
     description="Категория товаров в нашей системе", examples=["Топливо"])]
 
-discount_fee_percent_ = Annotated[float, Field(description="Скидка/наценка",  examples=[-1.5])]
+discount_fee_ = Annotated[float, Field(description="Скидка/наценка",  examples=[-1.5])]
+
+discount_fee_franchisee_ = Annotated[float, Field(description="Скидка/наценка для фрашчайзи",  examples=[5.0])]
 
 begin_time_ = Annotated[datetime, Field(description="Дата создания (начала действия)", examples=["2023-05-17"])]
 
@@ -61,7 +63,8 @@ class TariffNewReadSchema(BaseSchema):
     inner_goods_group: Annotated[InnerGoodsGroupReadSchema | None, Field(description="Категория продуктов в нашей системе")]
     inner_goods_category: inner_category_
     azs: Annotated[AzsReadMinSchema | None, Field(description="АЗС")]
-    discount_fee_percent: discount_fee_percent_
+    discount_fee: discount_fee_
+    discount_fee_franchisee: discount_fee_franchisee_
     begin_time: begin_time_
     end_time: end_time_
 

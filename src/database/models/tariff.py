@@ -161,13 +161,6 @@ class TariffNewOrm(Base):
         lazy="noload"
     )
 
-    discount_fee_percent: Mapped[float] = mapped_column(
-        sa.Numeric(4, 2, asdecimal=False),
-        nullable=False,
-        server_default=sa.text("0"),
-        comment="Процент скидки/наценки"
-    )
-
     discount_fee: Mapped[float] = mapped_column(
         sa.Numeric(4, 2, asdecimal=False),
         nullable=False,
