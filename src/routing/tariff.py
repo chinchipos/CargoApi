@@ -57,8 +57,6 @@ async def get_tariffs_new(
         raise ForbiddenException()
 
     tariffs = await service.get_tariffs_new()
-    print('YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY')
-    print(tariffs)
     return tariffs
 
 
