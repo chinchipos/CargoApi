@@ -168,6 +168,20 @@ class TariffNewOrm(Base):
         comment="Процент скидки/наценки"
     )
 
+    discount_fee: Mapped[float] = mapped_column(
+        sa.Numeric(4, 2, asdecimal=False),
+        nullable=False,
+        server_default=sa.text("0"),
+        comment="Процент скидки/наценки"
+    )
+
+    discount_fee_franchisee: Mapped[float] = mapped_column(
+        sa.Numeric(4, 2, asdecimal=False),
+        nullable=False,
+        server_default=sa.text("0"),
+        comment="Процент скидки/наценки для фрашчайзи"
+    )
+
     begin_time: Mapped[datetime] = mapped_column(
         sa.DateTime,
         nullable=False,
