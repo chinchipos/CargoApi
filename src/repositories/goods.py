@@ -1,10 +1,10 @@
-from typing import List
+from typing import List, Dict, Any
 
 from sqlalchemy import select as sa_select, nulls_first
 from sqlalchemy.orm import joinedload, selectinload
 
 from src.database.models import OuterGoodsGroupOrm, InnerGoodsGroupOrm
-from src.database.models.goods_category import OuterGoodsCategoryOrm
+from src.database.models.goods_category import OuterGoodsCategoryOrm, GoodsCategory
 from src.database.models.goods import OuterGoodsOrm, InnerGoodsOrm
 from src.repositories.base import BaseRepository
 
@@ -93,3 +93,16 @@ class GoodsRepository(BaseRepository):
         )
         groups = await self.select_all(stmt)
         return groups
+
+    async def get_categories_dictionary(self) -> List[Dict[str, Any]]:
+        inner_groups = await self.get_inner_groups()
+
+        categories = [
+            {
+                "id": category.name,
+                "name": category.value,
+                "groups": [group for group in inner_groups if group.inner_category == category]
+            } for category in GoodsCategory
+        ]
+
+        return categories

@@ -1,4 +1,3 @@
-import math
 from typing import List
 
 from src.celery_app.gpn.tasks import gpn_cards_bind_company, gpn_cards_unbind_company, gpn_set_card_state, \
@@ -7,7 +6,6 @@ from src.celery_app.khnp.tasks import khnp_set_card_state
 from src.database.models import CompanyOrm
 from src.database.models.card import CardOrm, BlockingCardReason
 from src.database.models.card_limit import Unit, LimitPeriod, CardLimitOrm
-from src.database.models.goods_category import GoodsCategory
 from src.database.models.system import CardSystemOrm
 from src.repositories.card import CardRepository
 from src.repositories.company import CompanyRepository
@@ -405,16 +403,9 @@ class CardService:
     async def get_limit_params(self) -> CardLimitParamsSchema:
         # Получаем список групп продуктов нашей системы
         goods_repository = GoodsRepository(session=self.repository.session, user=self.repository.user)
-        inner_groups = await goods_repository.get_inner_groups()
 
         # Формируем справочник "Категория -> Продукты"
-        categories = [
-            {
-                "id": category.name,
-                "name": category.value,
-                "groups": [group for group in inner_groups if group.inner_category == category]
-            } for category in GoodsCategory
-        ]
+        categories = await goods_repository.get_categories_dictionary()
 
         # Формируем справочник единиц измерения
         units = [
@@ -462,7 +453,7 @@ class CardService:
             limits.remove(limit)
 
         # Получаем доступный баланс организации
-        company_repository = CompanyRepository(session=self.repository.session, user=self.repository.user)
+        # company_repository = CompanyRepository(session=self.repository.session, user=self.repository.user)
         # company = await company_repository.get_company(card.company_id)
         # company_available_balance = self.available_balance(company)
 

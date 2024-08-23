@@ -4,12 +4,12 @@ from typing import Any, List
 from fastapi import APIRouter, Depends
 
 from src.depends import get_service_tariff
-from src.schemas.common import SuccessSchema
-from src.schemas.tariff import TariffReadSchema, TariffCreateSchema, TariffEditSchema, TariffPolicyReadSchema
-from src.services.tariff import TariffService
-from src.utils import enums
 from src.descriptions.tariff import delete_tariff_description, get_tariffs_description, edit_tariff_description, \
     create_tariff_description, tariff_tag_description
+from src.schemas.common import SuccessSchema
+from src.schemas.tariff import TariffReadSchema, TariffCreateSchema, TariffEditSchema, TariffPoliciesReadSchema
+from src.services.tariff import TariffService
+from src.utils import enums
 from src.utils.exceptions import ForbiddenException
 from src.utils.schemas import MessageSchema
 
@@ -44,11 +44,12 @@ async def get_tariffs(
     path="/tariff/new/all",
     tags=["tariff"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
-    response_model = List[TariffPolicyReadSchema],
+    response_model = TariffPoliciesReadSchema,
     summary = 'Получение списка тарифов',
     description = get_tariffs_description
 )
 async def get_tariffs_new(
+    with_dictionaries: bool = False,
     service: TariffService = Depends(get_service_tariff)
 ):
     # Проверка прав доступа. Получить список тарифов могут только сотрудники ПроАвто
@@ -56,8 +57,8 @@ async def get_tariffs_new(
     if service.repository.user.role.name not in major_roles:
         raise ForbiddenException()
 
-    tariffs = await service.get_tariffs_new()
-    return tariffs
+    tariff_polices = await service.get_tariff_polices(with_dictionaries=with_dictionaries)
+    return tariff_polices
 
 
 @router.post(

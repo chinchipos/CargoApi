@@ -1,6 +1,9 @@
-from typing import List
+from typing import List, Dict, Any
 
 from src.database.models.tariff import TariffOrm, TariffPolicyOrm
+from src.repositories.azs import AzsRepository
+from src.repositories.goods import GoodsRepository
+from src.repositories.system import SystemRepository
 from src.repositories.tariff import TariffRepository
 from src.schemas.tariff import TariffCreateSchema, TariffReadSchema, TariffEditSchema
 from src.utils.exceptions import BadRequestException
@@ -39,9 +42,36 @@ class TariffService:
         tariffs = await self.repository.get_tariffs()
         return tariffs
 
-    async def get_tariffs_new(self) -> List[TariffPolicyOrm]:
-        tariffs = await self.repository.get_tariff_polices()
-        return tariffs
+    async def get_tariff_polices(self, with_dictionaries: bool) -> Dict[str, Any]:
+        # Тарифные политики
+        tariff_polices = await self.repository.get_tariff_polices()
+
+        # Системы
+        if with_dictionaries:
+            system_repository = SystemRepository(session=self.repository.session, user=self.repository.user)
+            systems = await system_repository.get_systems()
+
+            # АЗС
+            azs_repository = AzsRepository(session=self.repository.session, user=self.repository.user)
+            stations = await azs_repository.get_stations()
+
+            # Формируем справочник "Категория -> Продукты"
+            goods_repository = GoodsRepository(session=self.repository.session, user=self.repository.user)
+            categories = await goods_repository.get_categories_dictionary()
+
+        else:
+            systems = None
+            stations = None
+            categories = None
+
+        data = {
+            "polices": tariff_polices,
+            "systems": systems,
+            "azs": stations,
+            "goods_categories": categories,
+        }
+
+        return data
 
     async def delete(self, tariff_id: str) -> None:
         await self.repository.delete_object(TariffOrm, tariff_id)

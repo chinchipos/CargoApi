@@ -6,6 +6,7 @@ from pydantic import Field
 from src.database.models.goods_category import GoodsCategory
 from src.schemas.azs import AzsReadMinSchema
 from src.schemas.base import BaseSchema
+from src.schemas.card_limit import GoodsCategorySchema
 from src.schemas.goods import InnerGoodsGroupReadSchema
 from src.schemas.system import SystemReadMinimumSchema
 
@@ -59,8 +60,9 @@ class TariffReadSchema(BaseSchema):
 
 class TariffNewReadSchema(BaseSchema):
     id: tariff_id_
-    system: Annotated[SystemReadMinimumSchema , Field(description="Система")]
-    inner_goods_group: Annotated[InnerGoodsGroupReadSchema | None, Field(description="Категория продуктов в нашей системе")]
+    system: Annotated[SystemReadMinimumSchema, Field(description="Система")]
+    inner_goods_group: Annotated[InnerGoodsGroupReadSchema | None, Field(
+        description="Категория продуктов в нашей системе")]
     inner_goods_category: inner_category_
     azs: Annotated[AzsReadMinSchema | None, Field(description="АЗС")]
     discount_fee: discount_fee_
@@ -74,3 +76,11 @@ class TariffPolicyReadSchema(BaseSchema):
     name: policy_name_
     is_active: policy_is_active_
     tariffs: Annotated[List[TariffNewReadSchema], Field(description="Тариф")]
+
+
+class TariffPoliciesReadSchema(BaseSchema):
+    polices: Annotated[List[TariffPolicyReadSchema], Field(description="Тарифные политики")]
+    systems: Annotated[List[SystemReadMinimumSchema] | None, Field(description="Справочник систем")] = None
+    azs: Annotated[List[AzsReadMinSchema] | None, Field(description="Справочник АЗС")] = None
+    goods_categories: Annotated[List[GoodsCategorySchema] | None, Field(
+        description="Справочник категорий продуктов")] = None
