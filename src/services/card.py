@@ -450,7 +450,6 @@ class CardService:
                         and limit.period == unique_limit.period and limit.unit == unique_limit.unit:
 
                     found = True
-
                     # Сравниваем суммы. Оставляем только одну из записей.
                     if limit.value < unique_limit.value:
                         unique_limit.value = limit.value
@@ -464,36 +463,14 @@ class CardService:
 
         # Получаем доступный баланс организации
         company_repository = CompanyRepository(session=self.repository.session, user=self.repository.user)
-        company = await company_repository.get_company(card.company_id)
-        company_available_balance = self.available_balance(company)
+        # company = await company_repository.get_company(card.company_id)
+        # company_available_balance = self.available_balance(company)
 
         # Все рублевые лимиты не должны превышать доступный баланс организации
-        for limit in received_limits:
-            if limit.value > company_available_balance:
-                limit.value = int(math.floor(company_available_balance))
-
-        """
-        # Сравниваем полученные лимиты с существующими
-        # Одинаковые убираем из обоих списков
-        i = 0
-        while i < len(received_limits):
-            found = False
-            received_limit = received_limits[i]
-            for existing_limit in existing_limits:
-                if received_limit.inner_goods_category == existing_limit.inner_goods_category \
-                        and received_limit.inner_goods_group_id == existing_limit.inner_goods_group_id \
-                        and received_limit.period == existing_limit.period \
-                        and received_limit.unit == existing_limit.unit \
-                        and received_limit.value == existing_limit.value:
-
-                    found = True
-                    received_limits.remove(received_limit)
-                    existing_limits.remove(existing_limit)
-                    break
-
-            if not found:
-                i += 1                
-        """
+        # for limit in received_limits:
+        #     print(limit.value)
+        #     if limit.value > company_available_balance:
+        #         limit.value = int(math.floor(company_available_balance))
 
         # Получаем действующие лимиты
         limits_to_delete = await self.repository.get_limits(card_id=card.id)
@@ -534,3 +511,6 @@ class CardService:
 
         return new_limits
 
+    async def get_limits(self, card_id: str) -> List[CardLimitOrm]:
+        limits = await self.repository.get_limits(card_id=card_id)
+        return limits

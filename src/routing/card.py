@@ -302,3 +302,37 @@ async def set_limits(
 
     new_limits = await service.set_limits(card=card, limits=limits)
     return new_limits
+
+
+@router.get(
+    path="/card/{id}/get-limits",
+    tags=["card"],
+    responses={400: {'model': MessageSchema, "description": "Bad request"}},
+    response_model=List[CardLimitReadSchema],
+    summary='Получение лимитов по карте',
+    description='Получение лимитов по карте'
+)
+async def get_limits(
+        id: uuid.UUID,
+        service: CardService = Depends(get_service_card)
+):
+    id = str(id)
+    card = await service.get_card(id)
+    # Проверка прав доступа.
+    # Суперадмин имеет права на все карты.
+    # Менеджер ПроАВТО имеет права на карты в отношении администрируемых им организаций.
+    # Администратор компанииимеет права только по своей организации.
+    # У остальных ролей нет прав
+    if service.repository.user.role.name == enums.Role.CARGO_SUPER_ADMIN.name:
+        pass
+
+    elif service.repository.user.role.name == enums.Role.CARGO_MANAGER.name:
+        if not service.repository.user.is_admin_for_company(card.company_id):
+            raise ForbiddenException()
+
+    elif service.repository.user.role.name == enums.Role.COMPANY_ADMIN.name:
+        if not service.repository.user.is_worker_of_company(card.company_id):
+            raise ForbiddenException()
+
+    limits = await service.get_limits(card_id=card.id)
+    return limits

@@ -68,6 +68,8 @@ limit_volume_ = Annotated[
     int | None,
     Field(description="Лимит (рубли): 0 <= x <= 10000", examples=[800], ge=0, le=10000)]
 
+limits_count_ = Annotated[int | None, Field(description="Количество установленных лимитов", examples=[3])]
+
 
 class CardEditSchema(BaseSchema):
     card_number: card_number_ = None
@@ -108,6 +110,7 @@ class CardReadSchema(BaseSchema):
     limit_sum: limit_sum_
     limit_volume: limit_volume_
     systems: systems_ = []
+    limits_count: limits_count_ = 0
 
 
 class BulkBindSchema(BaseSchema):

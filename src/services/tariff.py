@@ -1,6 +1,6 @@
 from typing import List
 
-from src.database.models.tariff import TariffOrm
+from src.database.models.tariff import TariffOrm, TariffPolicyOrm
 from src.repositories.tariff import TariffRepository
 from src.schemas.tariff import TariffCreateSchema, TariffReadSchema, TariffEditSchema
 from src.utils.exceptions import BadRequestException
@@ -37,6 +37,10 @@ class TariffService:
 
     async def get_tariffs(self) -> List[TariffOrm]:
         tariffs = await self.repository.get_tariffs()
+        return tariffs
+
+    async def get_tariffs_new(self) -> List[TariffPolicyOrm]:
+        tariffs = await self.repository.get_tariff_polices()
         return tariffs
 
     async def delete(self, tariff_id: str) -> None:

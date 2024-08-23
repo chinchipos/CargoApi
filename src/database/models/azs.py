@@ -42,7 +42,7 @@ class AzsOrm(Base):
         sa.Boolean,
         nullable=True,
         server_default=sa.sql.false(),
-        comment="АЗС работает"
+        comment="АЗС осуществляет деятельность"
     )
 
     country_code: Mapped[str] = mapped_column(

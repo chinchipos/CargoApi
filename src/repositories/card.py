@@ -84,6 +84,10 @@ class CardRepository(BaseRepository):
                 joinedload(CardOrm.belongs_to_driver)
                 .load_only(UserOrm.id, UserOrm.first_name, UserOrm.last_name)
             )
+            .options(
+                selectinload(CardOrm.limits)
+                .load_only(CardLimitOrm.id)
+            )
             .outerjoin(company_table, company_table.id == CardOrm.company_id)
             .order_by(company_table.name, CardOrm.card_number)
         )
@@ -107,6 +111,9 @@ class CardRepository(BaseRepository):
             )
         # self.statement(stmt)
         cards = await self.select_all(stmt)
+        for card in cards:
+            card.annotate({"limits_count": len(card.limits)})
+
         return cards
 
     async def bind_systems(self, card_id: str, system_ids: List[str]) -> None:
@@ -317,3 +324,11 @@ class CardRepository(BaseRepository):
             stmt = stmt.where(CardLimitOrm.card_id == card_id)
         limits = await self.select_all(stmt)
         return limits
+
+    async def delete_card_limits(self, card_id: str) -> None:
+        stmt = (
+            sa_delete(CardLimitOrm)
+            .where(CardLimitOrm.card_id == card_id)
+        )
+        await self.session.execute(stmt)
+        await self.session.commit()

@@ -2,11 +2,12 @@ from datetime import date
 from typing import List
 
 from sqlalchemy import select as sa_select, and_, or_, null
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, selectinload, joinedload
 
-from src.database.models.tariff import TariffOrm
+from src.database.models import SystemOrm, AzsOrm
 from src.database.models.balance_system_tariff import BalanceSystemTariffOrm
 from src.database.models.balance_tariff_history import BalanceTariffHistoryOrm
+from src.database.models.tariff import TariffOrm, TariffPolicyOrm, TariffNewOrm
 from src.repositories.base import BaseRepository
 from src.schemas.tariff import TariffCreateSchema
 
@@ -27,6 +28,50 @@ class TariffRepository(BaseRepository):
         )
         tariffs = await self.select_all(stmt)
         return tariffs
+
+    async def get_tariff_polices(self) -> List[TariffPolicyOrm]:
+        stmt = (
+            sa_select(TariffPolicyOrm)
+            .options(
+                selectinload(TariffPolicyOrm.tariffs)
+                .options(
+                    joinedload(TariffNewOrm.system)
+                    .load_only(SystemOrm.id, SystemOrm.full_name)
+                )
+                .options(
+                    joinedload(TariffNewOrm.inner_goods_group)
+                )
+                .options(
+                    joinedload(TariffNewOrm.azs)
+                    .load_only(
+                        AzsOrm.id,
+                        AzsOrm.name,
+                        AzsOrm.code,
+                        AzsOrm.is_active,
+                        AzsOrm.country_code,
+                        AzsOrm.region_code,
+                        AzsOrm.address,
+                        AzsOrm.is_franchisee,
+                        AzsOrm.latitude,
+                        AzsOrm.longitude,
+                    )
+                )
+            )
+            .order_by(TariffPolicyOrm.is_active, TariffPolicyOrm.name)
+        )
+        polices: List[TariffPolicyOrm] = await self.select_all(stmt)
+
+        # Убираем архивные тарифы (не знаю как переделать запрос, поэтому такой костыль)
+        for policy in polices:
+            i = 0
+            while i < len(policy.tariffs):
+                tariff = policy.tariffs[i]
+                if tariff.end_time:
+                    policy.tariffs.remove(tariff)
+                else:
+                    i += 1
+
+        return polices
 
     async def get_tariff_on_date(self, balance_id: str, system_id: str, date_: date) -> TariffOrm:
         # Получаем историю применения тарифов для найденной организации

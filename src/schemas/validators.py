@@ -5,6 +5,7 @@ from pydantic import BeforeValidator, Field
 
 from src.database.models.balance import BalanceOrm
 from src.database.models.card_limit import Unit, LimitPeriod
+from src.database.models.goods_category import GoodsCategory
 from src.schemas.base import BaseSchema
 
 
@@ -64,26 +65,49 @@ def positive_to_negative(value: float | int | str | None) -> float | int | str |
 PositiveToNegative = Annotated[float | int | None, BeforeValidator(positive_to_negative)]
 
 
-def unit_name_by_value(unit: str | None) -> str | None:
-    if unit == Unit.ITEMS.value:
-        return Unit.ITEMS.name
+def unit_by_name(unit: str | None) -> Unit | None:
+    if unit == Unit.ITEMS.name:
+        return Unit.ITEMS
 
-    elif unit == Unit.LITERS.value:
-        return Unit.LITERS.name
+    elif unit == Unit.LITERS.name:
+        return Unit.LITERS
 
-    elif unit == Unit.RUB.value:
-        return Unit.RUB.name
-
-
-UnitNameByValue = Annotated[str | None, BeforeValidator(unit_name_by_value)]
+    elif unit == Unit.RUB.name:
+        return Unit.RUB
 
 
-def limit_period_name_by_value(period: str | None) -> str | None:
-    if period == LimitPeriod.DAY.value:
-        return LimitPeriod.DAY.name
-
-    elif period == LimitPeriod.MONTH.value:
-        return LimitPeriod.MONTH.name
+UnitByName = Annotated[Unit | None, BeforeValidator(unit_by_name)]
 
 
-LimitPeriodNameByValue = Annotated[str | None, BeforeValidator(limit_period_name_by_value)]
+def limit_period_by_name(period: str | None) -> LimitPeriod | None:
+    if period == LimitPeriod.DAY.name:
+        return LimitPeriod.DAY
+
+    elif period == LimitPeriod.MONTH.name:
+        return LimitPeriod.MONTH
+
+
+LimitPeriodByName = Annotated[LimitPeriod | None, BeforeValidator(limit_period_by_name)]
+
+
+def goods_category_by_name(category: str | None) -> GoodsCategory | None:
+    if category == GoodsCategory.FUEL.name:
+        return GoodsCategory.FUEL
+
+    elif category == GoodsCategory.CAFE.name:
+        return GoodsCategory.CAFE
+
+    elif category == GoodsCategory.FOOD.name:
+        return GoodsCategory.FOOD
+
+    elif category == GoodsCategory.NON_FOOD.name:
+        return GoodsCategory.NON_FOOD
+
+    elif category == GoodsCategory.OTHER_SERVICES.name:
+        return GoodsCategory.OTHER_SERVICES
+
+    elif category == GoodsCategory.ROAD_PAYING.name:
+        return GoodsCategory.ROAD_PAYING
+
+
+GoodsCategoryByName = Annotated[GoodsCategory | None, BeforeValidator(goods_category_by_name)]
