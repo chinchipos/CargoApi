@@ -1,5 +1,5 @@
 import uuid
-from typing import Any, List
+from typing import List
 
 from fastapi import APIRouter, Depends
 
@@ -7,7 +7,8 @@ from src.depends import get_service_tariff
 from src.descriptions.tariff import delete_tariff_description, get_tariffs_description, edit_tariff_description, \
     create_tariff_description, tariff_tag_description
 from src.schemas.common import SuccessSchema
-from src.schemas.tariff import TariffReadSchema, TariffCreateSchema, TariffEditSchema, TariffPoliciesReadSchema
+from src.schemas.tariff import TariffReadSchema, TariffEditSchema, TariffPoliciesReadSchema, \
+    TariffNewCreateSchema
 from src.services.tariff import TariffService
 from src.utils import enums
 from src.utils.exceptions import ForbiddenException
@@ -50,6 +51,11 @@ async def get_tariffs(
 )
 async def get_tariffs_new(
     with_dictionaries: bool = False,
+    policy_id: str = None,
+    system_id: str = None,
+    azs_id: str = None,
+    category_id: str = None,
+    group_id: str = None,
     service: TariffService = Depends(get_service_tariff)
 ):
     # Проверка прав доступа. Получить список тарифов могут только сотрудники ПроАвто
@@ -57,28 +63,36 @@ async def get_tariffs_new(
     if service.repository.user.role.name not in major_roles:
         raise ForbiddenException()
 
-    tariff_polices = await service.get_tariff_polices(with_dictionaries=with_dictionaries)
+    filters = {
+        "policy_id": policy_id,
+        "system_id": system_id,
+        "azs_id": azs_id,
+        "category_id": category_id,
+        "group_id": group_id,
+    }
+
+    tariff_polices = await service.get_tariff_polices(with_dictionaries=with_dictionaries, filters=filters)
     return tariff_polices
 
 
 @router.post(
-    path="/tariff/create",
+    path="/tariff/save",
     tags=["tariff"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
-    response_model = TariffReadSchema,
+    response_model = SuccessSchema,
     summary = 'Создание тарифа',
     description = create_tariff_description
 )
-async def create(
-    data: TariffCreateSchema,
+async def save(
+    data: TariffNewCreateSchema,
     service: TariffService = Depends(get_service_tariff)
-) -> TariffReadSchema:
+):
     # Проверка прав доступа. Создавать системы может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()
 
-    tariff = await service.create(data)
-    return tariff
+    await service.save(data)
+    return {'success': True}
 
 
 @router.put(
@@ -93,7 +107,7 @@ async def edit(
     id: uuid.UUID,
     data: TariffEditSchema,
     service: TariffService = Depends(get_service_tariff)
-) -> TariffReadSchema:
+):
     id = str(id)
     # Проверка прав доступа. Редактировать тарифы может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
@@ -114,7 +128,7 @@ async def edit(
 async def delete(
     id: uuid.UUID,
     service: TariffService = Depends(get_service_tariff)
-) -> dict[str, Any]:
+):
     id = str(id)
     # Проверка прав доступа. Удалять может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:

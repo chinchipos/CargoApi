@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Dict
 
-from pydantic import BeforeValidator, Field
+from pydantic import BeforeValidator, Field, AfterValidator
 
 from src.database.models.balance import BalanceOrm
 from src.database.models.card_limit import Unit, LimitPeriod
@@ -111,3 +111,11 @@ def goods_category_by_name(category: str | None) -> GoodsCategory | None:
 
 
 GoodsCategoryByName = Annotated[GoodsCategory | None, BeforeValidator(goods_category_by_name)]
+
+
+def goods_category_to_dict(category: GoodsCategory | None) -> Dict[str, str] | None:
+    if category:
+        return {"id": category.name, "name": category.value}
+
+
+GoodsCategoryToDict = Annotated[GoodsCategory | Dict[str, str] | None, AfterValidator(goods_category_to_dict)]

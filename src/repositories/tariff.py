@@ -1,12 +1,13 @@
 from datetime import date
-from typing import List
+from typing import List, Dict
 
 from sqlalchemy import select as sa_select, and_, or_, null
-from sqlalchemy.orm import aliased, selectinload, joinedload
+from sqlalchemy.orm import aliased, joinedload, contains_eager
 
 from src.database.models import SystemOrm, AzsOrm
 from src.database.models.balance_system_tariff import BalanceSystemTariffOrm
 from src.database.models.balance_tariff_history import BalanceTariffHistoryOrm
+from src.database.models.goods_category import GoodsCategory
 from src.database.models.tariff import TariffOrm, TariffPolicyOrm, TariffNewOrm
 from src.repositories.base import BaseRepository
 from src.schemas.tariff import TariffCreateSchema
@@ -29,11 +30,26 @@ class TariffRepository(BaseRepository):
         tariffs = await self.select_all(stmt)
         return tariffs
 
-    async def get_tariff_polices(self) -> List[TariffPolicyOrm]:
+    async def get_tariff_polices_without_tariffs(self) -> List[TariffPolicyOrm]:
         stmt = (
             sa_select(TariffPolicyOrm)
+            .order_by(TariffPolicyOrm.is_active, TariffPolicyOrm.name)
+        )
+
+        polices = await self.select_all(stmt)
+        return polices
+
+    async def get_tariff_polices(self, filters: Dict[str, str] = None) -> List[TariffPolicyOrm]:
+        if filters is None:
+            filters = {}
+
+        stmt = (
+            sa_select(TariffPolicyOrm)
+            .outerjoin(TariffNewOrm)
             .options(
-                selectinload(TariffPolicyOrm.tariffs)
+                contains_eager(TariffPolicyOrm.tariffs)
+                # .options(
+                #     selectinload(TariffPolicyOrm.tariffs)
                 .options(
                     joinedload(TariffNewOrm.system)
                     .load_only(SystemOrm.id, SystemOrm.full_name)
@@ -57,20 +73,31 @@ class TariffRepository(BaseRepository):
                     )
                 )
             )
-            .order_by(TariffPolicyOrm.is_active, TariffPolicyOrm.name)
+            .where(TariffNewOrm.end_time.is_(null()))
+            .order_by(
+                TariffPolicyOrm.is_active,
+                TariffPolicyOrm.name,
+                TariffNewOrm.system_id,
+                TariffNewOrm.inner_goods_category
+            )
         )
+
+        if filters.get("policy_id", None):
+            stmt = stmt.where(TariffPolicyOrm.id == filters["policy_id"])
+
+        if filters.get("system_id", None):
+            stmt = stmt.where(TariffNewOrm.system_id == filters["system_id"])
+
+        if filters.get("azs_id", None):
+            stmt = stmt.where(TariffNewOrm.azs_id == filters["azs_id"])
+
+        if filters.get("category_id", None):
+            stmt = stmt.where(TariffNewOrm.inner_goods_category == filters["category_id"])
+
+        if filters.get("group_id", None):
+            stmt = stmt.where(TariffNewOrm.inner_goods_group_id == filters["group_id"])
+
         polices: List[TariffPolicyOrm] = await self.select_all(stmt)
-
-        # Убираем архивные тарифы (не знаю как переделать запрос, поэтому такой костыль)
-        for policy in polices:
-            i = 0
-            while i < len(policy.tariffs):
-                tariff = policy.tariffs[i]
-                if tariff.end_time:
-                    policy.tariffs.remove(tariff)
-                else:
-                    i += 1
-
         return polices
 
     async def get_tariff_on_date(self, balance_id: str, system_id: str, date_: date) -> TariffOrm:
@@ -102,4 +129,39 @@ class TariffRepository(BaseRepository):
             )
             tariff = await self.select_first(stmt)
 
+        return tariff
+
+    async def create_tariff_policy(self, policy_name: str, is_active: bool = True) -> TariffPolicyOrm:
+        policy = TariffPolicyOrm(name=policy_name, is_active=is_active)
+        await self.save_object(policy)
+        return policy
+
+    async def get_tariff_policy(self, policy_id: str, with_arch_tariffs: bool = False) -> TariffPolicyOrm:
+        stmt = (
+            sa_select(TariffPolicyOrm)
+            .outerjoin(TariffNewOrm)
+            .options(
+                contains_eager(TariffPolicyOrm.tariffs)
+            )
+            .where(TariffPolicyOrm.id == policy_id)
+        )
+        if not with_arch_tariffs:
+            stmt = stmt.where(TariffNewOrm.end_time.is_(null()))
+
+        policy = await self.select_first(stmt)
+        return policy
+
+    async def create_tariff(self, policy_id: str, system_id: str, azs_id: str, goods_group_id: str,
+                            goods_category: GoodsCategory,  discount_fee: float, discount_fee_franchisee: float) \
+            -> TariffNewOrm:
+        tariff = TariffNewOrm(
+            policy_id=policy_id,
+            system_id=system_id,
+            azs_id=azs_id,
+            inner_goods_group_id=goods_group_id,
+            inner_goods_category=goods_category,
+            discount_fee=discount_fee,
+            discount_fee_franchisee=discount_fee_franchisee
+        )
+        await self.save_object(tariff)
         return tariff

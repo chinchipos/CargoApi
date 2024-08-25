@@ -69,6 +69,7 @@ class TariffPolicyOrm(Base):
     name: Mapped[str] = mapped_column(
         sa.String(255),
         nullable=False,
+        unique=True,
         comment="Наименование"
     )
 
@@ -97,7 +98,9 @@ class TariffNewOrm(Base):
             "inner_goods_group_id",
             "inner_goods_category",
             "azs_id",
-            "end_time"
+            "end_time",
+            name="complex_uniq1",
+            postgresql_nulls_not_distinct=True
         ),
         {'comment': 'Тарифы'}
     )
@@ -106,12 +109,14 @@ class TariffNewOrm(Base):
     policy_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.tariff_policy.id"),
         nullable=False,
+        init=True,
         comment="Тарифная политика"
     )
 
     # Тарифная политика
     policy: Mapped["TariffPolicyOrm"] = relationship(
         back_populates="tariffs",
+        init=False,
         lazy="noload"
     )
 
@@ -119,12 +124,14 @@ class TariffNewOrm(Base):
     system_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.system.id"),
         nullable=False,
+        init=True,
         comment="Система"
     )
 
     # Система
     system: Mapped["SystemOrm"] = relationship(
         back_populates="tariffs",
+        init=False,
         lazy="noload"
     )
 
@@ -132,19 +139,21 @@ class TariffNewOrm(Base):
     inner_goods_group_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.inner_goods_group.id"),
         nullable=True,
+        init=True,
         comment="Группа продуктов в нашей системе"
     )
 
     # Группа продуктов
     inner_goods_group: Mapped["InnerGoodsGroupOrm"] = relationship(
         back_populates="tariffs",
+        init=False,
         lazy="noload"
     )
 
     # Категория продуктов
     inner_goods_category: Mapped[GoodsCategory] = mapped_column(
         nullable=True,
-        init=False,
+        init=True,
         comment="Категория продуктов в нашей системе"
     )
 
@@ -152,12 +161,14 @@ class TariffNewOrm(Base):
     azs_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.azs.id"),
         nullable=True,
+        init=True,
         comment="АЗС"
     )
 
     # АЗС
     azs: Mapped["AzsOrm"] = relationship(
         back_populates="tariffs",
+        init=False,
         lazy="noload"
     )
 
@@ -165,6 +176,7 @@ class TariffNewOrm(Base):
         sa.Numeric(4, 2, asdecimal=False),
         nullable=False,
         server_default=sa.text("0"),
+        init=True,
         comment="Процент скидки/наценки"
     )
 
@@ -172,6 +184,7 @@ class TariffNewOrm(Base):
         sa.Numeric(4, 2, asdecimal=False),
         nullable=False,
         server_default=sa.text("0"),
+        init=True,
         comment="Процент скидки/наценки для фрашчайзи"
     )
 
@@ -179,11 +192,13 @@ class TariffNewOrm(Base):
         sa.DateTime,
         nullable=False,
         server_default=sa.text("NOW()"),
+        init=False,
         comment="Время начала действия"
     )
 
     end_time: Mapped[datetime] = mapped_column(
         sa.DateTime,
         nullable=True,
+        init=False,
         comment="Время прекращения действия"
     )

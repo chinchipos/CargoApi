@@ -572,3 +572,16 @@ class GPNApi:
         self.logger.info(f"Установлен лимит по карте {new_limit}")
         time.sleep(0.4)
         return res["data"][0]
+
+    def get_stations(self) -> List[Dict[str, Any]]:
+        response = requests.get(
+            url=self.endpoint(self.api_v1, "AZS", params={"page": 1, "onpage": 3}),
+            headers=self.headers | {"session_id": self.api_session_id}
+        )
+        res = response.json()
+
+        if res["status"]["code"] != 200:
+            raise CeleryError(message=f"Ошибка при получении списка АЗС. Ответ сервера API: "
+                                      f"{res['status']['errors']}.")
+
+        return res["data"]["result"]

@@ -199,6 +199,26 @@ def gpn_create_card_limits(card_external_id: str, limit_ids: List[str]) -> None:
     asyncio.run(create_card_limits_fn(card_external_id, limit_ids))
 
 
+async def gpn_import_azs_fn() -> None:
+    sessionmanager = DatabaseSessionManager()
+    sessionmanager.init(PROD_URI)
+
+    async with sessionmanager.session() as session:
+        gpn_controller = GPNController(session)
+        await gpn_controller.import_azs()
+
+    # Закрываем соединение с БД
+    await sessionmanager.close()
+
+
+@celery.task(name="GPN_IMPORT_AZS")
+def gpn_import_azs() -> None:
+    if sys.platform == 'win32':
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+    asyncio.run(gpn_import_azs_fn())
+
+
 @celery.task(name="GPN_TEST")
 def gpn_test() -> None:
     api = GPNApi()

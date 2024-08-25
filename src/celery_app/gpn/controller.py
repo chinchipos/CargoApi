@@ -428,7 +428,7 @@ class GPNController(BaseRepository):
         j = 1
         companies_amount = len(balances)
         for balance in balances:
-            print(f"Организация {j} из {companies_amount}")
+            self.logger.info(f"Организация {j} из {companies_amount}")
             j += 1
 
             # if balance.company.personal_account == "9229609":
@@ -886,4 +886,8 @@ class GPNController(BaseRepository):
             await self.save_object(limit["obj"])
 
         # В ГПН изменяем лимиты по группе карт
+
+    async def import_azs(self) -> None:
+        data = self.api.get_stations()
+        print(data)
 
