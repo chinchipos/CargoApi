@@ -1,6 +1,5 @@
-from datetime import time
 from enum import Enum
-from typing import List, Any
+from typing import Any
 
 import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -61,16 +60,17 @@ class AzsOrm(Base):
         comment="АЗС осуществляет деятельность"
     )
 
-    country_code: Mapped[str] = mapped_column(
-        sa.String(3),
+    # Система
+    region_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.region.id"),
         nullable=True,
-        comment="Код страны"
+        comment="Регион"
     )
 
-    region_code: Mapped[str] = mapped_column(
-        sa.String(10),
-        nullable=True,
-        comment="Код региона"
+    # Система
+    region: Mapped["RegionOrm"] = relationship(
+        back_populates="azs_stations",
+        lazy="noload"
     )
 
     address: Mapped[dict[str, Any]] = mapped_column(

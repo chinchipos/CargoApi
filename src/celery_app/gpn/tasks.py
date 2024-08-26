@@ -222,6 +222,8 @@ def gpn_import_azs() -> None:
 @celery.task(name="GPN_TEST")
 def gpn_test() -> None:
     api = GPNApi()
+    regions = api.get_regions()
+    print(regions)
     # api.set_card_group_limits([('5287241', 1500000)])
     # api.get_transactions(5)
     # product_types = api.get_product_types()

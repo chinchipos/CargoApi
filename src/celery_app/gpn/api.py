@@ -602,3 +602,11 @@ class GPNApi:
                                       f"{res['status']['errors']}.")
 
         return res["data"]["result"]
+
+    def get_countries(self) -> List[Dict[str, Any]]:
+        countries = self.get_dictionary(dictionary_name="Country")
+        return countries
+
+    def get_regions(self) -> List[Dict[str, Any]]:
+        regions = self.get_dictionary(dictionary_name="Region")
+        return regions

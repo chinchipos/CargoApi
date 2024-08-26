@@ -4,7 +4,7 @@ from typing import List, Dict
 from sqlalchemy import select as sa_select, and_, or_, null, nullslast
 from sqlalchemy.orm import aliased, joinedload, contains_eager
 
-from src.database.models import SystemOrm
+from src.database.models import SystemOrm, RegionOrm
 from src.database.models.azs import AzsOwnType
 from src.database.models.balance_system_tariff import BalanceSystemTariffOrm
 from src.database.models.balance_tariff_history import BalanceTariffHistoryOrm
@@ -149,3 +149,8 @@ class TariffRepository(BaseRepository):
         )
         await self.save_object(tariff)
         return tariff
+
+    async def get_regions(self) -> List[RegionOrm]:
+        stmt = sa_select(RegionOrm).order_by(RegionOrm.country, RegionOrm.name)
+        regions = await self.select_all(stmt)
+        return regions

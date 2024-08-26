@@ -12,7 +12,7 @@ from src.celery_app.irrelevant_balances import IrrelevantBalances
 from src.celery_app.transaction_helper import get_local_cards, get_local_card, get_tariff_on_date_by_balance, \
     get_current_tariff_by_balance
 from src.config import TZ, PRODUCTION
-from src.database.models import CompanyOrm, CardLimitOrm, AzsOrm
+from src.database.models import CompanyOrm, CardLimitOrm, AzsOrm, RegionOrm
 from src.database.models.azs import AzsOwnType
 from src.database.models.card import CardOrm, BlockingCardReason
 from src.database.models.card_type import CardTypeOrm
@@ -27,6 +27,7 @@ from src.repositories.base import BaseRepository
 from src.repositories.card import CardRepository
 from src.repositories.goods import GoodsRepository
 from src.repositories.system import SystemRepository
+from src.repositories.tariff import TariffRepository
 from src.repositories.transaction import TransactionRepository
 from src.utils.common import calc_available_balance
 from src.utils.enums import ContractScheme, TransactionType
@@ -891,7 +892,50 @@ class GPNController(BaseRepository):
     async def import_azs(self) -> None:
         await self.init_system()
 
+        # Получаем из ГПН справочник стран
+        gpn_countries = self.api.get_countries()
+
+        # Получаем из ГПН справочник регионов
+        gpn_regions = self.api.get_regions()
+
+        # Получаем из БД список регионов
+        tariff_repository = TariffRepository(session=self.session, user=None)
+        regions = await tariff_repository.get_regions()
+        local_region_names = [region.name for region in regions]
+
+        # Формируем список новых регионов для записи в БД
+        region_dataset = {}
+        for region in gpn_regions:
+            if region not in local_region_names:
+                country_name = ""
+                for country in gpn_countries:
+                    if country["id"] == region["country_id"]:
+                        country_name = country["value"]
+                        break
+
+                region_dataset[region["name"]] = country_name
+
+        region_dataset = [{"name": region_name, "country": country} for region_name, country in region_dataset.items()]
+        await self.bulk_insert_or_update(RegionOrm, region_dataset, "name")
+
+        # Получаем из БД список регионов
+        tariff_repository = TariffRepository(session=self.session, user=None)
+        local_regions = await tariff_repository.get_regions()
+        local_region_id_by_name = {region.name: region.id for region in local_regions}
+
+        # Получаем из ГПН список АЗС
         stations = self.api.get_stations()
+
+        def get_local_region(region_code: str) -> str | None:
+            # Из справочника ГПН получаем имя региона
+            region_name = ""
+            for gpn_region in gpn_regions:
+                if gpn_region["id"] == region_code:
+                    region_name = gpn_region["name"]
+                    break
+
+            # Из локального справочника получаем ID региона
+            return local_region_id_by_name.get(region_name, None)
 
         def get_own_type(system_own_type: str) -> AzsOwnType:
             if system_own_type.upper() == 'EXT':
@@ -912,6 +956,8 @@ class GPNController(BaseRepository):
         def get_coordinate(coordinate: str) -> float:
             if coordinate.startswith("."):
                 return float(coordinate[1:])
+            else:
+                return float(coordinate)
 
         azs_dataset = [
             {
@@ -920,8 +966,7 @@ class GPNController(BaseRepository):
                 "name": azs["contractName"],
                 "code": azs["contractName"],
                 "is_active": True if azs["status"] == "257" else False,
-                "country_code": azs["countryCode"],
-                "region_code": azs["regionCode"],
+                "region_id": get_local_region(azs["regionCode"]),
                 "address": get_address(azs["address"]),
                 "own_type": get_own_type(azs["ownType"]),
                 "latitude": get_coordinate(azs["latitude"]),
