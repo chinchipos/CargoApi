@@ -61,9 +61,10 @@ class TariffRepository(BaseRepository):
             .order_by(
                 TariffPolicyOrm.is_active,
                 TariffPolicyOrm.name,
+                TariffNewOrm.system_id,
                 nullslast(TariffNewOrm.azs_own_type),
-                nullslast(TariffNewOrm.system_id),
-                nullslast(TariffNewOrm.inner_goods_category)
+                nullslast(TariffNewOrm.inner_goods_category),
+                nullslast(TariffNewOrm.inner_goods_group_id)
             )
         )
 
