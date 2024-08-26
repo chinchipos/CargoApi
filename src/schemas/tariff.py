@@ -6,10 +6,11 @@ from pydantic import Field
 from src.database.models.goods_category import GoodsCategory
 from src.schemas.azs import AzsReadMinSchema
 from src.schemas.base import BaseSchema
-from src.schemas.card_limit import GoodsCategorySchema
+from src.schemas.card_limit import GoodsCategorySchema, AzsOwnTypesSchema
 from src.schemas.goods import InnerGoodsGroupReadSchema
 from src.schemas.system import SystemReadMinimumSchema
-from src.schemas.validators import GoodsCategoryByName, EmptyStrToNone, GoodsCategoryToDict
+from src.schemas.validators import GoodsCategoryByName, EmptyStrToNone, GoodsCategoryToDict, AzsOwnTypeToDict, \
+    AzsOwnTypeByName
 
 id_ = Annotated[str, Field(description="UUID тарифа", examples=["c39e5c5c-b980-45eb-a192-585e6823faa7"])]
 
@@ -31,8 +32,6 @@ inner_category_ = Annotated[GoodsCategory | None, Field(
 
 discount_fee_ = Annotated[float, Field(description="Скидка/наценка",  examples=[-1.5])]
 
-discount_fee_franchisee_ = Annotated[float, Field(description="Скидка/наценка для фрашчайзи",  examples=[5.0])]
-
 begin_time_ = Annotated[datetime, Field(description="Дата создания (начала действия)", examples=["2023-05-17"])]
 
 end_time_ = Annotated[datetime | None, Field(description="Дата архивации (прекращения действия)",
@@ -45,10 +44,11 @@ inner_goods_group_id_ = Annotated[EmptyStrToNone, Field(description="UUID гру
 inner_goods_group_ = Annotated[
     InnerGoodsGroupReadSchema | None, Field(description="Группа продуктов в нашей системе")]
 
-azs_id_ = Annotated[EmptyStrToNone, Field(description="UUID АЗС")]
-azs_ = Annotated[AzsReadMinSchema | None, Field(description="АЗС")]
+# azs_id_ = Annotated[EmptyStrToNone, Field(description="UUID АЗС")]
+# azs_ = Annotated[AzsReadMinSchema | None, Field(description="АЗС")]
+azs_own_type_ = Annotated[AzsOwnTypeByName | None, Field(description="Тип АЗС")]
 
-goods_category_ = Annotated[GoodsCategoryByName | None, Field(description="АЗС")]
+goods_category_ = Annotated[GoodsCategoryByName | None, Field(description="Категория продуктов")]
 
 
 class TariffCreateSchema(BaseSchema):
@@ -75,11 +75,10 @@ class TariffNewReadSchema(BaseSchema):
     id: tariff_id_
     system: system_
     inner_goods_group: inner_goods_group_
-    inner_goods_category: Annotated[GoodsCategoryToDict | None, Field(
-        description="Справочник категорий продуктов")]
-    azs: azs_
+    inner_goods_category: Annotated[GoodsCategoryToDict | None, Field(description="Справочник категорий продуктов")]
+    # azs: azs_
+    azs_own_type: Annotated[AzsOwnTypeToDict | None, Field(description="Справочник типов АЗС")]
     discount_fee: discount_fee_
-    discount_fee_franchisee: discount_fee_franchisee_
     begin_time: begin_time_
     end_time: end_time_
 
@@ -94,7 +93,8 @@ class TariffPolicyReadSchema(BaseSchema):
 class TariffDictionariesSchema(BaseSchema):
     polices: Annotated[List[TariffPolicyReadSchema], Field(description="Тарифные политики")]
     systems: Annotated[List[SystemReadMinimumSchema] | None, Field(description="Справочник систем")] = None
-    azs: Annotated[List[AzsReadMinSchema] | None, Field(description="Справочник АЗС")] = None
+    # azs: Annotated[List[AzsReadMinSchema] | None, Field(description="Справочник АЗС")] = None
+    azs_own_types: Annotated[List[AzsOwnTypesSchema] | None, Field(description="Справочник типов АЗС")] = None
     goods_categories: Annotated[List[GoodsCategorySchema] | None, Field(
         description="Справочник категорий продуктов")] = None
 
@@ -104,15 +104,14 @@ class TariffPoliciesReadSchema(BaseSchema):
     dictionaries: Annotated[TariffDictionariesSchema | None, Field(description="Тарифные политики")] = None
 
 
-
 class TariffParamsSchema(BaseSchema):
     tariff_id: tariff_id_ = None
     system_id: system_id_
-    azs_id: azs_id_ = None
+    # azs_id: azs_id_ = None
+    azs_own_type: azs_own_type_ = None
     goods_group_id: inner_goods_group_id_ = None
     goods_category: goods_category_ = None
     discount_fee: discount_fee_
-    discount_fee_franchisee: discount_fee_franchisee_
 
 
 class TariffNewCreateSchema(BaseSchema):

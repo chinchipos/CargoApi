@@ -12,7 +12,8 @@ from src.celery_app.irrelevant_balances import IrrelevantBalances
 from src.celery_app.transaction_helper import get_local_cards, get_local_card, get_tariff_on_date_by_balance, \
     get_current_tariff_by_balance
 from src.config import TZ, PRODUCTION
-from src.database.models import CompanyOrm, CardLimitOrm
+from src.database.models import CompanyOrm, CardLimitOrm, AzsOrm
+from src.database.models.azs import AzsOwnType
 from src.database.models.card import CardOrm, BlockingCardReason
 from src.database.models.card_type import CardTypeOrm
 from src.database.models.goods_category import GoodsCategory
@@ -30,7 +31,7 @@ from src.repositories.transaction import TransactionRepository
 from src.utils.common import calc_available_balance
 from src.utils.enums import ContractScheme, TransactionType
 from src.utils.loggers import get_logger
-
+import json
 
 class GPNController(BaseRepository):
 
@@ -888,6 +889,45 @@ class GPNController(BaseRepository):
         # В ГПН изменяем лимиты по группе карт
 
     async def import_azs(self) -> None:
-        data = self.api.get_stations()
-        print(data)
+        await self.init_system()
 
+        stations = self.api.get_stations()
+
+        def get_own_type(system_own_type: str) -> AzsOwnType:
+            if system_own_type.upper() == 'EXT':
+                return AzsOwnType.PARTNER
+            elif system_own_type.upper() == 'FRAN':
+                return AzsOwnType.PARTNER
+            elif system_own_type.upper() == 'OPTI':
+                return AzsOwnType.OPTI
+            else:
+                return AzsOwnType.OWN
+
+        def get_working_days(system_working_time: Dict[str, Any] | None) -> str | None:
+            return system_working_time if system_working_time else None
+
+        def get_address(system_address: Dict[str, Any] | None) -> str | None:
+            return system_address if system_address else None
+
+        def get_coordinate(coordinate: str) -> float:
+            if coordinate.startswith("."):
+                return float(coordinate[1:])
+
+        azs_dataset = [
+            {
+                "system_id": self.system.id,
+                "external_id": azs["siebelId"],
+                "name": azs["contractName"],
+                "code": azs["contractName"],
+                "is_active": True if azs["status"] == "257" else False,
+                "country_code": azs["countryCode"],
+                "region_code": azs["regionCode"],
+                "address": get_address(azs["address"]),
+                "own_type": get_own_type(azs["ownType"]),
+                "latitude": get_coordinate(azs["latitude"]),
+                "longitude": get_coordinate(azs["longitude"]),
+                "timezone": azs["timeZone"],
+                "working_time": get_working_days(azs["working_time"])
+            } for azs in stations
+        ]
+        await self.bulk_insert_or_update(AzsOrm, azs_dataset, "external_id")

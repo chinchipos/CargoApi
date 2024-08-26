@@ -223,7 +223,7 @@ def gpn_import_azs() -> None:
 def gpn_test() -> None:
     api = GPNApi()
     # api.set_card_group_limits([('5287241', 1500000)])
-    api.get_transactions(5)
+    # api.get_transactions(5)
     # product_types = api.get_product_types()
     # groups = api.get_card_groups()
     # for group in groups:

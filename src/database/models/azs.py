@@ -1,10 +1,19 @@
 from datetime import time
-from typing import List
+from enum import Enum
+from typing import List, Any
 
 import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.types import JSON
 
 from src.database.models.base import Base
+
+
+class AzsOwnType(Enum):
+    OWN = "Собственная"
+    FRANCHISEE = "Франчайзи"
+    OPTI = "ОПТИ"
+    PARTNER = "Партнер"
 
 
 class AzsOrm(Base):
@@ -26,6 +35,13 @@ class AzsOrm(Base):
         lazy="noload"
     )
 
+    external_id: Mapped[str] = mapped_column(
+        sa.String(36),
+        nullable=False,
+        unique=True,
+        comment="Внешний ID"
+    )
+
     name: Mapped[str] = mapped_column(
         sa.String(255),
         nullable=False,
@@ -33,7 +49,7 @@ class AzsOrm(Base):
     )
 
     code: Mapped[str] = mapped_column(
-        sa.String(30),
+        sa.String(50),
         nullable=False,
         comment="Код АЗС"
     )
@@ -57,17 +73,15 @@ class AzsOrm(Base):
         comment="Код региона"
     )
 
-    address: Mapped[str] = mapped_column(
-        sa.String(),
+    address: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
         nullable=False,
         comment="Адрес"
     )
 
-    is_franchisee: Mapped[bool] = mapped_column(
-        sa.Boolean,
+    own_type: Mapped[AzsOwnType] = mapped_column(
         nullable=True,
-        server_default=sa.sql.false(),
-        comment="Франчайзи"
+        comment="Тип собственности по отношению к системе"
     )
 
     latitude: Mapped[float] = mapped_column(
@@ -82,30 +96,19 @@ class AzsOrm(Base):
         comment="Координаты – долгота"
     )
 
-    timezone: Mapped[int] = mapped_column(
-        sa.Integer(),
+    timezone: Mapped[str] = mapped_column(
+        sa.String(),
         nullable=True,
         comment="Часовой пояс"
     )
 
-    working_days: Mapped[str] = mapped_column(
-        sa.String(7),
+    working_time: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
         nullable=True,
-        comment="Рабочие дни"
+        comment="Время работы"
     )
 
-    begin_work_time: Mapped[time] = mapped_column(
-        sa.Time,
-        nullable=True,
-        comment="Время открытия"
-    )
-
-    end_work_time: Mapped[time] = mapped_column(
-        sa.Time,
-        nullable=True,
-        comment="Время закрытия"
-    )
-
+    """
     # Список тарифов, привязанных к этой АЗС
     tariffs: Mapped[List["TariffNewOrm"]] = relationship(
         back_populates="azs",
@@ -113,3 +116,4 @@ class AzsOrm(Base):
         lazy="noload",
         init=False
     )
+    """

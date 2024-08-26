@@ -4,6 +4,7 @@ from typing import List
 import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from src.database.models.azs import AzsOwnType
 from src.database.models.base import Base
 from src.database.models.goods_category import GoodsCategory
 
@@ -97,7 +98,7 @@ class TariffNewOrm(Base):
             "system_id",
             "inner_goods_group_id",
             "inner_goods_category",
-            "azs_id",
+            "azs_own_type",
             "end_time",
             name="complex_uniq1",
             postgresql_nulls_not_distinct=True
@@ -157,6 +158,7 @@ class TariffNewOrm(Base):
         comment="Категория продуктов в нашей системе"
     )
 
+    """
     # АЗС
     azs_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.azs.id"),
@@ -171,6 +173,14 @@ class TariffNewOrm(Base):
         init=False,
         lazy="noload"
     )
+    """
+
+    # Тип АЗС
+    azs_own_type: Mapped[AzsOwnType] = mapped_column(
+        nullable=True,
+        init=True,
+        comment="Тип АЗС"
+    )
 
     discount_fee: Mapped[float] = mapped_column(
         sa.Numeric(4, 2, asdecimal=False),
@@ -178,14 +188,6 @@ class TariffNewOrm(Base):
         server_default=sa.text("0"),
         init=True,
         comment="Процент скидки/наценки"
-    )
-
-    discount_fee_franchisee: Mapped[float] = mapped_column(
-        sa.Numeric(4, 2, asdecimal=False),
-        nullable=False,
-        server_default=sa.text("0"),
-        init=True,
-        comment="Процент скидки/наценки для фрашчайзи"
     )
 
     begin_time: Mapped[datetime] = mapped_column(

@@ -16,6 +16,11 @@ class GoodsGroupSchema(BaseSchema):
     base_unit: Annotated[UnitByName | None, Field(description="Базовая единица измерения", examples=["LITERS"])]
 
 
+class AzsOwnTypesSchema(BaseSchema):
+    id: Annotated[str, Field(description="ID типа АЗС")]
+    name: Annotated[str, Field(description="Наименование типа АЗС")]
+
+
 class GoodsCategorySchema(BaseSchema):
     id: Annotated[str, Field(description="Код категории продуктов в нашей системе", examples=["FUEL"])]
     name: Annotated[str, Field(description="Наименование категория продуктов в нашей системе", examples=["Топливо"])]

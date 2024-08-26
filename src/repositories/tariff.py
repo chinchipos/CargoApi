@@ -1,10 +1,11 @@
 from datetime import date
 from typing import List, Dict
 
-from sqlalchemy import select as sa_select, and_, or_, null
+from sqlalchemy import select as sa_select, and_, or_, null, nullslast
 from sqlalchemy.orm import aliased, joinedload, contains_eager
 
-from src.database.models import SystemOrm, AzsOrm
+from src.database.models import SystemOrm
+from src.database.models.azs import AzsOwnType
 from src.database.models.balance_system_tariff import BalanceSystemTariffOrm
 from src.database.models.balance_tariff_history import BalanceTariffHistoryOrm
 from src.database.models.goods_category import GoodsCategory
@@ -48,8 +49,6 @@ class TariffRepository(BaseRepository):
             .outerjoin(TariffNewOrm)
             .options(
                 contains_eager(TariffPolicyOrm.tariffs)
-                # .options(
-                #     selectinload(TariffPolicyOrm.tariffs)
                 .options(
                     joinedload(TariffNewOrm.system)
                     .load_only(SystemOrm.id, SystemOrm.full_name)
@@ -57,28 +56,14 @@ class TariffRepository(BaseRepository):
                 .options(
                     joinedload(TariffNewOrm.inner_goods_group)
                 )
-                .options(
-                    joinedload(TariffNewOrm.azs)
-                    .load_only(
-                        AzsOrm.id,
-                        AzsOrm.name,
-                        AzsOrm.code,
-                        AzsOrm.is_active,
-                        AzsOrm.country_code,
-                        AzsOrm.region_code,
-                        AzsOrm.address,
-                        AzsOrm.is_franchisee,
-                        AzsOrm.latitude,
-                        AzsOrm.longitude,
-                    )
-                )
             )
             .where(TariffNewOrm.end_time.is_(null()))
             .order_by(
                 TariffPolicyOrm.is_active,
                 TariffPolicyOrm.name,
-                TariffNewOrm.system_id,
-                TariffNewOrm.inner_goods_category
+                nullslast(TariffNewOrm.azs_own_type),
+                nullslast(TariffNewOrm.system_id),
+                nullslast(TariffNewOrm.inner_goods_category)
             )
         )
 
@@ -88,8 +73,8 @@ class TariffRepository(BaseRepository):
         if filters.get("system_id", None):
             stmt = stmt.where(TariffNewOrm.system_id == filters["system_id"])
 
-        if filters.get("azs_id", None):
-            stmt = stmt.where(TariffNewOrm.azs_id == filters["azs_id"])
+        if filters.get("azs_own_type_id", None):
+            stmt = stmt.where(TariffNewOrm.azs_own_type == filters["azs_own_type_id"])
 
         if filters.get("category_id", None):
             stmt = stmt.where(TariffNewOrm.inner_goods_category == filters["category_id"])
@@ -151,17 +136,15 @@ class TariffRepository(BaseRepository):
         policy = await self.select_first(stmt)
         return policy
 
-    async def create_tariff(self, policy_id: str, system_id: str, azs_id: str, goods_group_id: str,
-                            goods_category: GoodsCategory,  discount_fee: float, discount_fee_franchisee: float) \
-            -> TariffNewOrm:
+    async def create_tariff(self, policy_id: str, system_id: str, azs_own_type: AzsOwnType, goods_group_id: str,
+                            goods_category: GoodsCategory,  discount_fee: float) -> TariffNewOrm:
         tariff = TariffNewOrm(
             policy_id=policy_id,
             system_id=system_id,
-            azs_id=azs_id,
+            azs_own_type=azs_own_type,
             inner_goods_group_id=goods_group_id,
             inner_goods_category=goods_category,
-            discount_fee=discount_fee,
-            discount_fee_franchisee=discount_fee_franchisee
+            discount_fee=discount_fee
         )
         await self.save_object(tariff)
         return tariff

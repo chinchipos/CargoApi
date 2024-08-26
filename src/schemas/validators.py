@@ -3,6 +3,7 @@ from typing import Annotated, Dict
 
 from pydantic import BeforeValidator, Field, AfterValidator
 
+from src.database.models.azs import AzsOwnType
 from src.database.models.balance import BalanceOrm
 from src.database.models.card_limit import Unit, LimitPeriod
 from src.database.models.goods_category import GoodsCategory
@@ -113,9 +114,34 @@ def goods_category_by_name(category: str | None) -> GoodsCategory | None:
 GoodsCategoryByName = Annotated[GoodsCategory | None, BeforeValidator(goods_category_by_name)]
 
 
+def azs_own_type_by_name(own_type: str | None) -> AzsOwnType | None:
+    if own_type == AzsOwnType.OWN.name:
+        return AzsOwnType.OWN
+
+    elif own_type == AzsOwnType.OPTI.name:
+        return AzsOwnType.OPTI
+
+    elif own_type == AzsOwnType.FRANCHISEE.name:
+        return AzsOwnType.FRANCHISEE
+
+    elif own_type == AzsOwnType.PARTNER.name:
+        return AzsOwnType.PARTNER
+
+
+AzsOwnTypeByName = Annotated[AzsOwnType | None, BeforeValidator(azs_own_type_by_name)]
+
+
 def goods_category_to_dict(category: GoodsCategory | None) -> Dict[str, str] | None:
     if category:
         return {"id": category.name, "name": category.value}
 
 
 GoodsCategoryToDict = Annotated[GoodsCategory | Dict[str, str] | None, AfterValidator(goods_category_to_dict)]
+
+
+def azs_own_type_to_dict(own_type: AzsOwnType | None) -> Dict[str, str] | None:
+    if own_type:
+        return {"id": own_type.name, "name": own_type.value}
+
+
+AzsOwnTypeToDict = Annotated[AzsOwnType | Dict[str, str] | None, AfterValidator(azs_own_type_to_dict)]

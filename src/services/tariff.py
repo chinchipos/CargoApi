@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import List, Dict, Any
 
 from src.config import TZ
-from src.database.models.tariff import TariffOrm
+from src.database.models.tariff import TariffOrm, TariffNewOrm
 from src.repositories.azs import AzsRepository
 from src.repositories.goods import GoodsRepository
 from src.repositories.system import SystemRepository
@@ -44,13 +44,13 @@ class TariffService:
             found = False
             need_update = False
             for saved_tariff in policy.tariffs:
-                if received_tariff.azs_id == saved_tariff.azs_id and \
+                if received_tariff.system_id == saved_tariff.system_id and \
+                        received_tariff.azs_own_type == saved_tariff.azs_own_type and \
                         received_tariff.goods_group_id == saved_tariff.inner_goods_group_id and \
                         received_tariff.goods_category == saved_tariff.inner_goods_category:
 
                     found = True
-                    if received_tariff.discount_fee != saved_tariff.discount_fee or \
-                            received_tariff.discount_fee_franchisee != saved_tariff.discount_fee_franchisee:
+                    if received_tariff.discount_fee != saved_tariff.discount_fee:
                         need_update = True
                         # Архивируем действующий тариф
                         saved_tariff.end_time = self.now
@@ -61,15 +61,11 @@ class TariffService:
                 await self.repository.create_tariff(
                     policy_id=policy_id,
                     system_id=received_tariff.system_id,
-                    azs_id=received_tariff.azs_id,
+                    azs_own_type=received_tariff.azs_own_type,
                     goods_group_id=received_tariff.goods_group_id,
                     goods_category=received_tariff.goods_category,
-                    discount_fee=received_tariff.discount_fee,
-                    discount_fee_franchisee=received_tariff.discount_fee_franchisee
+                    discount_fee=received_tariff.discount_fee
                 )
-
-        print('333333333333333333333333333333333333333333')
-        print(received_tariff)
 
     async def edit(self, tariff_id: str, tariff_edit_schema: TariffEditSchema) -> TariffReadSchema:
         # Получаем тариф из БД
@@ -102,8 +98,12 @@ class TariffService:
             systems = await system_repository.get_systems()
 
             # АЗС
+            # azs_repository = AzsRepository(session=self.repository.session, user=self.repository.user)
+            # stations = await azs_repository.get_stations()
+
+            # Типы АЗС
             azs_repository = AzsRepository(session=self.repository.session, user=self.repository.user)
-            stations = await azs_repository.get_stations()
+            azs_own_types = await azs_repository.get_azs_own_types_dictionary()
 
             # Формируем справочник "Категория -> Продукты"
             goods_repository = GoodsRepository(session=self.repository.session, user=self.repository.user)
@@ -112,7 +112,8 @@ class TariffService:
         else:
             polices = None
             systems = None
-            stations = None
+            # stations = None
+            azs_own_types = None
             categories = None
 
         data = {
@@ -120,7 +121,8 @@ class TariffService:
             "dictionaries": {
                 "polices": polices,
                 "systems": systems,
-                "azs": stations,
+                # "azs": stations,
+                "azs_own_types": azs_own_types,
                 "goods_categories": categories,
             }
         }
@@ -128,4 +130,7 @@ class TariffService:
         return data
 
     async def delete(self, tariff_id: str) -> None:
-        await self.repository.delete_object(TariffOrm, tariff_id)
+        # Получаем запись из БД
+        tariff: TariffNewOrm = await self.repository.session.get(TariffNewOrm, tariff_id)
+        tariff.end_time = self.now
+        await self.repository.save_object(tariff)

@@ -574,14 +574,31 @@ class GPNApi:
         return res["data"][0]
 
     def get_stations(self) -> List[Dict[str, Any]]:
+        params = {
+            "page": 1,
+            "onpage": 0
+        }
         response = requests.get(
-            url=self.endpoint(self.api_v1, "AZS", params={"page": 1, "onpage": 3}),
+            url=self.endpoint(self.api_v1, "AZS", params=params),
             headers=self.headers | {"session_id": self.api_session_id}
         )
         res = response.json()
 
         if res["status"]["code"] != 200:
             raise CeleryError(message=f"Ошибка при получении списка АЗС. Ответ сервера API: "
+                                      f"{res['status']['errors']}.")
+
+        return res["data"]["result"]
+
+    def get_transaction_details(self, external_id: int) -> List[Dict[str, Any]]:
+        response = requests.get(
+            url=self.endpoint(self.api_v2, f"transactions/{external_id}"),
+            headers=self.headers | {"session_id": self.api_session_id}
+        )
+        res = response.json()
+
+        if res["status"]["code"] != 200:
+            raise CeleryError(message=f"Ошибка при получении данных по транзакции. Ответ сервера API: "
                                       f"{res['status']['errors']}.")
 
         return res["data"]["result"]
