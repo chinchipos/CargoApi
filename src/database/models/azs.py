@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any
+from typing import Any, List
 
 import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -108,7 +108,6 @@ class AzsOrm(Base):
         comment="Время работы"
     )
 
-    """
     # Список тарифов, привязанных к этой АЗС
     tariffs: Mapped[List["TariffNewOrm"]] = relationship(
         back_populates="azs",
@@ -116,4 +115,3 @@ class AzsOrm(Base):
         lazy="noload",
         init=False
     )
-    """

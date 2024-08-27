@@ -32,3 +32,11 @@ class RegionOrm(Base):
         lazy="noload",
         init=False
     )
+
+    # Список тарифов, привязанных к этой АЗС
+    tariffs: Mapped[List["TariffNewOrm"]] = relationship(
+        back_populates="region",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )

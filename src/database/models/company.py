@@ -55,6 +55,19 @@ class CompanyOrm(Base):
         comment="Дата создания/добавления записи в БД"
     )
 
+    # Тарифная политика
+    tariff_policy_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.tariff_policy.id"),
+        nullable=True,
+        comment="Тарифная политика"
+    )
+
+    # Тарифная политика
+    tariff_policy: Mapped["TariffPolicyOrm"] = relationship(
+        back_populates="companies",
+        lazy="noload"
+    )
+
     min_balance: Mapped[float] = mapped_column(
         sa.Numeric(12, 2, asdecimal=False),
         nullable=False,

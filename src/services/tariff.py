@@ -46,6 +46,7 @@ class TariffService:
             for saved_tariff in policy.tariffs:
                 if received_tariff.system_id == saved_tariff.system_id and \
                         received_tariff.azs_own_type == saved_tariff.azs_own_type and \
+                        received_tariff.region_id == saved_tariff.region_id and \
                         received_tariff.goods_group_id == saved_tariff.inner_goods_group_id and \
                         received_tariff.goods_category == saved_tariff.inner_goods_category:
 
@@ -62,6 +63,7 @@ class TariffService:
                     policy_id=policy_id,
                     system_id=received_tariff.system_id,
                     azs_own_type=received_tariff.azs_own_type,
+                    region_id=received_tariff.region_id,
                     goods_group_id=received_tariff.goods_group_id,
                     goods_category=received_tariff.goods_category,
                     discount_fee=received_tariff.discount_fee
@@ -93,39 +95,40 @@ class TariffService:
         tariff_polices = copy.deepcopy(tariff_polices)
         # Системы
         if with_dictionaries:
+            # Тарифные политики
             polices = await self.repository.get_tariff_polices_without_tariffs()
+
+            # Системы
             system_repository = SystemRepository(session=self.repository.session, user=self.repository.user)
             systems = await system_repository.get_systems()
-
-            # АЗС
-            # azs_repository = AzsRepository(session=self.repository.session, user=self.repository.user)
-            # stations = await azs_repository.get_stations()
 
             # Типы АЗС
             azs_repository = AzsRepository(session=self.repository.session, user=self.repository.user)
             azs_own_types = await azs_repository.get_azs_own_types_dictionary()
 
+            # Список АЗС
+            # azs_stations = await azs_repository.get_stations()
+
+            # Регионы
+            regions = await self.repository.get_regions()
+
             # Формируем справочник "Категория -> Продукты"
             goods_repository = GoodsRepository(session=self.repository.session, user=self.repository.user)
             categories = await goods_repository.get_categories_dictionary()
 
-        else:
-            polices = None
-            systems = None
-            # stations = None
-            azs_own_types = None
-            categories = None
-
         data = {
             "polices": tariff_polices,
-            "dictionaries": {
+            "dictionaries": None
+        }
+        if with_dictionaries:
+            data["dictionaries"] = {
                 "polices": polices,
                 "systems": systems,
-                # "azs": stations,
+                # "azs_stations": azs_stations,
+                "regions": regions,
                 "azs_own_types": azs_own_types,
                 "goods_categories": categories,
             }
-        }
 
         return data
 

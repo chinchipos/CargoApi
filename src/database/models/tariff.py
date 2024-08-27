@@ -89,6 +89,14 @@ class TariffPolicyOrm(Base):
         init=False
     )
 
+    # Список рганизаций, привязанных к этой тарифной политике
+    companies: Mapped[List["CompanyOrm"]] = relationship(
+        back_populates="tariff_policy",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
 
 class TariffNewOrm(Base):
     __tablename__ = "tariff_new"
@@ -99,6 +107,7 @@ class TariffNewOrm(Base):
             "inner_goods_group_id",
             "inner_goods_category",
             "azs_own_type",
+            "region_id",
             "end_time",
             name="complex_uniq1",
             postgresql_nulls_not_distinct=True
@@ -158,12 +167,11 @@ class TariffNewOrm(Base):
         comment="Категория продуктов в нашей системе"
     )
 
-    """
     # АЗС
     azs_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.azs.id"),
         nullable=True,
-        init=True,
+        init=False,
         comment="АЗС"
     )
 
@@ -173,13 +181,27 @@ class TariffNewOrm(Base):
         init=False,
         lazy="noload"
     )
-    """
 
     # Тип АЗС
     azs_own_type: Mapped[AzsOwnType] = mapped_column(
         nullable=True,
         init=True,
         comment="Тип АЗС"
+    )
+
+    # АЗС
+    region_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.region.id"),
+        nullable=True,
+        init=True,
+        comment="Регион"
+    )
+
+    # АЗС
+    region: Mapped["RegionOrm"] = relationship(
+        back_populates="tariffs",
+        init=False,
+        lazy="noload"
     )
 
     discount_fee: Mapped[float] = mapped_column(

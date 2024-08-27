@@ -8,6 +8,7 @@ from src.schemas.azs import AzsReadMinSchema
 from src.schemas.base import BaseSchema
 from src.schemas.card_limit import GoodsCategorySchema, AzsOwnTypesSchema
 from src.schemas.goods import InnerGoodsGroupReadSchema
+from src.schemas.region import RegionReadSchema
 from src.schemas.system import SystemReadMinimumSchema
 from src.schemas.validators import GoodsCategoryByName, EmptyStrToNone, GoodsCategoryToDict, AzsOwnTypeToDict, \
     AzsOwnTypeByName
@@ -44,8 +45,12 @@ inner_goods_group_id_ = Annotated[EmptyStrToNone, Field(description="UUID гру
 inner_goods_group_ = Annotated[
     InnerGoodsGroupReadSchema | None, Field(description="Группа продуктов в нашей системе")]
 
-# azs_id_ = Annotated[EmptyStrToNone, Field(description="UUID АЗС")]
-# azs_ = Annotated[AzsReadMinSchema | None, Field(description="АЗС")]
+azs_id_ = Annotated[EmptyStrToNone, Field(description="UUID АЗС")]
+azs_ = Annotated[AzsReadMinSchema | None, Field(description="АЗС")]
+
+region_id_ = Annotated[EmptyStrToNone, Field(description="UUID Региона")]
+region_ = Annotated[RegionReadSchema | None, Field(description="Регион")]
+
 azs_own_type_ = Annotated[AzsOwnTypeByName | None, Field(description="Тип АЗС")]
 
 goods_category_ = Annotated[GoodsCategoryByName | None, Field(description="Категория продуктов")]
@@ -76,7 +81,8 @@ class TariffNewReadSchema(BaseSchema):
     system: system_
     inner_goods_group: inner_goods_group_
     inner_goods_category: Annotated[GoodsCategoryToDict | None, Field(description="Справочник категорий продуктов")]
-    # azs: azs_
+    azs: azs_
+    region: region_
     azs_own_type: Annotated[AzsOwnTypeToDict | None, Field(description="Справочник типов АЗС")]
     discount_fee: discount_fee_
     begin_time: begin_time_
@@ -91,10 +97,11 @@ class TariffPolicyReadSchema(BaseSchema):
 
 
 class TariffDictionariesSchema(BaseSchema):
-    polices: Annotated[List[TariffPolicyReadSchema], Field(description="Тарифные политики")]
+    polices: Annotated[List[TariffPolicyReadSchema] | None, Field(description="Тарифные политики")] = None
     systems: Annotated[List[SystemReadMinimumSchema] | None, Field(description="Справочник систем")] = None
-    # azs: Annotated[List[AzsReadMinSchema] | None, Field(description="Справочник АЗС")] = None
+    # azs_stations: Annotated[List[AzsReadMinSchema] | None, Field(description="Справочник АЗС")] = None
     azs_own_types: Annotated[List[AzsOwnTypesSchema] | None, Field(description="Справочник типов АЗС")] = None
+    regions: Annotated[List[RegionReadSchema] | None, Field(description="Справочник Регионов")] = None
     goods_categories: Annotated[List[GoodsCategorySchema] | None, Field(
         description="Справочник категорий продуктов")] = None
 
@@ -107,7 +114,8 @@ class TariffPoliciesReadSchema(BaseSchema):
 class TariffParamsSchema(BaseSchema):
     tariff_id: tariff_id_ = None
     system_id: system_id_
-    # azs_id: azs_id_ = None
+    azs_id: azs_id_ = None
+    region_id: region_id_ = None
     azs_own_type: azs_own_type_ = None
     goods_group_id: inner_goods_group_id_ = None
     goods_category: goods_category_ = None

@@ -53,7 +53,9 @@ async def get_tariffs_new(
     with_dictionaries: bool = False,
     policy_id: str = None,
     system_id: str = None,
+    azs_id: str = None,
     azs_own_type_id: str = None,
+    region_id: str = None,
     category_id: str = None,
     group_id: str = None,
     service: TariffService = Depends(get_service_tariff)
@@ -66,7 +68,9 @@ async def get_tariffs_new(
     filters = {
         "policy_id": policy_id,
         "system_id": system_id,
+        "azs_id": azs_id,
         "azs_own_type_id": azs_own_type_id,
+        "region_id": region_id,
         "category_id": category_id,
         "group_id": group_id,
     }
