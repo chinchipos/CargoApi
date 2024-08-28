@@ -318,9 +318,9 @@ class GPNApi:
                 break
 
             transactions.extend(res["data"]["result"])
-            print('----------------------')
-            print(f'OFFSET: {page_offset}')
-            print(res["data"]["result"])
+            # ('----------------------')
+            # print(f'OFFSET: {page_offset}')
+            # print(res["data"]["result"])
             page_offset += 500
             i += 1
             if i == 3:
