@@ -168,7 +168,7 @@ class TransactionRepository(BaseRepository):
                 joinedload(TransactionOrm.card),
                 joinedload(TransactionOrm.company),
                 joinedload(TransactionOrm.outer_goods),
-                joinedload(TransactionOrm.tariff)
+                joinedload(TransactionOrm.tariff_new)
             )
             .where(TransactionOrm.date_time >= start_date)
             .where(TransactionOrm.system_id == system_id)
