@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Any
+from typing import List, Any, Dict
 
 from src.celery_app.limits.tasks import gpn_set_card_group_limit
 from src.config import TZ
@@ -8,6 +8,7 @@ from src.database.models.company import CompanyOrm
 from src.database.models.notification import NotificationMailingOrm
 from src.database.models.user import UserOrm
 from src.repositories.company import CompanyRepository
+from src.repositories.tariff import TariffRepository
 from src.repositories.transaction import TransactionRepository
 from src.repositories.user import UserRepository
 from src.schemas.company import CompanyEditSchema, CompanyReadSchema, CompanyReadMinimumSchema, \
@@ -85,6 +86,7 @@ class CompanyService:
         if balance:
             gpn_set_card_group_limit.delay(balance_ids=[balance.id])
 
+        """
         # Сравниваем текущие настройки тарифов с полученными
         bst_list_current = await self.repository.get_systems_tariffs(balance.id)
 
@@ -113,9 +115,10 @@ class CompanyService:
                     # Создаем новую связь "Система - Тариф" для этой организации
                     new_bst = BalanceSystemTariffOrm(balance_id=balance.id, system_id=system_id, tariff_id=tariff_id)
                     await self.repository.save_object(new_bst)
+        """
 
         # Формируем ответ
-        company = await self.repository.get_company(company_id)
+        # company = await self.repository.get_company(company_id)
         return company
 
     async def bind_manager(self, company_id: str, user_id: str) -> None:
@@ -139,9 +142,9 @@ class CompanyService:
 
         return company_read_schema
 
-    async def get_companies(self) -> List[CompanyReadSchema] | List[CompanyReadMinimumSchema]:
+    async def get_companies(self, with_dictionaries: bool, filters: Dict[str, str]) -> Dict[str, Any]:
         # Получаем организации
-        companies = await self.repository.get_companies()
+        companies = await self.repository.get_companies(filters=filters)
         # Отдаем пользователю только ту информацию, которая соответствует его роли
         major_roles = [enums.Role.CARGO_SUPER_ADMIN.name, enums.Role.CARGO_MANAGER.name, enums.Role.COMPANY_ADMIN.name]
         if self.repository.user.role.name in major_roles:
@@ -149,7 +152,22 @@ class CompanyService:
         else:
             company_read_schemas = [CompanyReadMinimumSchema.model_validate(company) for company in companies]
 
-        return company_read_schemas
+        dictionaries = None
+        if with_dictionaries:
+            # Тарифные политики
+            tariff_repository = TariffRepository(session=self.repository.session, user=self.repository.user)
+            tariff_polices = await tariff_repository.get_tariff_polices_without_tariffs()
+
+            dictionaries = {
+                "tariff_polices": tariff_polices,
+            }
+
+        data = {
+            "companies": company_read_schemas,
+            "dictionaries": dictionaries
+        }
+
+        return data
 
     async def get_drivers(self, company_id: str = None) -> UserOrm:
         drivers = await self.repository.get_drivers(company_id)

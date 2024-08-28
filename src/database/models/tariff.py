@@ -52,14 +52,6 @@ class TariffOrm(Base):
         init=False
     )
 
-    # История связок Баланс-Система, для которых применялся или применяется этот тариф
-    balance_tariff_history: Mapped[List["BalanceTariffHistoryOrm"]] = relationship(
-        back_populates="tariff",
-        cascade="all, delete-orphan",
-        lazy="noload",
-        init=False
-    )
-
 
 class TariffPolicyOrm(Base):
     __tablename__ = "tariff_policy"
@@ -216,7 +208,7 @@ class TariffNewOrm(Base):
         sa.DateTime,
         nullable=False,
         server_default=sa.text("NOW()"),
-        init=False,
+        init=True,
         comment="Время начала действия"
     )
 
@@ -225,4 +217,12 @@ class TariffNewOrm(Base):
         nullable=True,
         init=False,
         comment="Время прекращения действия"
+    )
+
+    # Список транзакций по этому тарифу
+    transactions: Mapped[List["TransactionOrm"]] = relationship(
+        back_populates="tariff_new",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
     )

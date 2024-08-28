@@ -4,20 +4,12 @@ from typing import Annotated, List
 from pydantic import Field
 
 from src.schemas.base import BaseSchema
-from src.schemas.tariff import TariffMinimumReadSchema
+from src.schemas.system import SystemReadMinimumSchema
 from src.utils import enums
 
 system_id_ = Annotated[
     str,
     Field(description="UUID поставщика услуг", examples=["68425199-ac93-4733-becb-de2e89e85303"])]
-
-system_full_name_ = Annotated[str | None, Field(description="Полное наименование", examples=["Роснефть"])]
-
-
-class SystemWithTariffSchema(BaseSchema):
-    id: system_id_
-    full_name: system_full_name_
-    tariff: Annotated[TariffMinimumReadSchema, Field(description="Тариф")]
 
 
 id_ = Annotated[str, Field(description="UUID договора", examples=["75325199-ac93-4733-becb-de2e89e85202"])]
@@ -44,7 +36,7 @@ min_balance_period_end_date_ = Annotated[
     Field(description="Дата прекращения действия временного овердрафта", examples=["2023-05-17"])
 ]
 
-systems_ = Annotated[List[SystemWithTariffSchema], Field(description="Системы")]
+systems_ = Annotated[List[SystemReadMinimumSchema], Field(description="Системы")]
 
 
 class BalanceReadMinimumSchema(BaseSchema):
@@ -56,7 +48,4 @@ class BalanceReadSchema(BaseSchema):
     id: id_
     scheme: scheme_
     balance: balance_
-    # min_balance: min_balance_
-    # min_balance_period: min_balance_period_
-    # min_balance_period_end_date: min_balance_period_end_date_
     systems: systems_ = []

@@ -49,7 +49,7 @@ class LogType(StrEnum):
     COMMON = 'COMMON'
 
 
-class System(StrEnum):
+class System(Enum):
     KHNP = 'ХНП'
     GPN = 'ГПН'
 

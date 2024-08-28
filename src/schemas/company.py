@@ -1,5 +1,5 @@
 from datetime import date
-from typing import List, Annotated, Dict
+from typing import List, Annotated
 
 from pydantic import Field
 
@@ -7,6 +7,7 @@ from src.schemas.balance import BalanceReadSchema
 from src.schemas.base import BaseSchema
 from src.schemas.notification import NotifcationMailingReadSchema
 from src.schemas.role import RoleReadMinimumSchema
+from src.schemas.tariff import TariffPolicyReadSchema
 from src.schemas.validators import NegativeToPositive, PositiveToNegative
 from src.utils.enums import Finance as FinanceEnum
 
@@ -86,9 +87,12 @@ overdraft_payment_deadline_ = Annotated[
     date | None,
     Field(description="Крайняя дата погашения задолженности по овердрафту", examples=["2023-05-22"])]
 
-tariffs_ = Annotated[List[Dict[str, str]], Field(description="Тарифы систем")]
+# tariffs_ = Annotated[List[Dict[str, str]], Field(description="Тарифы систем")]
+tariff_policy_id_ = Annotated[str, Field(description="UUID тарифной политики")]
 
 notification_mailings_ = Annotated[List[NotifcationMailingReadSchema] | None, Field(description="Список уведомлений")]
+
+tariff_policy_ = Annotated[TariffPolicyReadSchema | None, Field(description="Тарифная политика")]
 
 
 class CompanyCreateSchema(BaseSchema):
@@ -100,7 +104,7 @@ class CompanyCreateSchema(BaseSchema):
     overdraft_sum: overdraft_sum_in_ = 0
     overdraft_days: overdraft_days_ = 0
     overdraft_fee_percent: overdraft_fee_percent_ = 0.074
-    tariffs: tariffs_
+    tariff_policy_id: tariff_policy_id_
 
 
 class CompanyEditSchema(BaseSchema):
@@ -112,7 +116,7 @@ class CompanyEditSchema(BaseSchema):
     overdraft_sum: overdraft_sum_in_ = None
     overdraft_days: overdraft_days_ = None
     overdraft_fee_percent: overdraft_fee_percent_ = None
-    tariffs: tariffs_
+    tariff_policy_id: tariff_policy_id_
 
 
 class CompanyReadMinimumSchema(BaseSchema):
@@ -142,8 +146,18 @@ class CompanyReadSchema(BaseSchema):
     overdraft_end_date: overdraft_end_date_ = None
     overdraft_payment_deadline: overdraft_payment_deadline_ = None
     notification_mailings: notification_mailings_ = None
+    tariff_policy: tariff_policy_ = None
 
 
 class CompanyBalanceEditSchema(BaseSchema):
     direction: direction_
     delta_sum:  delta_sum_
+
+
+class CompanyDictionariesSchema(BaseSchema):
+    tariff_polices: Annotated[List[TariffPolicyReadSchema] | None, Field(description="Тарифные политики")] = None
+
+
+class CompaniesReadSchema(BaseSchema):
+    companies: Annotated[List[CompanyReadSchema] | List[CompanyReadMinimumSchema], Field(description="Организации")]
+    dictionaries: Annotated[CompanyDictionariesSchema | None, Field(description="Справочники")] = None

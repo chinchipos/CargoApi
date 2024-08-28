@@ -1,3 +1,4 @@
+import copy
 import time
 from datetime import datetime
 from typing import Dict, Any, List
@@ -9,20 +10,18 @@ from sqlalchemy.orm import joinedload, aliased
 from src.celery_app.gpn.api import GPNApi, ProductCategory
 from src.celery_app.gpn.config import SYSTEM_SHORT_NAME
 from src.celery_app.irrelevant_balances import IrrelevantBalances
-from src.celery_app.transaction_helper import get_local_cards, get_local_card, get_tariff_on_date_by_balance, \
-    get_current_tariff_by_balance
+from src.celery_app.transaction_helper import get_local_cards, get_local_card
 from src.config import TZ, PRODUCTION
-from src.database.models import CompanyOrm, CardLimitOrm, AzsOrm, RegionOrm
+from src.database.models import CompanyOrm, CardLimitOrm, AzsOrm, RegionOrm, TariffNewOrm
 from src.database.models.azs import AzsOwnType
-from src.database.models.card import CardOrm, BlockingCardReason
+from src.database.models.balance import BalanceOrm as BalanceOrm
+from src.database.models.balance_system_tariff import BalanceSystemTariffOrm
+from src.database.models.card import CardOrm, BlockingCardReason, CardHistoryOrm
 from src.database.models.card_type import CardTypeOrm
+from src.database.models.goods import OuterGoodsOrm, InnerGoodsOrm
 from src.database.models.goods_category import GoodsCategory
 from src.database.models.system import CardSystemOrm
 from src.database.models.transaction import TransactionOrm
-from src.database.models.balance_tariff_history import BalanceTariffHistoryOrm
-from src.database.models.balance_system_tariff import BalanceSystemTariffOrm
-from src.database.models.balance import BalanceOrm as BalanceOrm
-from src.database.models.goods import OuterGoodsOrm
 from src.repositories.base import BaseRepository
 from src.repositories.card import CardRepository
 from src.repositories.goods import GoodsRepository
@@ -32,7 +31,7 @@ from src.repositories.transaction import TransactionRepository
 from src.utils.common import calc_available_balance
 from src.utils.enums import ContractScheme, TransactionType
 from src.utils.loggers import get_logger
-import json
+
 
 class GPNController(BaseRepository):
 
@@ -46,10 +45,12 @@ class GPNController(BaseRepository):
         self.card_types = {}
 
         self._local_cards: List[CardOrm] = []
-        self._balance_card_relations: Dict[str, str] = {}
-        self._tariffs_history: List[BalanceTariffHistoryOrm] = []
+        # self._balance_card_relations: Dict[str, str] = {}
         self._bst_list: List[BalanceSystemTariffOrm] = []
         self._outer_goods_list: List[OuterGoodsOrm] = []
+        self._card_history: List[CardHistoryOrm] = []
+        self._azs_stations: List[AzsOrm] = []
+        self._tariffs: List[TariffNewOrm] = []
 
     async def init_system(self) -> None:
         if not self.system:
@@ -623,22 +624,36 @@ class GPNController(BaseRepository):
         remote_transactions = sorted(remote_transactions, key=sorting)
 
         # Получаем текущие тарифы
-        self._bst_list = await transaction_repository.get_balance_system_tariff_list(self.system.id)
+        # self._bst_list = await transaction_repository.get_balance_system_tariff_list(self.system.id)
 
         # Получаем историю тарифов
-        self._tariffs_history = await transaction_repository.get_tariffs_history(self.system.id)
+        # self._tariffs_history = await transaction_repository.get_tariffs_history(self.system.id)
 
         # Получаем список продуктов / услуг
         self._outer_goods_list = await transaction_repository.get_outer_goods_list(system_id=self.system.id)
 
+        # Получаем историю принадлежности карт
+        card_repository = CardRepository(session=self.session, user=None)
+        self._card_history = copy.deepcopy(await card_repository.get_card_history())
+
+        # Получаем список АЗС
+        tariff_repository = TariffRepository(session=self.session, user=None)
+        self._azs_stations = copy.deepcopy(await tariff_repository.get_azs_stations(self.system.id))
+
+        # Получаем тарифы
+        self._tariffs = copy.deepcopy(await tariff_repository.get_tariffs(system_id=self.system.id))
+
+        """
         # Получаем связи карт (Карта-Баланс)
         card_numbers = [transaction['card_number'] for transaction in remote_transactions]
         self._balance_card_relations = await transaction_repository.get_balance_card_relations(
             card_numbers,
             self.system.id
         )
+        """
 
         # Получаем карты
+        card_numbers = [transaction['card_number'] for transaction in remote_transactions]
         self._local_cards = await get_local_cards(
             session=self.session,
             system_id=self.system.id,
@@ -672,32 +687,64 @@ class GPNController(BaseRepository):
         purchase = True if remote_transaction['type'] == "P" else False
         comments = ''
 
+        # Получаем карту
+        card = await get_local_card(card_number, self._local_cards)
+
+        # Получаем баланс
+        balance = self.get_balance_by_card_number(card_number=card_number)
+        if not balance:
+            self.logger.error(f"Не найден баланс для карты {card_number}. Пропускаю обработку транзакции.")
+            return None
+
+        """
         # Получаем баланс
         balance_id = self._balance_card_relations.get(card_number, None)
         if not balance_id:
             self.logger.error(f"Не найден баланс для карты {card_number}. Пропускаю обработку транзакции.")
             return None
+        """
 
-        # Получаем карту
-        card = await get_local_card(card_number, self._local_cards)
-
-        # Получаем товар/услугу
+        # Получаем продукт
         outer_goods = await self.get_outer_goods(remote_transaction)
 
         # Получаем тариф
+        """
         tariff = get_tariff_on_date_by_balance(
             balance_id=balance_id,
             transaction_date=remote_transaction['timestamp'].date(),
             tariffs_history=self._tariffs_history
         )
+        
         if not tariff:
             tariff = get_current_tariff_by_balance(balance_id=balance_id, bst_list=self._bst_list)
+        """
+
+        # Получаем АЗС
+        azs = await self.get_azs(azs_external_id=remote_transaction['poi_id'])
+
+        # Получаем тариф
+        tariff = self.get_company_tariff_on_transaction_time(
+            company=balance.company,
+            transaction_time=remote_transaction['timestamp'],
+            inner_goods=outer_goods.inner_goods,
+            azs=azs
+        )
+        if not tariff:
+            self.logger.error(f"Не далось определить тариф для транзакции {remote_transaction}")
 
         # Сумма транзакции
         transaction_type = TransactionType.PURCHASE if purchase else TransactionType.REFUND
         transaction_sum = -abs(remote_transaction['sum_no_discount']) if purchase \
             else abs(remote_transaction['sum_no_discount'])
 
+        # Сумма скидки/наценки
+        discount_fee_percent = tariff.discount_fee / 100 if tariff else 0
+        discount_fee_sum = transaction_sum * discount_fee_percent
+
+        # Получаем итоговую сумму
+        total_sum = transaction_sum + discount_fee_sum
+
+        """
         if remote_transaction['poi_id'] in ["1-11WJG5CA"]:
             # Расчет скидки/наценки для франчайзи
             # Размер скидки
@@ -727,9 +774,8 @@ class GPNController(BaseRepository):
 
             # Размер наценки
             fee_sum = 0
-
-        # Получаем итоговую сумму
-        total_sum = transaction_sum + discount_sum + fee_sum
+            
+        """
 
         transaction_data = dict(
             external_id=str(remote_transaction['id']),
@@ -738,15 +784,15 @@ class GPNController(BaseRepository):
             transaction_type=transaction_type,
             system_id=self.system.id,
             card_id=card.id,
-            balance_id=balance_id,
+            balance_id=balance.id,
             azs_code=remote_transaction['poi_id'],
             outer_goods_id=outer_goods.id if outer_goods else None,
             fuel_volume=-remote_transaction['qty'],
             price=remote_transaction['price_no_discount'],
             transaction_sum=transaction_sum,
-            tariff_id=tariff.id if tariff else None,
-            discount_sum=discount_sum,
-            fee_sum=fee_sum,
+            tariff_new_id=tariff.id if tariff else None,
+            discount_sum=discount_fee_sum if discount_fee_percent < 0 else 0,
+            fee_sum=discount_fee_sum if discount_fee_percent > 0 else 0,
             total_sum=total_sum,
             company_balance_after=0,
             comments=comments,
@@ -976,3 +1022,71 @@ class GPNController(BaseRepository):
             } for azs in stations
         ]
         await self.bulk_insert_or_update(AzsOrm, azs_dataset, "external_id")
+
+    def get_balance_by_card_number(self, card_number: str) -> BalanceOrm | None:
+        company = None
+        for record in self._card_history:
+            if record.card.card_number == card_number:
+                company = record.company
+
+        if not company:
+            return None
+
+        for balance in company.balances:
+            if balance.scheme == ContractScheme.OVERBOUGHT:
+                return balance
+
+    async def get_azs(self, azs_external_id: str) -> AzsOrm:
+        # Выполняем поиск АЗС
+        for azs in self._azs_stations:
+            if azs.external_id == azs_external_id:
+                return azs
+
+        # Если АЗС не найдена, то создаем её
+        fields = dict(
+            system_id = self.system.id,
+            external_id = azs_external_id,
+            name=azs_external_id,
+            code=azs_external_id,
+            is_active=True,
+            address={}
+        )
+        azs = await self.insert(AzsOrm, **fields)
+        self._azs_stations.append(azs)
+
+        return azs
+
+    def get_company_tariff_on_transaction_time(self, company: CompanyOrm, transaction_time: datetime,
+                                               inner_goods: InnerGoodsOrm | None, azs: AzsOrm | None) -> TariffNewOrm:
+        # Получаем список тарифов, действовавших для компании на момент совершения транзакции
+        tariffs = []
+        for tariff in self._tariffs:
+            if tariff.policy_id == company.tariff_policy_id and tariff.begin_time <= transaction_time:
+                if (tariff.end_time and tariff.end_time > transaction_time) or not tariff.end_time:
+                    tariffs.append(tariff)
+                    break
+
+        # Перебираем тарифы и применяем первый подошедший
+        for tariff in tariffs:
+            # АЗС
+            if tariff.azs_id and tariff.azs_id != azs.id:
+                continue
+
+            # Тип АЗС
+            if tariff.azs_own_type and tariff.azs_own_type != azs.own_type:
+                continue
+
+            # Регион
+            if tariff.region_id and tariff.region_id != azs.region_id:
+                continue
+
+            # Группа продуктов
+            if tariff.inner_goods_group_id and tariff.inner_goods_group_id != inner_goods.inner_group_id:
+                continue
+
+            # Категория продуктов
+            if tariff.inner_goods_category and tariff.inner_goods_category != inner_goods.inner_group.inner_category:
+                continue
+
+            # Тариф удовлетворяет критериям - возвращаем его
+            return tariff

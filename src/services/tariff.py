@@ -58,6 +58,7 @@ class TariffService:
                         await self.repository.save_object(saved_tariff)
 
             # Создаем новый тариф
+            begin_time = datetime(year=2020, month=1, day=1) if not found else self.now
             if not found or need_update:
                 await self.repository.create_tariff(
                     policy_id=policy_id,
@@ -66,7 +67,8 @@ class TariffService:
                     region_id=received_tariff.region_id,
                     goods_group_id=received_tariff.goods_group_id,
                     goods_category=received_tariff.goods_category,
-                    discount_fee=received_tariff.discount_fee
+                    discount_fee=received_tariff.discount_fee,
+                    begin_time=begin_time
                 )
 
     async def edit(self, tariff_id: str, tariff_edit_schema: TariffEditSchema) -> TariffReadSchema:
@@ -93,7 +95,8 @@ class TariffService:
         # Тарифные политики
         tariff_polices = await self.repository.get_tariff_polices(filters=filters)
         tariff_polices = copy.deepcopy(tariff_polices)
-        # Системы
+
+        dictionaries = None
         if with_dictionaries:
             # Тарифные политики
             polices = await self.repository.get_tariff_polices_without_tariffs()
@@ -116,12 +119,7 @@ class TariffService:
             goods_repository = GoodsRepository(session=self.repository.session, user=self.repository.user)
             categories = await goods_repository.get_categories_dictionary()
 
-        data = {
-            "polices": tariff_polices,
-            "dictionaries": None
-        }
-        if with_dictionaries:
-            data["dictionaries"] = {
+            dictionaries = {
                 "polices": polices,
                 "systems": systems,
                 # "azs_stations": azs_stations,
@@ -129,6 +127,11 @@ class TariffService:
                 "azs_own_types": azs_own_types,
                 "goods_categories": categories,
             }
+
+        data = {
+            "polices": tariff_polices,
+            "dictionaries": dictionaries
+        }
 
         return data
 

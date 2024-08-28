@@ -1,3 +1,4 @@
+import copy
 from datetime import datetime, date, timedelta
 from time import sleep
 from typing import Dict, Any, List, Tuple
@@ -8,19 +9,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.celery_app.irrelevant_balances import IrrelevantBalances
 from src.celery_app.khnp.api import KHNPParser, CardStatus
 from src.celery_app.khnp.config import SYSTEM_SHORT_NAME
-from src.celery_app.transaction_helper import get_local_cards, get_local_card, get_tariff_on_date_by_balance, \
-    get_current_tariff_by_balance
+from src.celery_app.transaction_helper import get_local_cards, get_local_card
 from src.config import TZ
-from src.database.models.card import CardOrm, BlockingCardReason
+from src.database.models import BalanceOrm, AzsOrm, TariffNewOrm, CompanyOrm
+from src.database.models.card import CardOrm, BlockingCardReason, CardHistoryOrm
 from src.database.models.card_type import CardTypeOrm
 from src.database.models.transaction import TransactionOrm
-from src.database.models.balance_tariff_history import BalanceTariffHistoryOrm
 from src.database.models.system import CardSystemOrm
-from src.database.models.balance_system_tariff import BalanceSystemTariffOrm
-from src.database.models.goods import OuterGoodsOrm
+from src.database.models.goods import OuterGoodsOrm, InnerGoodsOrm
 from src.repositories.base import BaseRepository
 from src.repositories.card import CardRepository
 from src.repositories.system import SystemRepository
+from src.repositories.tariff import TariffRepository
 from src.repositories.transaction import TransactionRepository
 from src.utils.enums import ContractScheme, TransactionType
 from src.utils.loggers import get_logger
@@ -35,10 +35,11 @@ class KHNPController(BaseRepository):
         self.system = None
         self.local_cards: List[CardOrm] = []
         self.khnp_cards: List[Dict[str, Any]] = []
-        # self.outer_goods: List[OuterGoodsOrm] = []
-        self._tariffs_history: List[BalanceTariffHistoryOrm] = []
-        self._bst_list: List[BalanceSystemTariffOrm] = []
-        self._balance_card_relations: Dict[str, str] = {}
+        # self._bst_list: List[BalanceSystemTariffOrm] = []
+        # self._balance_card_relations: Dict[str, str] = {}
+        self._card_history: List[CardHistoryOrm] = []
+        self._azs_stations: List[AzsOrm] = []
+        self._tariffs: List[TariffNewOrm] = []
         self._local_cards: List[CardOrm] = []
         self._irrelevant_balances = IrrelevantBalances()
         self._outer_goods_list: List[OuterGoodsOrm] = []
@@ -78,17 +79,6 @@ class KHNPController(BaseRepository):
             "balance": balance,
             "balance_sync_dt": datetime.now(tz=TZ)
         })
-
-    """
-    async def get_local_cards(self, card_numbers: List[str] | None = None) -> List[CardOrm]:
-        card_repository = CardRepository(self.session)
-        # self.local_cards = await card_repository.get_cards_by_numbers(card_numbers, self.system.id)
-        self.local_cards = await card_repository.get_cards_by_filters(
-            system_id=self.system.id,
-            card_numbers=card_numbers
-        )
-        return self.local_cards
-    """
 
     @staticmethod
     def get_equal_local_card(provider_card: Dict[str, Any], local_cards: List[CardOrm]) -> CardOrm:
@@ -139,29 +129,6 @@ class KHNPController(BaseRepository):
         transactions = self.parser.get_transactions(start_date, end_date)
         return transactions
 
-    """
-    async def get_local_transactions(self) -> List[TransactionOrm]:
-        start_date = date.today() - timedelta(days=self.system.transaction_days)
-        stmt = (
-            sa_select(TransactionOrm)
-            .options(
-                joinedload(TransactionOrm.card),
-                joinedload(TransactionOrm.company),
-                joinedload(TransactionOrm.outer_goods),
-                joinedload(TransactionOrm.tariff)
-            )
-            .where(TransactionOrm.date_time >= start_date)
-            .where(TransactionOrm.system_id == self.system.id)
-            .outerjoin(TransactionOrm.card)
-            .order_by(CardOrm.card_number, TransactionOrm.date_time)
-        )
-        transactions = await self.select_all(stmt)
-        for tr in transactions:
-            tr.date_time.replace(microsecond=0)
-
-        return transactions
-    """
-
     @staticmethod
     def get_equal_remote_transaction(local_transaction: TransactionOrm,
                                      provider_transactions: Dict[str, Any]) -> Dict[str, Any]:
@@ -181,33 +148,16 @@ class KHNPController(BaseRepository):
 
                         return transaction
 
-    """
-    async def get_local_card(self, card_number) -> CardOrm:
-        for card in self._local_cards:
-            if card.card_number == card_number:
-                return card
-
-        raise CeleryError(trace=True, message=f'Карта с номером {card_number} не найдена в БД')
-    """
-    """
-    async def get_all_outer_goods(self) -> List[OuterGoodsOrm]:
-        if not self.outer_goods:
-            stmt = sa_select(OuterGoodsOrm).where(OuterGoodsOrm.system_id == self.system.id)
-            self.outer_goods = await self.select_all(stmt)
-
-        return self.outer_goods
-    """
-    async def get_single_outer_goods(self, provider_transaction: Dict[str, Any]) -> OuterGoodsOrm:
+    async def get_outer_goods_item(self, goods_name: Dict[str, Any]) -> OuterGoodsOrm:
         # all_outer_goods = await self.get_all_outer_goods()
         # Выполняем поиск товара/услуги
-        product_type = provider_transaction['product_type']
         for goods in self._outer_goods_list:
-            if goods.name == product_type:
+            if goods.name == goods_name:
                 return goods
 
         # Если товар/услуга не найден(а), то создаем его(её)
         fields = dict(
-            name=product_type,
+            name=goods_name,
             system_id=self.system.id,
             inner_goods_id=None,
         )
@@ -282,23 +232,34 @@ class KHNPController(BaseRepository):
         # card = await self.get_local_card(card_number)
 
         # Получаем баланс
-        balance_id = self._balance_card_relations.get(card_number, None)
-        if not balance_id:
+        balance = self.get_balance_by_card_number(card_number=card_number)
+        if not balance:
             self.logger.error(f"Не найден баланс для карты {card_number}. Пропускаю обработку транзакции.")
             return None
 
-        # Получаем товар/услугу
-        single_outer_goods = await self.get_single_outer_goods(remote_transaction)
+        # Получаем продукт
+        outer_goods = await self.get_outer_goods_item(goods_name=remote_transaction['product_type'])
+
+        # Получаем АЗС
+        azs = await self.get_azs(azs_external_id=remote_transaction['azs'])
 
         # Получаем тариф
+        tariff = self.get_company_tariff_on_transaction_time(
+            company=balance.company,
+            transaction_time=remote_transaction['date_time'],
+            inner_goods=outer_goods.inner_goods,
+            azs=azs
+        )
+        if not tariff:
+            self.logger.error(f"Не далось определить тариф для транзакции {remote_transaction}")
+
+        """
         tariff = get_tariff_on_date_by_balance(
             balance_id=balance_id,
             transaction_date=remote_transaction['date_time'].date(),
             tariffs_history=self._tariffs_history
         )
-        if not tariff:
-            tariff = get_current_tariff_by_balance(balance_id=balance_id, bst_list=self._bst_list)
-            # tariff = self._get_current_tariff_by_balance(balance_id)
+        """
 
         # Объем топлива
         fuel_volume = -remote_transaction['liters_ordered'] if debit else remote_transaction['liters_received']
@@ -306,16 +267,12 @@ class KHNPController(BaseRepository):
         # Сумма транзакции
         transaction_sum = -remote_transaction['money_request'] if debit else remote_transaction['money_request']
 
-        # Размер скидки
-        discount_percent = 0  # 0 / 100
-        discount_sum = transaction_sum * discount_percent
-
-        # Размер комиссионного вознаграждения
-        fee_percent = float(tariff.fee_percent) / 100 if tariff else 0
-        fee_sum = (transaction_sum - discount_sum) * fee_percent
+        # Сумма скидки/наценки
+        discount_fee_percent = tariff.discount_fee / 100 if tariff else 0
+        discount_fee_sum = transaction_sum * discount_fee_percent
 
         # Получаем итоговую сумму
-        total_sum = transaction_sum - discount_sum + fee_sum
+        total_sum = transaction_sum + discount_fee_sum
 
         transaction_data = dict(
             date_time=remote_transaction['date_time'],
@@ -323,15 +280,15 @@ class KHNPController(BaseRepository):
             transaction_type=TransactionType.PURCHASE if debit else TransactionType.REFUND,
             system_id=self.system.id,
             card_id=card.id,
-            balance_id=balance_id,
+            balance_id=balance.id,
             azs_code=remote_transaction['azs'],
-            outer_goods_id=single_outer_goods.id if single_outer_goods else None,
+            outer_goods_id=outer_goods.id if outer_goods else None,
             fuel_volume=fuel_volume,
             price=remote_transaction['price'],
             transaction_sum=transaction_sum,
-            tariff_id=tariff.id if tariff else None,
-            discount_sum=discount_sum,
-            fee_sum=fee_sum,
+            tariff_new_id=tariff.id if tariff else None,
+            discount_sum=discount_fee_sum if discount_fee_percent < 0 else 0,
+            fee_sum=discount_fee_sum if discount_fee_percent > 0 else 0,
             total_sum=total_sum,
             company_balance_after=0,
             comments='',
@@ -346,21 +303,31 @@ class KHNPController(BaseRepository):
     async def process_new_remote_transactions(self, remote_transactions: Dict[str, Any],
                                               transaction_repository: TransactionRepository) -> None:
         # Получаем текущие тарифы
-        self._bst_list = await transaction_repository.get_balance_system_tariff_list(self.system.id)
+        # self._bst_list = await transaction_repository.get_balance_system_tariff_list(self.system.id)
 
         # Получаем историю тарифов
-        self._tariffs_history = await transaction_repository.get_tariffs_history(self.system.id)
+        # self._tariffs_history = await transaction_repository.get_tariffs_history(self.system.id)
 
         # Получаем список продуктов / услуг
         self._outer_goods_list = await transaction_repository.get_outer_goods_list(system_id=self.system.id)
 
-        # Получаем связи карт (Карта-Баланс)
-        card_numbers = [card_number for card_number in remote_transactions.keys()]
+        # Получаем историю принадлежности карт
+        card_repository = CardRepository(session=self.session, user=None)
+        self._card_history = copy.deepcopy(await card_repository.get_card_history())
+        """
         self._balance_card_relations = await transaction_repository.get_balance_card_relations(
             card_numbers, self.system.id)
-        # await self._set_balance_card_relations(card_numbers)
+        """
+
+        # Получаем список АЗС
+        tariff_repository = TariffRepository(session=self.session, user=None)
+        self._azs_stations = copy.deepcopy(await tariff_repository.get_azs_stations(self.system.id))
+
+        # Получаем тарифы
+        self._tariffs = copy.deepcopy(await tariff_repository.get_tariffs(system_id=self.system.id))
 
         # Получаем карты
+        card_numbers = [card_number for card_number in remote_transactions.keys()]
         self._local_cards = await get_local_cards(
             session=self.session,
             system_id=self.system.id,
@@ -668,3 +635,71 @@ class KHNPController(BaseRepository):
 
         local_cards: List[CardOrm] = local_cards_to_be_active + local_cards_to_be_blocked
         return khnp_cards_to_change_state, local_cards
+
+    def get_balance_by_card_number(self, card_number: str) -> BalanceOrm | None:
+        company = None
+        for record in self._card_history:
+            if record.card.card_number == card_number:
+                company = record.company
+
+        if not company:
+            return None
+
+        for balance in company.balances:
+            if balance.scheme == ContractScheme.OVERBOUGHT:
+                return balance
+
+    async def get_azs(self, azs_external_id: str) -> AzsOrm:
+        # Выполняем поиск АЗС
+        for azs in self._azs_stations:
+            if azs.external_id == azs_external_id:
+                return azs
+
+        # Если АЗС не найдена, то создаем её
+        fields = dict(
+            system_id = self.system.id,
+            external_id = azs_external_id,
+            name=azs_external_id,
+            code=azs_external_id,
+            is_active=True,
+            address={}
+        )
+        azs = await self.insert(AzsOrm, **fields)
+        self._azs_stations.append(azs)
+
+        return azs
+
+    def get_company_tariff_on_transaction_time(self, company: CompanyOrm, transaction_time: datetime,
+                                               inner_goods: InnerGoodsOrm | None, azs: AzsOrm | None) -> TariffNewOrm:
+        # Получаем список тарифов, действовавших для компании на момент совершения транзакции
+        tariffs = []
+        for tariff in self._tariffs:
+            if tariff.policy_id == company.tariff_policy_id and tariff.begin_time <= transaction_time:
+                if (tariff.end_time and tariff.end_time > transaction_time) or not tariff.end_time:
+                    tariffs.append(tariff)
+                    break
+
+        # Перебираем тарифы и применяем первый подошедший
+        for tariff in tariffs:
+            # АЗС
+            if tariff.azs_id and tariff.azs_id != azs.id:
+                continue
+
+            # Тип АЗС
+            if tariff.azs_own_type and tariff.azs_own_type != azs.own_type:
+                continue
+
+            # Регион
+            if tariff.region_id and tariff.region_id != azs.region_id:
+                continue
+
+            # Группа продуктов
+            if tariff.inner_goods_group_id and tariff.inner_goods_group_id != inner_goods.inner_group_id:
+                continue
+
+            # Категория продуктов
+            if tariff.inner_goods_category and tariff.inner_goods_category != inner_goods.inner_group.inner_category:
+                continue
+
+            # Тариф удовлетворяет критериям - возвращаем его
+            return tariff

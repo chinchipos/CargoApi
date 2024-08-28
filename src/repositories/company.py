@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import List
+from typing import List, Dict
 
 from sqlalchemy import select as sa_select, and_, func as sa_func, null, or_
 from sqlalchemy.orm import joinedload, selectinload, aliased, load_only
@@ -21,7 +21,7 @@ from src.repositories.system import SystemRepository
 from src.schemas.company import CompanyCreateSchema
 from src.utils import enums
 from src.utils.common import make_personal_account
-from src.utils.enums import ContractScheme
+from src.utils.enums import ContractScheme, System
 
 
 class CompanyRepository(BaseRepository):
@@ -30,8 +30,7 @@ class CompanyRepository(BaseRepository):
         # Создаем организацию
         personal_account = make_personal_account()
         company_data = company_create_schema.model_dump()
-        tariffs = company_data.pop("tariffs")
-        # tariff_id = company_data.pop("tariff_id") if "tariff_id" in company_data else None
+        # tariffs = company_data.pop("tariffs")
         company = CompanyOrm(**company_data, personal_account=personal_account)
         await self.save_object(company)
         await self.session.refresh(company)
@@ -43,17 +42,30 @@ class CompanyRepository(BaseRepository):
         )
         await self.save_object(balance)
 
-        for tariff_data in tariffs:
-            system_id = tariff_data['system_id']
-            tariff_id = tariff_data['tariff_id']
-            if system_id and tariff_id:
-                # Привязываем системы к балансу и устанавливаем тариф
-                balance_sys_tariff = BalanceSystemTariffOrm(
-                    balance_id=balance.id,
-                    system_id=system_id,
-                    tariff_id=tariff_id
-                )
-                await self.save_object(balance_sys_tariff)
+        # Привязываем перекупной баланс к системам
+        system_repository = SystemRepository(session=self.session, user=self.user)
+        khnp_system = await system_repository.get_system_by_short_name(
+            system_fhort_name=System.KHNP.value,
+            scheme=ContractScheme.OVERBOUGHT
+        )
+        gpn_system = await system_repository.get_system_by_short_name(
+            system_fhort_name=System.GPN.value,
+            scheme=ContractScheme.OVERBOUGHT
+        )
+
+        khnp_bst = BalanceSystemTariffOrm(
+            balance_id=balance.id,
+            system_id=khnp_system.id,
+            tariff_id=None
+        )
+        await self.save_object(khnp_bst)
+
+        gpn_bst = BalanceSystemTariffOrm(
+            balance_id=balance.id,
+            system_id=gpn_system.id,
+            tariff_id=None
+        )
+        await self.save_object(gpn_bst)
 
         # Получаем организацию из БД
         company = await self.get_company(company.id)
@@ -116,13 +128,6 @@ class CompanyRepository(BaseRepository):
                 .selectinload(BalanceOrm.balance_system_tariff)
                 .joinedload(BalanceSystemTariffOrm.system)
                 .load_only(SystemOrm.id, SystemOrm.full_name)
-            )
-            .options(
-                selectinload(CompanyOrm.balances)
-                .load_only()
-                .selectinload(BalanceOrm.balance_system_tariff)
-                .joinedload(BalanceSystemTariffOrm.tariff)
-                .load_only(TariffOrm.id, TariffOrm.name)
             )
             .options(
                 selectinload(CompanyOrm.users)
@@ -201,7 +206,7 @@ class CompanyRepository(BaseRepository):
         company = await self.select_first(stmt)
         return company
 
-    async def get_companies(self) -> List[CompanyOrm]:
+    async def get_companies(self, filters: Dict[str, str] = None) -> List[CompanyOrm]:
         company_table = aliased(CompanyOrm, name="org")
         helper_cards_amount = (
             sa_select(
@@ -238,8 +243,8 @@ class CompanyRepository(BaseRepository):
                 )
                 .selectinload(BalanceOrm.balance_system_tariff)
                 .options(
-                    joinedload(BalanceSystemTariffOrm.system).load_only(SystemOrm.id, SystemOrm.full_name),
-                    joinedload(BalanceSystemTariffOrm.tariff)
+                    joinedload(BalanceSystemTariffOrm.system)
+                    .load_only(SystemOrm.id, SystemOrm.full_name)
                 )
             )
             .options(
@@ -254,6 +259,9 @@ class CompanyRepository(BaseRepository):
                 .joinedload(UserOrm.role)
                 .load_only(RoleOrm.id, RoleOrm.name, RoleOrm.title, RoleOrm.description)
             )
+            .options(
+                joinedload(CompanyOrm.tariff_policy)
+            )
             .outerjoin(BalanceOrm, and_(
                 BalanceOrm.company_id == CompanyOrm.id,
                 BalanceOrm.scheme == ContractScheme.OVERBOUGHT
@@ -262,6 +270,8 @@ class CompanyRepository(BaseRepository):
             .order_by(BalanceOrm.balance)
             .distinct()
         )
+        if filters.get("tariff_policy_id", None):
+            stmt = stmt.where(CompanyOrm.tariff_policy_id == filters["tariff_policy_id"])
 
         company_roles = [enums.Role.COMPANY_ADMIN.name, enums.Role.COMPANY_LOGIST.name, enums.Role.COMPANY_DRIVER]
         if self.user.role.name == enums.Role.CARGO_MANAGER.name:

@@ -19,3 +19,7 @@ op.add_column('card', sa.Column('reason_for_blocking', postgresql.ENUM('MANUALLY
 
 ---------------------------------------
 pytest tests/ -rx --log-disable=main
+
+
+----------------------------------
+https://googlechromelabs.github.io/chrome-for-testing/#stable

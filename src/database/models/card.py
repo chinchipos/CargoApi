@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from enum import Enum
 from typing import List
 
@@ -166,4 +166,64 @@ class CardOrm(Base):
         init=False
     )
 
+    # История владения картой
+    card_history: Mapped[List["CardHistoryOrm"]] = relationship(
+        back_populates="card",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
     repr_cols = ("card_number",)
+
+
+class CardHistoryOrm(Base):
+    __tablename__ = "card_history"
+    __table_args__ = {
+        'comment': 'История принадлежности топливных карт'
+    }
+
+    # Карта
+    card_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.card.id"),
+        nullable=False,
+        init=True,
+        comment="Карта"
+    )
+
+    # Карта
+    card: Mapped["CardOrm"] = relationship(
+        back_populates="card_history",
+        lazy="noload",
+        init=False
+    )
+
+    # Организация
+    company_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.company.id"),
+        nullable=False,
+        init=True,
+        comment="Организация"
+    )
+
+    # Организация
+    company: Mapped["CompanyOrm"] = relationship(
+        back_populates="card_history",
+        lazy="noload",
+        init=False
+    )
+
+    begin_time: Mapped[datetime] = mapped_column(
+        sa.DateTime,
+        nullable=False,
+        server_default=sa.text("NOW()"),
+        init=False,
+        comment="Время начала владения"
+    )
+
+    end_time: Mapped[datetime] = mapped_column(
+        sa.DateTime,
+        nullable=True,
+        init=False,
+        comment="Время прекращения владения"
+    )

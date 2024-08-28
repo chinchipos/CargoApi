@@ -65,9 +65,14 @@ class TariffEditSchema(BaseSchema):
     name: name_
 
 
-class TariffMinimumReadSchema(BaseSchema):
-    id: id_
-    name: name_
+class TariffPolicyReadMinSchema(BaseSchema):
+    id: policy_id_
+    name: policy_name_
+
+
+class TariffNewReadMinSchema(BaseSchema):
+    id: tariff_id_
+    policy: Annotated[TariffPolicyReadMinSchema | None, Field(description="Тарифная политика")] = None
 
 
 class TariffReadSchema(BaseSchema):
@@ -108,7 +113,7 @@ class TariffDictionariesSchema(BaseSchema):
 
 class TariffPoliciesReadSchema(BaseSchema):
     polices: Annotated[List[TariffPolicyReadSchema], Field(description="Тарифные политики")]
-    dictionaries: Annotated[TariffDictionariesSchema | None, Field(description="Тарифные политики")] = None
+    dictionaries: Annotated[TariffDictionariesSchema | None, Field(description="Справочники")] = None
 
 
 class TariffParamsSchema(BaseSchema):

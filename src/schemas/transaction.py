@@ -7,7 +7,7 @@ from src.schemas.base import BaseSchema
 from src.schemas.card import CardMinimumReadSchema
 from src.schemas.goods import OuterGoodsReadSchema
 from src.schemas.system import SystemReadMinimumSchema
-from src.schemas.tariff import TariffMinimumReadSchema
+from src.schemas.tariff import TariffNewReadMinSchema
 from src.schemas.validators import CompanyFromBalance
 from src.utils.enums import TransactionType
 
@@ -50,7 +50,8 @@ transaction_sum_ = Annotated[float, Field(description="Сумма транзак
 
 discount_sum_ = Annotated[float, Field(description="Размер скидки, руб", examples=[0.0])]
 
-tariff_ = Annotated[TariffMinimumReadSchema | None, Field(description="Тариф")]
+# tariff_ = Annotated[TariffMinimumReadSchema | None, Field(description="Тариф")]
+tariff_new_ = Annotated[TariffNewReadMinSchema | None, Field(description="Тариф")]
 
 fee_percent_ = Annotated[float, Field(description="Комиссия за обслуживание, %", examples=[0.5])]
 
@@ -79,7 +80,7 @@ class TransactionReadSchema(BaseSchema):
     price: price_
     transaction_sum: transaction_sum_
     discount_sum: discount_sum_
-    tariff: tariff_ = None
+    tariff_new: tariff_new_ = None
     fee_sum: fee_sum_
     total_sum: total_sum_
     card_balance: card_balance_

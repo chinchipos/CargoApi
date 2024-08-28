@@ -2,16 +2,16 @@ from datetime import datetime, timedelta
 from typing import List, Dict
 
 from sqlalchemy import select as sa_select, and_, func, update as sa_update
-from sqlalchemy.orm import joinedload, load_only, aliased
+from sqlalchemy.orm import joinedload, aliased
 
 from src.config import TZ
+from src.database.models import OuterGoodsGroupOrm
 from src.database.models.card import CardOrm
 from src.database.models.transaction import TransactionOrm
 from src.database.models.system import SystemOrm
-from src.database.models.tariff import TariffOrm
+from src.database.models.tariff import TariffOrm, TariffNewOrm
 from src.database.models.balance_system_tariff import BalanceSystemTariffOrm
 from src.database.models.system import CardSystemOrm
-from src.database.models.balance_tariff_history import BalanceTariffHistoryOrm
 from src.database.models.balance import BalanceOrm
 from src.database.models.company import CompanyOrm
 from src.database.models.goods import OuterGoodsOrm
@@ -89,24 +89,6 @@ class TransactionRepository(BaseRepository):
         stmt = (
             sa_select(TransactionOrm)
             .options(
-                load_only(
-                    TransactionOrm.id,
-                    TransactionOrm.date_time,
-                    TransactionOrm.date_time_load,
-                    TransactionOrm.transaction_type,
-                    TransactionOrm.azs_code,
-                    TransactionOrm.fuel_volume,
-                    TransactionOrm.price,
-                    TransactionOrm.transaction_sum,
-                    TransactionOrm.discount_sum,
-                    TransactionOrm.fee_sum,
-                    TransactionOrm.total_sum,
-                    TransactionOrm.card_balance,
-                    TransactionOrm.company_balance,
-                    TransactionOrm.comments
-                )
-            )
-            .options(
                 joinedload(TransactionOrm.card)
                 .load_only(CardOrm.id, CardOrm.card_number, CardOrm.is_active)
             )
@@ -120,8 +102,9 @@ class TransactionRepository(BaseRepository):
                 .joinedload(OuterGoodsOrm.inner_goods)
             )
             .options(
-                joinedload(TransactionOrm.tariff)
-                .load_only(TariffOrm.id, TariffOrm.name)
+                joinedload(TransactionOrm.tariff_new)
+                .load_only(TariffNewOrm.id)
+                .joinedload(TariffNewOrm.policy)
             )
             .options(
                 joinedload(TransactionOrm.company)
@@ -225,6 +208,7 @@ class TransactionRepository(BaseRepository):
         balance_system_tariff_list = await self.select_all(stmt)
         return balance_system_tariff_list
 
+    """
     async def get_tariffs_history(self, system_id: str) -> List[BalanceTariffHistoryOrm]:
         bth = aliased(BalanceTariffHistoryOrm, name="bth")
         stmt = (
@@ -237,6 +221,7 @@ class TransactionRepository(BaseRepository):
         )
         tariffs_history = await self.select_all(stmt)
         return tariffs_history
+    """
 
     async def get_balance_card_relations(self, card_numbers: List[str], system_id: str) -> Dict[str, str]:
         stmt = (
@@ -255,6 +240,13 @@ class TransactionRepository(BaseRepository):
         return balance_card_relations
 
     async def get_outer_goods_list(self, system_id: str) -> List[OuterGoodsOrm]:
-        stmt = sa_select(OuterGoodsOrm).where(OuterGoodsOrm.system_id == system_id)
+        stmt = (
+            sa_select(OuterGoodsOrm)
+            .options(
+                joinedload(OuterGoodsOrm.outer_group)
+                .joinedload(OuterGoodsGroupOrm.inner_group)
+            )
+            .where(OuterGoodsOrm.system_id == system_id)
+        )
         outer_goods = await self.select_all(stmt)
         return outer_goods

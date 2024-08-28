@@ -59,12 +59,14 @@ class CompanyOrm(Base):
     tariff_policy_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.tariff_policy.id"),
         nullable=True,
+        init=True,
         comment="Тарифная политика"
     )
 
     # Тарифная политика
     tariff_policy: Mapped["TariffPolicyOrm"] = relationship(
         back_populates="companies",
+        init=False,
         lazy="noload"
     )
 
@@ -146,6 +148,14 @@ class CompanyOrm(Base):
 
     # Список уведомлений этой организации
     notification_mailings: Mapped[List["NotificationMailingOrm"]] = relationship(
+        back_populates="company",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
+    # История владения картами
+    card_history: Mapped[List["CardHistoryOrm"]] = relationship(
         back_populates="company",
         cascade="all, delete-orphan",
         lazy="noload",

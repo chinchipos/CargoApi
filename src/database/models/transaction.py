@@ -103,14 +103,6 @@ class TransactionOrm(Base):
         comment="Код АЗС"
     )
 
-    azs_address: Mapped[str] = mapped_column(
-        sa.String(255),
-        nullable=False,
-        server_default="",
-        init=False,
-        comment="Адрес АЗС"
-    )
-
     outer_goods_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.outer_goods.id"),
         nullable=True,
@@ -163,6 +155,18 @@ class TransactionOrm(Base):
 
     # Тариф
     tariff: Mapped["TariffOrm"] = relationship(
+        back_populates="transactions",
+        lazy="noload"
+    )
+
+    tariff_new_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.tariff_new.id"),
+        nullable=True,
+        comment="Тариф"
+    )
+
+    # Тариф
+    tariff_new: Mapped["TariffNewOrm"] = relationship(
         back_populates="transactions",
         lazy="noload"
     )

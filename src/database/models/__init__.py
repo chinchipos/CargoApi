@@ -3,14 +3,13 @@ from src.database.models.company import CompanyOrm
 from src.database.models.balance import BalanceOrm
 from src.database.models.card_group import CardGroupOrm
 from src.database.models.card_type import CardTypeOrm
-from src.database.models.card import CardOrm
+from src.database.models.card import CardOrm, CardHistoryOrm
 from src.database.models.overdrafts_history import OverdraftsHistoryOrm
 from src.database.models.goods_category import OuterGoodsCategoryOrm
 from src.database.models.goods_group import InnerGoodsGroupOrm, OuterGoodsGroupOrm
 from src.database.models.goods import OuterGoodsOrm, InnerGoodsOrm
 from src.database.models.log import LogOrm, LogTypeOrm
 from src.database.models.balance_system_tariff import BalanceSystemTariffOrm
-from src.database.models.balance_tariff_history import BalanceTariffHistoryOrm
 from src.database.models.car import CarOrm, CarDriverOrm
 from src.database.models.money_receipt import MoneyReceiptOrm
 from src.database.models.role import RoleOrm, RolePermitionOrm, PermitionOrm

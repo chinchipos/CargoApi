@@ -8,7 +8,8 @@ from src.descriptions.company import company_tag_description, edit_company_descr
     get_companies_description, get_company_drivers_description, bind_manager_to_company_description, \
     edit_balance_description, create_company_description, get_notifications_description
 from src.schemas.common import SuccessSchema
-from src.schemas.company import CompanyReadSchema, CompanyEditSchema, CompanyBalanceEditSchema, CompanyCreateSchema
+from src.schemas.company import CompanyReadSchema, CompanyEditSchema, CompanyBalanceEditSchema, CompanyCreateSchema, \
+    CompaniesReadSchema
 from src.schemas.driver import DriverReadSchema
 from src.schemas.notification import NotifcationMailingReadSchema
 from src.services.company import CompanyService
@@ -27,18 +28,22 @@ company_tag_metadata = {
     path="/company/all",
     tags=["company"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
-    response_model = List[CompanyReadSchema],
+    response_model = CompaniesReadSchema,
     summary = 'Получение списка всех организаций',
     description = get_companies_description
 )
 async def get_companies(
+    with_dictionaries: bool = False,
+    tariff_policy_id: str = None,
     service: CompanyService = Depends(get_service_company)
 ):
     # Получить список организаций может любой пользователь.
     # Состав списка зависит от роли пользователя.
     # Проверка будет выполнена при формировании списка.
-
-    companies = await service.get_companies()
+    filters = {
+        "tariff_policy_id": tariff_policy_id,
+    }
+    companies = await service.get_companies(with_dictionaries=with_dictionaries, filters=filters)
     return companies
 
 
@@ -79,26 +84,6 @@ async def notification_read(
 
     await service.notification_read(mailing_id)
     return {'success': True}
-
-"""
-@router.get(
-    path="/company/all/drivers",
-    tags=["company"],
-    responses = {400: {'model': MessageSchema, "description": "Bad request"}},
-    response_model = List[DriverReadSchema],
-    summary = 'Получение списка водителей всех организаций',
-    description = get_company_drivers_description
-)
-async def get_companies_drivers(
-    service: CompanyService = Depends(get_service_company)
-) -> models.User:
-    # Проверка прав доступа. Право есть только у суперадмина ПроАВТО
-    if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
-        raise ForbiddenException()
-
-    drivers = await service.get_drivers()
-    return drivers
-"""
 
 
 @router.post(

@@ -64,47 +64,55 @@ class AzsOrm(Base):
     region_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.region.id"),
         nullable=True,
+        init=False,
         comment="Регион"
     )
 
     # Система
     region: Mapped["RegionOrm"] = relationship(
         back_populates="azs_stations",
+        init=False,
         lazy="noload"
     )
 
     address: Mapped[dict[str, Any]] = mapped_column(
         JSON,
         nullable=False,
+        init=True,
         comment="Адрес"
     )
 
     own_type: Mapped[AzsOwnType] = mapped_column(
         nullable=True,
+        init=False,
         comment="Тип собственности по отношению к системе"
     )
 
     latitude: Mapped[float] = mapped_column(
         sa.Numeric(9, 6, asdecimal=False),
         nullable=True,
+        init=False,
         comment="Координаты – широта"
     )
 
     longitude: Mapped[float] = mapped_column(
         sa.Numeric(9, 6, asdecimal=False),
         nullable=True,
+        init=False,
         comment="Координаты – долгота"
     )
 
     timezone: Mapped[str] = mapped_column(
         sa.String(),
         nullable=True,
+        init=False,
         comment="Часовой пояс"
     )
 
     working_time: Mapped[dict[str, Any]] = mapped_column(
         JSON,
         nullable=True,
+        init=False,
         comment="Время работы"
     )
 

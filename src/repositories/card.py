@@ -1,12 +1,14 @@
 import traceback
+from datetime import datetime
 from typing import List
 
-from sqlalchemy import select as sa_select, delete as sa_delete, func as sa_func
+from sqlalchemy import select as sa_select, delete as sa_delete, func as sa_func, or_, null, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload, aliased
 
+from src.config import TZ
 from src.database.models import CardLimitOrm, InnerGoodsGroupOrm
-from src.database.models.card import CardOrm
+from src.database.models.card import CardOrm, CardHistoryOrm
 from src.database.models.card_type import CardTypeOrm
 from src.database.models.user import UserOrm
 from src.database.models.transaction import TransactionOrm
@@ -332,3 +334,26 @@ class CardRepository(BaseRepository):
         )
         await self.session.execute(stmt)
         await self.session.commit()
+
+    async def get_card_history(self) -> List[CardHistoryOrm]:
+        stmt = (
+            sa_select(CardHistoryOrm)
+            .options(
+                joinedload(CardHistoryOrm.company)
+                .selectinload(CompanyOrm.balances)
+            )
+            .options(
+                joinedload(CardHistoryOrm.card)
+                .load_only(CardOrm.id, CardOrm.company_id, CardOrm.card_number)
+            )
+            .where(or_(
+                CardHistoryOrm.end_time.is_(null()),
+                and_(
+                    CardHistoryOrm.begin_time <= datetime.now(tz=TZ),
+                    CardHistoryOrm.end_time > datetime.now(tz=TZ)
+                )
+            ))
+            .order_by(CardHistoryOrm.card_id)
+        )
+        card_history = await self.select_all(stmt)
+        return card_history

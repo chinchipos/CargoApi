@@ -47,6 +47,7 @@ class BalanceSystemTariffOrm(Base):
     # Тариф
     tariff_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.tariff.id"),
+        nullable=True,
         comment="Тариф"
     )
 

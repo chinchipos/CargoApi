@@ -1,13 +1,11 @@
-from datetime import date
+from datetime import datetime
 from typing import List, Dict
 
-from sqlalchemy import select as sa_select, and_, or_, null, nullslast
-from sqlalchemy.orm import aliased, joinedload, contains_eager
+from sqlalchemy import select as sa_select, null, nullslast
+from sqlalchemy.orm import joinedload, contains_eager
 
 from src.database.models import SystemOrm, RegionOrm
 from src.database.models.azs import AzsOwnType, AzsOrm
-from src.database.models.balance_system_tariff import BalanceSystemTariffOrm
-from src.database.models.balance_tariff_history import BalanceTariffHistoryOrm
 from src.database.models.goods_category import GoodsCategory
 from src.database.models.tariff import TariffOrm, TariffPolicyOrm, TariffNewOrm
 from src.repositories.base import BaseRepository
@@ -23,11 +21,32 @@ class TariffRepository(BaseRepository):
 
         return new_tariff
 
+    """
     async def get_tariffs(self) -> List[TariffOrm]:
         stmt = (
             sa_select(TariffOrm)
             .order_by(TariffOrm.name)
         )
+        tariffs = await self.select_all(stmt)
+        return tariffs
+    """
+
+    async def get_tariffs(self, system_id: str = None) -> List[TariffNewOrm]:
+        stmt = (
+            sa_select(TariffNewOrm)
+            .order_by(
+                TariffNewOrm.policy_id,
+                TariffNewOrm.system_id,
+                nullslast(TariffNewOrm.azs_own_type),
+                nullslast(TariffNewOrm.region_id),
+                nullslast(TariffNewOrm.azs_id),
+                nullslast(TariffNewOrm.inner_goods_category),
+                nullslast(TariffNewOrm.inner_goods_group_id)
+            )
+        )
+        if system_id:
+            stmt = stmt.where(TariffNewOrm.system_id == system_id)
+
         tariffs = await self.select_all(stmt)
         return tariffs
 
@@ -101,6 +120,7 @@ class TariffRepository(BaseRepository):
         polices: List[TariffPolicyOrm] = await self.select_all(stmt)
         return polices
 
+    """
     async def get_tariff_on_date(self, balance_id: str, system_id: str, date_: date) -> TariffOrm:
         # Получаем историю применения тарифов для найденной организации
         bth = aliased(BalanceTariffHistoryOrm, name="bth")
@@ -131,6 +151,7 @@ class TariffRepository(BaseRepository):
             tariff = await self.select_first(stmt)
 
         return tariff
+    """
 
     async def create_tariff_policy(self, policy_name: str, is_active: bool = True) -> TariffPolicyOrm:
         policy = TariffPolicyOrm(name=policy_name, is_active=is_active)
@@ -153,7 +174,8 @@ class TariffRepository(BaseRepository):
         return policy
 
     async def create_tariff(self, policy_id: str, system_id: str, azs_own_type: AzsOwnType, region_id: str,
-                            goods_group_id: str, goods_category: GoodsCategory,  discount_fee: float) -> TariffNewOrm:
+                            goods_group_id: str, goods_category: GoodsCategory,  discount_fee: float,
+                            begin_time: datetime) -> TariffNewOrm:
         tariff = TariffNewOrm(
             policy_id=policy_id,
             system_id=system_id,
@@ -161,7 +183,8 @@ class TariffRepository(BaseRepository):
             region_id=region_id,
             inner_goods_group_id=goods_group_id,
             inner_goods_category=goods_category,
-            discount_fee=discount_fee
+            discount_fee=discount_fee,
+            begin_time=begin_time
         )
         await self.save_object(tariff)
         return tariff
@@ -170,3 +193,16 @@ class TariffRepository(BaseRepository):
         stmt = sa_select(RegionOrm).order_by(RegionOrm.country, RegionOrm.name)
         regions = await self.select_all(stmt)
         return regions
+
+    async def get_azs_stations(self, system_id: str = None) -> List[AzsOrm]:
+        stmt = (
+            sa_select(AzsOrm)
+            .options(
+                joinedload(AzsOrm.region)
+            )
+        )
+        if system_id:
+            stmt = stmt.where(AzsOrm.system_id == system_id)
+
+        azs_stations = await self.select_all(stmt)
+        return azs_stations
