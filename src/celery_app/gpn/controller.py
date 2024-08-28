@@ -431,7 +431,7 @@ class GPNController(BaseRepository):
         j = 1
         companies_amount = len(balances)
         for balance in balances:
-            self.logger.info(f"Организация {j} из {companies_amount}")
+            self.logger.info(f"Организация {j} из {companies_amount}: {balance.company.personal_account}")
             j += 1
 
             # if balance.company.personal_account == "9229609":
