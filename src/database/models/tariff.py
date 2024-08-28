@@ -36,14 +36,6 @@ class TariffOrm(Base):
         comment="Комиссия, %"
     )
 
-    # Список транзакций по этому тарифу
-    transactions: Mapped[List["TransactionOrm"]] = relationship(
-        back_populates="tariff",
-        cascade="all, delete-orphan",
-        lazy="noload",
-        init=False
-    )
-
     # Текущие связки Баланс-Система, для которых применяется этот тариф
     balance_system_tariff: Mapped[List["BalanceSystemTariffOrm"]] = relationship(
         back_populates="tariff",

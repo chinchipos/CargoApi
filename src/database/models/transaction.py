@@ -153,12 +153,6 @@ class TransactionOrm(Base):
         comment="Тариф"
     )
 
-    # Тариф
-    tariff: Mapped["TariffOrm"] = relationship(
-        back_populates="transactions",
-        lazy="noload"
-    )
-
     tariff_new_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.tariff_new.id"),
         nullable=True,
