@@ -465,6 +465,8 @@ class GPNController(BaseRepository):
                 company_available_balance=company_available_balance,
                 current_company_limits=current_company_limits
             )
+            print(f"personal_account: {balance.company.personal_account} | "
+                  f"available_balance:{company_available_balance} | limit_sum: {limit_sum}")
             # if balance.company.personal_account == "9229609":
             #     print(f"Новый лимит для организации ОВР: {limit_sum} руб")
 
@@ -509,6 +511,7 @@ class GPNController(BaseRepository):
                 limit_id = current_limit['id']
                 if current_limit['sum']['value'] != limit_sum:
                     need_to_update = True
+                    print(f"group_id: {group_id} | gpn_limit: {current_limit['sum']['value']} | local_limit: {limit_sum}")
                 break
 
         # if group_id == "1-170U7J6K":
