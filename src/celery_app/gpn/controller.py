@@ -1,4 +1,5 @@
 import copy
+import math
 import time
 from datetime import datetime
 from typing import Dict, Any, List
@@ -485,10 +486,13 @@ class GPNController(BaseRepository):
             spent_sum += current_limit['sum']['used']
 
         # Вычисляем новый доступный лимит на категорию "Топливо"
-        limit_sum = max(int(company_available_balance) + spent_sum, 1)
+        limit_sum = max(int(math.floor(company_available_balance + spent_sum)), 1)
         return limit_sum
 
-    def set_company_limits(self, group_id: str, current_company_limits, limit_sum: int):
+    def set_company_limits(self, group_id: str, current_company_limits, limit_sum: int | float):
+        if isinstance(limit_sum, float):
+            limit_sum = int(math.floor(limit_sum))
+
         # Если текущие лимиты не относятся к постоянным, то удаляем их
         i = 0
         while i < len(current_company_limits):
