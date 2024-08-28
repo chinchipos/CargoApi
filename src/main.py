@@ -12,6 +12,7 @@ from src.routing.card_type import router as card_type_routing, card_type_tag_met
 from src.routing.company import router as company_routing, company_tag_metadata
 from src.routing.db import router as db_routing, db_tag_metadata
 from src.routing.goods import router as goods_routing, goods_tag_metadata
+from src.routing.filter import router as filter_routing, filter_tag_metadata
 from src.routing.role import router as role_routing, role_tag_metadata
 from src.routing.system import router as system_routing, system_tag_metadata
 from src.routing.tariff import router as tariff_routing, tariff_tag_metadata
@@ -49,6 +50,7 @@ def init_app(dsn: str, tests: bool = False):
         car_tag_metadata,
         role_tag_metadata,
         goods_tag_metadata,
+        filter_tag_metadata,
     ]
 
     app = FastAPI(
@@ -80,6 +82,7 @@ def init_app(dsn: str, tests: bool = False):
     app.include_router(car_routing)
     app.include_router(role_routing)
     app.include_router(goods_routing)
+    app.include_router(filter_routing)
     app.include_router(
         fastapi_users.get_auth_router(auth_backend),
         prefix="/auth/jwt",

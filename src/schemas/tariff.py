@@ -75,12 +75,6 @@ class TariffNewReadMinSchema(BaseSchema):
     policy: Annotated[TariffPolicyReadMinSchema | None, Field(description="Тарифная политика")] = None
 
 
-class TariffReadSchema(BaseSchema):
-    id: id_
-    name: name_
-    fee_percent: fee_percent_
-
-
 class TariffNewReadSchema(BaseSchema):
     id: tariff_id_
     system: system_

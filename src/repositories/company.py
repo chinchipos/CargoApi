@@ -207,6 +207,9 @@ class CompanyRepository(BaseRepository):
         return company
 
     async def get_companies(self, filters: Dict[str, str] = None) -> List[CompanyOrm]:
+        if filters is None:
+            filters = {}
+
         company_table = aliased(CompanyOrm, name="org")
         helper_cards_amount = (
             sa_select(

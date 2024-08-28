@@ -4,10 +4,10 @@ from typing import List
 from fastapi import APIRouter, Depends
 
 from src.depends import get_service_tariff
-from src.descriptions.tariff import delete_tariff_description, get_tariffs_description, edit_tariff_description, \
-    create_tariff_description, tariff_tag_description
+from src.descriptions.tariff import delete_tariff_description, get_tariffs_description, create_tariff_description, \
+    tariff_tag_description
 from src.schemas.common import SuccessSchema
-from src.schemas.tariff import TariffReadSchema, TariffEditSchema, TariffPoliciesReadSchema, \
+from src.schemas.tariff import TariffNewReadSchema, TariffPoliciesReadSchema, \
     TariffNewCreateSchema
 from src.services.tariff import TariffService
 from src.utils import enums
@@ -25,7 +25,7 @@ tariff_tag_metadata = {
     path="/tariff/all",
     tags=["tariff"],
     responses = {400: {'model': MessageSchema, "description": "Bad request"}},
-    response_model = List[TariffReadSchema],
+    response_model = List[TariffNewReadSchema],
     summary = 'Получение списка тарифов',
     description = get_tariffs_description
 )

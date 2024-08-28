@@ -10,6 +10,7 @@ from src.repositories.card import CardRepository
 from src.repositories.card_type import CardTypeRepository
 from src.repositories.company import CompanyRepository
 from src.repositories.db.db import DBRepository
+from src.repositories.filter import FilterRepository
 from src.repositories.goods import GoodsRepository
 from src.repositories.role import RoleRepository
 from src.repositories.system import SystemRepository
@@ -21,6 +22,7 @@ from src.services.card import CardService
 from src.services.card_type import CardTypeService
 from src.services.company import CompanyService
 from src.services.db import DBService
+from src.services.filter import FilterService
 from src.services.goods import GoodsService
 from src.services.role import RoleService
 from src.services.system import SystemService
@@ -128,4 +130,13 @@ def get_service_goods(
 ) -> GoodsService:
     repository = GoodsRepository(session, user)
     service = GoodsService(repository)
+    return service
+
+
+def get_service_filter(
+    session: AsyncSession = Depends(get_session),
+    user: UserOrm = Depends(get_current_active_user)
+) -> FilterService:
+    repository = FilterRepository(session, user)
+    service = FilterService(repository)
     return service
