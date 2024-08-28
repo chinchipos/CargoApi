@@ -38,9 +38,8 @@ def after_sync(irrelevant_balances_list: List[IrrelevantBalances]):
     changed_balances = [balance_id for balance_id in irrelevant_balances.data().keys()]
     tasks = [
         calc_balances.si(irrelevant_balances),
-        # set_card_states_by_balance_ids.s(),
-        # khnp_set_card_states.s(),
-        # gpn_set_card_group_limit.si(changed_balances)
+        khnp_set_card_states.s(),
+        gpn_set_card_group_limit.si(changed_balances)
     ]
     if messages:
         tasks.append(fail.si(messages))
