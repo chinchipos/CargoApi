@@ -162,4 +162,12 @@ class CompanyOrm(Base):
         init=False
     )
 
+    # История применения траифных политик
+    tariff_policy_history: Mapped[List["TariffPolicyHistoryOrm"]] = relationship(
+        back_populates="company",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
     repr_cols = ("name", "inn")

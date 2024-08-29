@@ -3,30 +3,37 @@ from typing import List, Dict, Any
 from sqlalchemy import select as sa_select, nulls_first
 from sqlalchemy.orm import joinedload, selectinload
 
-from src.database.models import OuterGoodsGroupOrm, InnerGoodsGroupOrm
+from src.database.models import OuterGoodsGroupOrm, InnerGoodsGroupOrm, TransactionOrm
 from src.database.models.goods_category import OuterGoodsCategoryOrm, GoodsCategory
 from src.database.models.goods import OuterGoodsOrm, InnerGoodsOrm
 from src.repositories.base import BaseRepository
 
 
 class GoodsRepository(BaseRepository):
-    async def get_outer_goods(self, limit: int | None = None) -> List[OuterGoodsOrm]:
+    async def get_outer_goods(self, transaction_exists: bool = True, limit: int | None = None) -> List[OuterGoodsOrm]:
         stmt = (
             sa_select(OuterGoodsOrm)
             .options(
                 joinedload(OuterGoodsOrm.system)
             )
             .options(
-                joinedload(OuterGoodsOrm.inner_goods)
-                .joinedload(InnerGoodsOrm.inner_group)
-            )
-            .options(
                 joinedload(OuterGoodsOrm.outer_group)
                 .joinedload(OuterGoodsGroupOrm.outer_category)
             )
-            .outerjoin(InnerGoodsOrm)
-            .order_by(nulls_first(InnerGoodsOrm.name), OuterGoodsOrm.name)
+            .options(
+                joinedload(OuterGoodsOrm.outer_group)
+                .joinedload(OuterGoodsGroupOrm.inner_group)
+            )
+            .order_by(nulls_first(OuterGoodsOrm.inner_name), OuterGoodsOrm.name)
         )
+        if transaction_exists:
+            transaction_exists_criteria = (
+                sa_select(TransactionOrm.id)
+                .where(TransactionOrm.outer_goods_id == OuterGoodsOrm.id)
+                .exists()
+            )
+            stmt = stmt.where(transaction_exists_criteria)
+
         if limit:
             stmt = stmt.limit(limit)
 
@@ -38,12 +45,14 @@ class GoodsRepository(BaseRepository):
         goods = await self.select_all(stmt)
         return goods
 
-    async def get_single_goods(self, outer_goods_id: str) -> OuterGoodsOrm:
+    async def get_outer_goods_item(self, outer_goods_id: str) -> OuterGoodsOrm:
         stmt = (
             sa_select(OuterGoodsOrm)
             .options(
-                joinedload(OuterGoodsOrm.system),
-                joinedload(OuterGoodsOrm.inner_goods)
+                joinedload(OuterGoodsOrm.system)
+            )
+            .options(
+                joinedload(OuterGoodsOrm.outer_group)
             )
             .where(OuterGoodsOrm.id == outer_goods_id)
             .order_by(OuterGoodsOrm.name)
@@ -89,7 +98,7 @@ class GoodsRepository(BaseRepository):
                 selectinload(InnerGoodsGroupOrm.outer_goods_groups)
                 .joinedload(OuterGoodsGroupOrm.outer_category)
             )
-            .order_by(InnerGoodsGroupOrm.name)
+            .order_by(InnerGoodsGroupOrm.inner_category, InnerGoodsGroupOrm.name)
         )
         groups = await self.select_all(stmt)
         return groups
@@ -106,3 +115,12 @@ class GoodsRepository(BaseRepository):
         ]
 
         return categories
+
+    async def get_inner_goods_names(self) -> List[str]:
+        stmt = (
+            sa_select(InnerGoodsOrm.name)
+            .order_by(InnerGoodsOrm.name)
+            .distinct()
+        )
+        names = await self.select_all(stmt)
+        return names

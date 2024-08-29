@@ -7,20 +7,20 @@ from sqlalchemy.orm import joinedload, contains_eager
 from src.database.models import SystemOrm, RegionOrm
 from src.database.models.azs import AzsOwnType, AzsOrm
 from src.database.models.goods_category import GoodsCategory
-from src.database.models.tariff import TariffOrm, TariffPolicyOrm, TariffNewOrm
+from src.database.models.tariff import TariffPolicyOrm, TariffNewOrm
 from src.repositories.base import BaseRepository
-from src.schemas.tariff import TariffCreateSchema
 
 
 class TariffRepository(BaseRepository):
 
+    """
     async def create(self, tariff_create_schema: TariffCreateSchema) -> TariffOrm:
         new_tariff = TariffOrm(**tariff_create_schema.model_dump())
         await self.save_object(new_tariff)
         await self.session.refresh(new_tariff)
 
         return new_tariff
-
+    """
     """
     async def get_tariffs(self) -> List[TariffOrm]:
         stmt = (

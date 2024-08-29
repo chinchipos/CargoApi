@@ -9,7 +9,7 @@ from src.database.models.goods_category import OuterGoodsCategoryOrm
 from src.database.models.goods_group import InnerGoodsGroupOrm, OuterGoodsGroupOrm
 from src.database.models.goods import OuterGoodsOrm, InnerGoodsOrm
 from src.database.models.log import LogOrm, LogTypeOrm
-from src.database.models.balance_system_tariff import BalanceSystemTariffOrm
+from src.database.models.balance_system import BalanceSystemOrm
 from src.database.models.car import CarOrm, CarDriverOrm
 from src.database.models.money_receipt import MoneyReceiptOrm
 from src.database.models.role import RoleOrm, RolePermitionOrm, PermitionOrm

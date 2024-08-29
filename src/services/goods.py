@@ -1,4 +1,5 @@
-from typing import List
+import copy
+from typing import List, Dict, Any
 
 from src.database.models.goods import OuterGoodsOrm, InnerGoodsOrm
 from src.repositories.goods import GoodsRepository
@@ -12,63 +13,54 @@ class GoodsService:
         self.repository = repository
         self.logger = repository.logger
 
-    async def get_all_outer_goods(self) -> List[OuterGoodsOrm]:
-        goods = await self.repository.get_outer_goods(limit=500)
+    async def get_all_outer_goods(self, with_dictionaries: bool) -> Dict[str, Any]:
+        outer_goods = copy.deepcopy(await self.repository.get_outer_goods(limit=500))
 
-        # def get_schema(goods_obj: models.OuterGoods):
-        #     system_schema = SystemReadMinimumSchema(**goods_obj.system.dumps())
-        #     goods_schema = OuterGoodsReadSchema(
-        #         id=goods_obj.id,
-        #         outer_name=goods_obj.name,
-        #         inner_name=goods_obj.inner_goods.name if goods_obj.inner_goods_id else '',
-        #         system=system_schema
-        #     )
-        #     return goods_schema
+        dictionaries = None
+        if with_dictionaries:
+            # Наименования продуктов в системе ННК
+            inner_names = await self.repository.get_inner_goods_names()
 
-        # goods = list(map(get_schema, goods))
-        return goods
+            # Список продуктовых групп в системе ННК
+            inner_groups = await self.repository.get_inner_groups()
+
+            dictionaries = {
+                "inner_names": inner_names,
+                "inner_groups": inner_groups,
+            }
+
+        data = {
+            "outer_goods": outer_goods,
+            "dictionaries": dictionaries
+        }
+
+        return data
 
     async def get_all_inner_goods(self) -> List[InnerGoodsOrm]:
         goods = await self.repository.get_all_inner_goods()
         return goods
 
     async def get_single_goods(self, outer_goods_id: str) -> OuterGoodsOrm:
-        goods = await self.repository.get_single_goods(outer_goods_id)
+        goods = await self.repository.get_outer_goods_item(outer_goods_id)
         return goods
-
-        # system_schema = SystemReadMinimumSchema(**goods.system.dumps())
-        # goods_schema = OuterGoodsReadSchema(
-        #     id=goods.id,
-        #     outer_name=goods.name,
-        #     inner_name=goods.inner_goods.name if goods.inner_goods_id else '',
-        #     system=system_schema
-        # )
-        # return goods_schema
 
     async def edit(self, outer_goods_id: str, data: InnerGoodsEditSchema) -> OuterGoodsOrm:
         # Получаем запись из БД
-        outer_goods = await self.repository.get_single_goods(outer_goods_id)
+        outer_goods = await self.repository.get_outer_goods_item(outer_goods_id)
         if not outer_goods:
             raise BadRequestException('Запись не найдена')
 
-        current_inner_goods = outer_goods.inner_goods
+        if not data.inner_name:
+            raise BadRequestException('Не указано наименование для системы ННК')
 
-        # Ищем inner_goods с наименованием, соответствующим полученному
-        if data.inner_name:
-            new_inner_goods = await self.repository.get_single_inner_goods_by_name(data.inner_name)
-            if not new_inner_goods:
-                new_inner_goods = await self.repository.create_inner_goods(data.inner_name)
+        if outer_goods.outer_group_id:
+            if not data.inner_group_id:
+                raise BadRequestException('Не указана группа продуктов для системы ННК')
 
-        else:
-            new_inner_goods = None
+            outer_goods.outer_group.inner_group_id = data.inner_group_id
+            await self.repository.save_object(outer_goods.outer_group)
 
-        # Объекту outer_goods присваиваем inner_goods.
-        new_inner_goods_id = new_inner_goods.id if new_inner_goods else None
-        await self.repository.update_object(outer_goods, {"inner_goods_id": new_inner_goods_id})
+        outer_goods.inner_name = data.inner_name
+        await self.repository.save_object(outer_goods)
 
-        # Удаляем старый inner_goods, если на него не ссылаются другие объекты
-        if current_inner_goods:
-            await self.repository.delete_object(InnerGoodsOrm, current_inner_goods.id, silent=True)
-
-        outer_goods = await self.get_single_goods(outer_goods.id)
         return outer_goods

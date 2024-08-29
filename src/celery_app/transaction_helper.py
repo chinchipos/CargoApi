@@ -1,12 +1,9 @@
-from datetime import date
 from typing import List
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.celery_app.exceptions import CeleryError
 from src.database.models import CardOrm
-from src.database.models.tariff import TariffOrm
-from src.database.models.balance_system_tariff import BalanceSystemTariffOrm
 from src.repositories.card import CardRepository
 
 
@@ -37,8 +34,9 @@ def get_tariff_on_date_by_balance(balance_id: str, transaction_date: date,
             return th.tariff
 """
 
-
+"""
 def get_current_tariff_by_balance(balance_id: str, bst_list: List[BalanceSystemTariffOrm]) -> TariffOrm:
     for bst in bst_list:
         if bst.balance_id == balance_id:
             return bst.tariff
+"""

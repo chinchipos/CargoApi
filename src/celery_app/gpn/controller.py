@@ -16,7 +16,7 @@ from src.config import TZ, PRODUCTION
 from src.database.models import CompanyOrm, CardLimitOrm, AzsOrm, RegionOrm, TariffNewOrm
 from src.database.models.azs import AzsOwnType
 from src.database.models.balance import BalanceOrm as BalanceOrm
-from src.database.models.balance_system_tariff import BalanceSystemTariffOrm
+from src.database.models.balance_system import BalanceSystemOrm
 from src.database.models.card import CardOrm, BlockingCardReason, CardHistoryOrm
 from src.database.models.card_type import CardTypeOrm
 from src.database.models.goods import OuterGoodsOrm, InnerGoodsOrm
@@ -47,7 +47,7 @@ class GPNController(BaseRepository):
 
         self._local_cards: List[CardOrm] = []
         # self._balance_card_relations: Dict[str, str] = {}
-        self._bst_list: List[BalanceSystemTariffOrm] = []
+        self._bst_list: List[BalanceSystemOrm] = []
         self._outer_goods_list: List[OuterGoodsOrm] = []
         self._card_history: List[CardHistoryOrm] = []
         self._azs_stations: List[AzsOrm] = []

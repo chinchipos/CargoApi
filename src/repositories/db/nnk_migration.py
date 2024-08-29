@@ -9,11 +9,10 @@ from src.database.models.card import CardOrm
 from src.database.models.card_type import CardTypeOrm
 from src.database.models.role import RoleOrm
 from src.database.models.system import SystemOrm
-from src.database.models.tariff import  TariffOrm
-from src.database.models.car import  CarOrm
+from src.database.models.car import CarOrm
 from src.database.models.transaction import TransactionOrm
 from src.database.models.system import CardSystemOrm
-from src.database.models.balance_system_tariff import BalanceSystemTariffOrm
+from src.database.models.balance_system import BalanceSystemOrm
 from src.database.models.balance import BalanceOrm
 from src.database.models.company import CompanyOrm
 from src.database.models.goods import InnerGoodsOrm, OuterGoodsOrm
@@ -64,11 +63,14 @@ class NNKMigration(BaseRepository):
         self.company_ids = {item[0]: item[1] for item in company_ids}
 
     async def _set_tariff_ids(self) -> None:
+        """
         tariff_ids = await self.select_all(
             sa_select(TariffOrm.master_db_id, TariffOrm.id).where(TariffOrm.master_db_id.is_not(null())),
             scalars=False
         )
         self.tariff_ids = {item[0]: item[1] for item in tariff_ids}
+        """
+        pass
 
     async def _set_goods_ids(self) -> None:
         goods = await self.select_all(
@@ -98,7 +100,7 @@ class NNKMigration(BaseRepository):
                 fee_percent=tariff['service_online'] if tariff['title'] != 'РН-ННК1.5' else 1.5,
             ) for tariff in tariffs
         ]
-        await self.bulk_insert_or_update(TariffOrm, dataset, 'name')
+        # await self.bulk_insert_or_update(TariffOrm, dataset, 'name')
         await self._set_tariff_ids()
 
     async def import_companies(self, companies: list[Dict[str, Any]]) -> None:
@@ -241,7 +243,7 @@ class NNKMigration(BaseRepository):
                 tariff_id=self.tariff_ids[company['tariff_id']],
             ) for company in companies if company['tariff_id']
         ]
-        await self.bulk_insert_or_update(BalanceSystemTariffOrm, dataset)
+        await self.bulk_insert_or_update(BalanceSystemOrm, dataset)
 
     async def import_inner_goods(self, goods: list[Dict[str, Any]]) -> None:
         dataset = [{'name': good['inner_goods']} for good in goods if good['inner_goods']]

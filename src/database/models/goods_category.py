@@ -51,12 +51,6 @@ class OuterGoodsCategoryOrm(Base):
         lazy="noload"
     )
 
-    inner_category: Mapped[GoodsCategory] = mapped_column(
-        nullable=True,
-        init=False,
-        comment="Соответствующая категория продуктов в нашей системе"
-    )
-
     # Список групп товаров, привязанных к этой категории
     outer_goods_groups: Mapped[List["OuterGoodsGroupOrm"]] = relationship(
         back_populates="outer_category",

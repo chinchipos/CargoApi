@@ -5,14 +5,13 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.database.models.base import Base
 
 
-class BalanceSystemTariffOrm(Base):
-    __tablename__ = "balance_system_tariff"
+class BalanceSystemOrm(Base):
+    __tablename__ = "balance_system"
     __table_args__ = (
         UniqueConstraint("balance_id", "system_id", name="unique_balance_system"),
         {
             'comment': (
-                "Сведения из таблицы позволяют указать какой тариф применяется сейчас "
-                "при отражении операций с конкретным поставщиком услуг на соответствующем  балансе."
+                "Связи Баланс <-> Система"
             )
         }
     )
@@ -25,7 +24,7 @@ class BalanceSystemTariffOrm(Base):
 
     # Баланс
     balance: Mapped["BalanceOrm"] = relationship(
-        back_populates="balance_system_tariff",
+        back_populates="balance_system",
         init=False,
         lazy="noload"
     )
@@ -39,21 +38,7 @@ class BalanceSystemTariffOrm(Base):
 
     # Поставщиик услуг
     system: Mapped["SystemOrm"] = relationship(
-        back_populates="balance_system_tariff",
-        init=False,
-        lazy="noload"
-    )
-
-    # Тариф
-    tariff_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.tariff.id"),
-        nullable=True,
-        comment="Тариф"
-    )
-
-    # Тариф
-    tariff: Mapped["TariffOrm"] = relationship(
-        back_populates="balance_system_tariff",
+        back_populates="balance_system",
         init=False,
         lazy="noload"
     )

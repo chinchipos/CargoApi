@@ -9,8 +9,8 @@ from src.database.models import OuterGoodsGroupOrm
 from src.database.models.card import CardOrm
 from src.database.models.transaction import TransactionOrm
 from src.database.models.system import SystemOrm
-from src.database.models.tariff import TariffOrm, TariffNewOrm
-from src.database.models.balance_system_tariff import BalanceSystemTariffOrm
+from src.database.models.tariff import TariffNewOrm
+from src.database.models.balance_system import BalanceSystemOrm
 from src.database.models.system import CardSystemOrm
 from src.database.models.balance import BalanceOrm
 from src.database.models.company import CompanyOrm
@@ -195,8 +195,9 @@ class TransactionRepository(BaseRepository):
         await self.session.execute(stmt)
         await self.session.commit()
 
-    async def get_balance_system_tariff_list(self, system_id: str) -> List[BalanceSystemTariffOrm]:
-        bst = aliased(BalanceSystemTariffOrm, name="bst")
+    """
+    async def get_balance_system_tariff_list(self, system_id: str) -> List[BalanceSystemOrm]:
+        bst = aliased(BalanceSystemOrm, name="bst")
         stmt = (
             sa_select(bst)
             .options(
@@ -207,7 +208,7 @@ class TransactionRepository(BaseRepository):
         )
         balance_system_tariff_list = await self.select_all(stmt)
         return balance_system_tariff_list
-
+    """
     """
     async def get_tariffs_history(self, system_id: str) -> List[BalanceTariffHistoryOrm]:
         bth = aliased(BalanceTariffHistoryOrm, name="bth")
@@ -226,12 +227,12 @@ class TransactionRepository(BaseRepository):
     async def get_balance_card_relations(self, card_numbers: List[str], system_id: str) -> Dict[str, str]:
         stmt = (
             sa_select(CardOrm.card_number, BalanceOrm.id)
-            .select_from(BalanceSystemTariffOrm, BalanceOrm, CompanyOrm, CardOrm, CardSystemOrm)
+            .select_from(BalanceSystemOrm, BalanceOrm, CompanyOrm, CardOrm, CardSystemOrm)
             .where(CardOrm.card_number.in_(card_numbers))
             .where(CardSystemOrm.card_id == CardOrm.id)
             .where(CardSystemOrm.system_id == system_id)
-            .where(BalanceSystemTariffOrm.system_id == system_id)
-            .where(BalanceOrm.id == BalanceSystemTariffOrm.balance_id)
+            .where(BalanceSystemOrm.system_id == system_id)
+            .where(BalanceOrm.id == BalanceSystemOrm.balance_id)
             .where(CompanyOrm.id == BalanceOrm.company_id)
             .where(CardOrm.company_id == CompanyOrm.id)
         )

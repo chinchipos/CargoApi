@@ -11,10 +11,9 @@ from src.database.models.card import CardOrm
 from src.database.models.company import CompanyOrm
 from src.database.models.user import AdminCompanyOrm, UserOrm
 from src.database.models.role import RoleOrm
-from src.database.models.balance_system_tariff import BalanceSystemTariffOrm
+from src.database.models.balance_system import BalanceSystemOrm
 from src.database.models.system import SystemOrm
 from src.database.models.car import CarOrm
-from src.database.models.tariff import TariffOrm
 from src.database.models.overdrafts_history import OverdraftsHistoryOrm
 from src.repositories.base import BaseRepository
 from src.repositories.system import SystemRepository
@@ -53,14 +52,14 @@ class CompanyRepository(BaseRepository):
             scheme=ContractScheme.OVERBOUGHT
         )
 
-        khnp_bst = BalanceSystemTariffOrm(
+        khnp_bst = BalanceSystemOrm(
             balance_id=balance.id,
             system_id=khnp_system.id,
             tariff_id=None
         )
         await self.save_object(khnp_bst)
 
-        gpn_bst = BalanceSystemTariffOrm(
+        gpn_bst = BalanceSystemOrm(
             balance_id=balance.id,
             system_id=gpn_system.id,
             tariff_id=None
@@ -89,9 +88,9 @@ class CompanyRepository(BaseRepository):
 
     async def set_tariff(self, balance_id: str, system_id: str, tariff_id: str) -> None:
         stmt = (
-            sa_select(BalanceSystemTariffOrm)
-            .where(BalanceSystemTariffOrm.balance_id == balance_id)
-            .where(BalanceSystemTariffOrm.system_id == system_id)
+            sa_select(BalanceSystemOrm)
+            .where(BalanceSystemOrm.balance_id == balance_id)
+            .where(BalanceSystemOrm.system_id == system_id)
         )
         self.statement(stmt)
         bst = await self.select_first(stmt)
@@ -125,8 +124,8 @@ class CompanyRepository(BaseRepository):
                     BalanceOrm.scheme,
                     BalanceOrm.balance
                 )
-                .selectinload(BalanceOrm.balance_system_tariff)
-                .joinedload(BalanceSystemTariffOrm.system)
+                .selectinload(BalanceOrm.balance_system)
+                .joinedload(BalanceSystemOrm.system)
                 .load_only(SystemOrm.id, SystemOrm.full_name)
             )
             .options(
@@ -152,7 +151,7 @@ class CompanyRepository(BaseRepository):
         overbought_balance_id = None
         for balance in company.balances:
             systems = []
-            for bst in balance.balance_system_tariff:
+            for bst in balance.balance_system:
                 bst.system.annotate({"tariff": bst.tariff})
                 systems.append(bst.system)
             balance.annotate({"systems": systems})
@@ -244,9 +243,9 @@ class CompanyRepository(BaseRepository):
                     BalanceOrm.scheme,
                     BalanceOrm.balance
                 )
-                .selectinload(BalanceOrm.balance_system_tariff)
+                .selectinload(BalanceOrm.balance_system)
                 .options(
-                    joinedload(BalanceSystemTariffOrm.system)
+                    joinedload(BalanceSystemOrm.system)
                     .load_only(SystemOrm.id, SystemOrm.full_name)
                 )
             )
@@ -290,9 +289,8 @@ class CompanyRepository(BaseRepository):
         def annotate(company: CompanyOrm) -> CompanyOrm:
             for balance in company.balances:
                 systems = []
-                for bst in balance.balance_system_tariff:
-                    bst.system.annotate({"tariff": bst.tariff})
-                    systems.append(bst.system)
+                for bs in balance.balance_system:
+                    systems.append(bs.system)
                 balance.annotate({"systems": systems})
             return company
 
@@ -330,12 +328,13 @@ class CompanyRepository(BaseRepository):
         balance = await self.select_first(stmt)
         return balance
 
-    async def get_systems_tariffs(self, balance_id: str) -> List[BalanceSystemTariffOrm]:
-        stmt = sa_select(BalanceSystemTariffOrm).where(BalanceSystemTariffOrm.balance_id == balance_id)
+    async def get_systems_tariffs(self, balance_id: str) -> List[BalanceSystemOrm]:
+        stmt = sa_select(BalanceSystemOrm).where(BalanceSystemOrm.balance_id == balance_id)
         bst_list = await self.select_all(stmt)
         return bst_list
 
-    async def get_notification_mailings(self, company_id: str, unread_only: bool = False) -> List[NotificationMailingOrm]:
+    async def get_notification_mailings(self, company_id: str, unread_only: bool = False) \
+            -> List[NotificationMailingOrm]:
         stmt = (
             sa_select(NotificationMailingOrm)
             .options(

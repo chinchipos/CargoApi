@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, List
 
 from pydantic import Field
 
@@ -25,9 +25,10 @@ outer_goods_name_ = Annotated[str, Field(description="Наименование �
 
 system_ = Annotated[SystemReadMinimumSchema | None, Field(description="Поставщик услуг")]
 
-inner_group_id_ = Annotated[
-    str, Field(description="UUID группы продуктов в нашей системе",
-               examples=["68425199-ac93-4733-becb-de2e89e85303"])]
+inner_group_id_ = Annotated[str | None, Field(
+    description="UUID группы продуктов в нашей системе",
+    examples=["68425199-ac93-4733-becb-de2e89e85303"]
+)]
 
 inner_group_name_ = Annotated[
     str, Field(description="Наименование группы продуктов в нашей системе", examples=["Уход за автомобилем"])]
@@ -48,7 +49,7 @@ outer_group_name_ = Annotated[
 
 inner_category_ = Annotated[
     GoodsCategory | None,
-    Field(description="Категория товаров в нашей системе", examples=["Топливо"])
+    Field(description="Категория продуктов в нашей системе", examples=["Топливо"])
 ]
 
 
@@ -66,8 +67,10 @@ class OuterGoodsCategoryReadSchema(BaseSchema):
 class OuterGoodsGroupReadSchema(BaseSchema):
     id: outer_group_id_
     name: outer_group_name_
+    inner_group: Annotated[
+        InnerGoodsGroupReadSchema | None, Field(description="Группа продуктов в нашей системе")] = None
     outer_category: Annotated[
-        OuterGoodsCategoryReadSchema | None, Field(description="Категория продуктов в нашей системе")] = None
+        OuterGoodsCategoryReadSchema | None, Field(description="Категория продуктов в системе поставщика")] = None
 
 
 class InnerGoodsReadSchema(BaseSchema):
@@ -79,14 +82,24 @@ class InnerGoodsReadSchema(BaseSchema):
 
 class InnerGoodsEditSchema(BaseSchema):
     inner_name: inner_goods_name_
+    inner_group_id: inner_group_id_ = None
 
 
-class OuterGoodsReadSchema(BaseSchema):
+class OuterGoodsItemReadSchema(BaseSchema):
     id: outer_goods_id_
     external_id: goods_external_id_ = None
     name: outer_goods_name_
-    inner_goods: Annotated[
-        InnerGoodsReadSchema | None, Field(description="Соответствующий продукт в нашей системе")] = None
+    inner_name: inner_goods_name_
     outer_group: Annotated[
         OuterGoodsGroupReadSchema | None, Field(description="Группа продуктов в системе поставщика")] = None
     system: system_ = None
+
+
+class GoodsDictionariesSchema(BaseSchema):
+    inner_names: Annotated[List[str], Field(description="Наименования продуктов в системе ННК")]
+    inner_groups: Annotated[List[InnerGoodsGroupReadSchema], Field(description="Тарифные политики")]
+
+
+class OuterGoodsReadSchema(BaseSchema):
+    outer_goods: Annotated[List[OuterGoodsItemReadSchema], Field(description="Организации")]
+    dictionaries: Annotated[GoodsDictionariesSchema | None, Field(description="Справочники")] = None

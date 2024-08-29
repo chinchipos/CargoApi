@@ -24,7 +24,7 @@ class InnerGoodsGroupOrm(Base):
     inner_category: Mapped[GoodsCategory] = mapped_column(
         nullable=True,
         init=False,
-        comment="Соответствующая категория продуктов в нашей системе"
+        comment="Категория продуктов в нашей системе"
     )
 
     base_unit: Mapped[Unit] = mapped_column(
@@ -35,14 +35,6 @@ class InnerGoodsGroupOrm(Base):
 
     # Список групп продуктов от систем поставщиков, привязанных к этой группе нашей системы
     outer_goods_groups: Mapped[List["OuterGoodsGroupOrm"]] = relationship(
-        back_populates="inner_group",
-        cascade="all, delete-orphan",
-        lazy="noload",
-        init=False
-    )
-
-    # Список продуктов нашей системы, привязанных к этой группе
-    inner_goods: Mapped[List["InnerGoodsOrm"]] = relationship(
         back_populates="inner_group",
         cascade="all, delete-orphan",
         lazy="noload",

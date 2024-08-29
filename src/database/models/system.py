@@ -101,7 +101,7 @@ class SystemOrm(Base):
     # Список балансов, связанных с этой системой
     balances: Mapped[List["BalanceOrm"]] = relationship(
         back_populates="systems",
-        secondary="cargonomica.balance_system_tariff",
+        secondary="cargonomica.balance_system",
         viewonly=True,
         lazy="noload",
         init=False
@@ -117,7 +117,7 @@ class SystemOrm(Base):
     )
 
     # Список договоров, привязанных к этой системе
-    balance_system_tariff: Mapped[List["BalanceSystemTariffOrm"]] = relationship(
+    balance_system: Mapped[List["BalanceSystemOrm"]] = relationship(
         back_populates="system",
         cascade="all, delete-orphan",
         lazy="noload",

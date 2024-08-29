@@ -103,7 +103,8 @@ async def process_goods(imported_data: pd.DataFrame, goods_repository: GoodsRepo
 
     new_goods = []
     for index, row in imported_goods.iterrows():
-        if not has_equal_in_db(row["GOODS_CODE"]) and row["GOODS_CATEGORY"] == "Топливо":
+        # if not has_equal_in_db(row["GOODS_CODE"]) and row["GOODS_CATEGORY"] == "Топливо":
+        if not has_equal_in_db(row["GOODS_CODE"]):
             new_goods.append({
                 "external_id": row["GOODS_CODE"],
                 "name": row["GOODS"],
@@ -133,10 +134,10 @@ async def import_goods(session: AsyncSession):
     )
 
     # Обрабатываем категории продуктов
-    await process_categories(imported_data, goods_repository, gpn_system.id)
+    # await process_categories(imported_data, goods_repository, gpn_system.id)
 
     # Обрабатываем группы продуктов
-    await process_groups(imported_data, goods_repository, gpn_system.id)
+    # await process_groups(imported_data, goods_repository, gpn_system.id)
 
     # Обрабатываем продукты
     await process_goods(imported_data, goods_repository, gpn_system.id)

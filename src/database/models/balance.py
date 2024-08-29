@@ -69,17 +69,17 @@ class BalanceOrm(Base):
         comment="Дата прекращения действия временного овердрафта"
     )
 
-    # Список поставщиков услуг, привязанных к этому балансу
+    # Список систем, привязанных к этому балансу
     systems: Mapped[List["SystemOrm"]] = relationship(
         back_populates="balances",
-        secondary="cargonomica.balance_system_tariff",
+        secondary="cargonomica.balance_system",
         viewonly=True,
         lazy="noload",
         init=False
     )
 
     # Тарифы систем этого баланса
-    balance_system_tariff: Mapped[List["BalanceSystemTariffOrm"]] = relationship(
+    balance_system: Mapped[List["BalanceSystemOrm"]] = relationship(
         back_populates="balance",
         cascade="all, delete-orphan",
         lazy="noload",

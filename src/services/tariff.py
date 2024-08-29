@@ -3,12 +3,12 @@ from datetime import datetime
 from typing import List, Dict, Any
 
 from src.config import TZ
-from src.database.models.tariff import TariffOrm, TariffNewOrm
+from src.database.models.tariff import TariffNewOrm
 from src.repositories.azs import AzsRepository
 from src.repositories.goods import GoodsRepository
 from src.repositories.system import SystemRepository
 from src.repositories.tariff import TariffRepository
-from src.schemas.tariff import TariffNewReadSchema, TariffEditSchema, TariffNewCreateSchema
+from src.schemas.tariff import TariffNewCreateSchema
 from src.utils.exceptions import BadRequestException
 
 
@@ -71,6 +71,7 @@ class TariffService:
                     begin_time=begin_time
                 )
 
+    """
     async def edit(self, tariff_id: str, tariff_edit_schema: TariffEditSchema) -> TariffNewReadSchema:
         # Получаем тариф из БД
         tariff_obj = await self.repository.session.get(TariffOrm, tariff_id)
@@ -86,6 +87,7 @@ class TariffService:
         # tariff_obj.annotate({'companies_amount': companies_amount})
         tariff_read_schema = TariffNewReadSchema.model_validate(tariff_obj)
         return tariff_read_schema
+    """
 
     async def get_tariffs(self) -> List[TariffNewOrm]:
         tariffs = await self.repository.get_tariffs()

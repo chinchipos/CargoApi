@@ -36,14 +36,6 @@ class TariffOrm(Base):
         comment="Комиссия, %"
     )
 
-    # Текущие связки Баланс-Система, для которых применяется этот тариф
-    balance_system_tariff: Mapped[List["BalanceSystemTariffOrm"]] = relationship(
-        back_populates="tariff",
-        cascade="all, delete-orphan",
-        lazy="noload",
-        init=False
-    )
-
 
 class TariffPolicyOrm(Base):
     __tablename__ = "tariff_policy"
@@ -75,6 +67,14 @@ class TariffPolicyOrm(Base):
 
     # Список рганизаций, привязанных к этой тарифной политике
     companies: Mapped[List["CompanyOrm"]] = relationship(
+        back_populates="tariff_policy",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
+    # История применения этой траифной политики
+    tariff_policy_history: Mapped[List["TariffPolicyHistoryOrm"]] = relationship(
         back_populates="tariff_policy",
         cascade="all, delete-orphan",
         lazy="noload",
@@ -217,4 +217,56 @@ class TariffNewOrm(Base):
         cascade="all, delete-orphan",
         lazy="noload",
         init=False
+    )
+
+
+class TariffPolicyHistoryOrm(Base):
+    __tablename__ = "tariff_policy_history"
+    __table_args__ = {
+        'comment': 'История тарификации организаций'
+    }
+
+    # Организация
+    company_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.company.id"),
+        nullable=False,
+        init=True,
+        comment="Организация"
+    )
+
+    # Организация
+    company: Mapped["CompanyOrm"] = relationship(
+        back_populates="tariff_policy_history",
+        lazy="noload",
+        init=False
+    )
+
+    # Тариф
+    tariff_policy_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.tariff_policy.id"),
+        nullable=False,
+        init=True,
+        comment="Тарифная политика"
+    )
+
+    # Тариф
+    tariff_policy: Mapped["TariffPolicyOrm"] = relationship(
+        back_populates="tariff_policy_history",
+        lazy="noload",
+        init=False
+    )
+
+    begin_time: Mapped[datetime] = mapped_column(
+        sa.DateTime,
+        nullable=False,
+        server_default=sa.text("NOW()"),
+        init=False,
+        comment="Время начала действия тарифной политики"
+    )
+
+    end_time: Mapped[datetime] = mapped_column(
+        sa.DateTime,
+        nullable=True,
+        init=False,
+        comment="Время прекращения действия тарифной политики"
     )

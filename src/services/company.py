@@ -3,7 +3,7 @@ from typing import List, Any, Dict
 
 from src.celery_app.limits.tasks import gpn_set_card_group_limit
 from src.config import TZ
-from src.database.models.balance_system_tariff import BalanceSystemTariffOrm
+from src.database.models.balance_system import BalanceSystemOrm
 from src.database.models.company import CompanyOrm
 from src.database.models.notification import NotificationMailingOrm
 from src.database.models.user import UserOrm
@@ -96,7 +96,7 @@ class CompanyService:
                 system_id = system_tariff_received['system_id']
                 tariff_id = system_tariff_received['tariff_id']
                 if bst_current.system_id == system_id and not tariff_id:
-                    await self.repository.delete_object(BalanceSystemTariffOrm, bst_current.id)
+                    await self.repository.delete_object(BalanceSystemOrm, bst_current.id)
 
         # Создаем новые связи, изменяем существующие
         for system_tariff_received in company_edit_schema.tariffs:
@@ -113,7 +113,7 @@ class CompanyService:
 
                 if not found:
                     # Создаем новую связь "Система - Тариф" для этой организации
-                    new_bst = BalanceSystemTariffOrm(balance_id=balance.id, system_id=system_id, tariff_id=tariff_id)
+                    new_bst = BalanceSystemOrm(balance_id=balance.id, system_id=system_id, tariff_id=tariff_id)
                     await self.repository.save_object(new_bst)
         """
 

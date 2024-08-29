@@ -6,7 +6,6 @@ from httpx import AsyncClient
 from sqlalchemy import select as sa_select
 
 from src.database.db import sessionmanager
-from src.database.models.tariff import TariffOrm
 from src.database.models.company import CompanyOrm
 from src.repositories.base import BaseRepository
 
@@ -24,8 +23,8 @@ class TestSystem:
         async with sessionmanager.session() as session:
             # Получаем тарифы
             repository = BaseRepository(session, None)
-            stmt = sa_select(TariffOrm).where(TariffOrm.name.in_(["Полпроцента", "Полтора процента", "Два процента"]))
-            tariffs = await repository.select_all(stmt)
+            # stmt = sa_select(TariffOrm).where(TariffOrm.name.in_(["Полпроцента", "Полтора процента", "Два процента"]))
+            # tariffs = await repository.select_all(stmt)
 
             # Создаем организации
             names = ['ООО "Рога и Копыта"', 'ООО "Ромашка"', 'ООО "Дильшот Логистикс"']

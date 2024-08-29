@@ -3,7 +3,6 @@ from httpx import AsyncClient
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from src.database.db import sessionmanager
-from src.database.models.tariff import TariffOrm
 from tests.conftest import headers
 
 
@@ -40,11 +39,13 @@ class TestSystem:
                 "fee_percent": 2
             },
         ]
+        """
         async with sessionmanager.session() as session:
             stmt = pg_insert(TariffOrm)
             async with session.begin():
                 await session.execute(stmt, dataset)
                 await session.commit()
+        """
 
         msg = "Не удалось создать дополнительные тарифы"
         assert 1 == 1, msg
