@@ -30,7 +30,6 @@ async def get_transactions(
     to_dt: datetime | None = None,
     service: TransactionService = Depends(get_service_transaction)
 ):
-    print(from_dt, to_dt)
     # Получать сведения может пользователь с любой ролью, но состав списка зависит от роли
     # пользователя. Проверка будет выполнена при формировании списка.
     transaction = await service.get_transactions(company_id, from_dt, to_dt)

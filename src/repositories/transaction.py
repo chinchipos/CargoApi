@@ -5,7 +5,7 @@ from sqlalchemy import select as sa_select, and_, func, update as sa_update
 from sqlalchemy.orm import joinedload, aliased
 
 from src.config import TZ
-from src.database.models import OuterGoodsGroupOrm
+from src.database.models import OuterGoodsGroupOrm, AzsOrm
 from src.database.models.card import CardOrm
 from src.database.models.transaction import TransactionOrm
 from src.database.models.system import SystemOrm
@@ -17,7 +17,7 @@ from src.database.models.company import CompanyOrm
 from src.database.models.goods import OuterGoodsOrm
 from src.repositories.base import BaseRepository
 from src.utils import enums
-from src.utils.enums import TransactionType
+from src.utils.enums import TransactionType, System
 from src.utils.exceptions import ForbiddenException
 
 
@@ -87,14 +87,14 @@ class TransactionRepository(BaseRepository):
 
         base_subquery = base_subquery.subquery("helper_base")
         stmt = (
-            sa_select(TransactionOrm)
+            sa_select(TransactionOrm, AzsOrm.name, AzsOrm.address, AzsOrm.own_type)
             .options(
                 joinedload(TransactionOrm.card)
                 .load_only(CardOrm.id, CardOrm.card_number, CardOrm.is_active)
             )
             .options(
                 joinedload(TransactionOrm.system)
-                .load_only(SystemOrm.id, SystemOrm.full_name)
+                .load_only(SystemOrm.id, SystemOrm.full_name, SystemOrm.short_name)
             )
             .options(
                 joinedload(TransactionOrm.outer_goods)
@@ -112,6 +112,7 @@ class TransactionRepository(BaseRepository):
                 .load_only(CompanyOrm.id, CompanyOrm.name, CompanyOrm.inn, CompanyOrm.personal_account)
             )
             .select_from(base_subquery, TransactionOrm)
+            .outerjoin(AzsOrm, AzsOrm.external_id == TransactionOrm.azs_code)
             .where(TransactionOrm.id == base_subquery.c.id)
             .order_by(TransactionOrm.date_time_load.desc())
         )
@@ -119,7 +120,44 @@ class TransactionRepository(BaseRepository):
             stmt = stmt.limit(rows_limit)
 
         # self.statement(stmt)
-        transactions = await self.select_all(stmt)
+        dataset = await self.select_all(stmt, scalars=False)
+
+        def pretty_address(addr_json, system_short_name: str | None) -> str | None:
+            if system_short_name == System.GPN.value:
+                address_params = []
+                if addr_json.get("city", None):
+                    address_params.append(addr_json["city"])
+
+                if addr_json.get("street", None):
+                    address_params.append(addr_json["street"])
+
+                if addr_json.get("house", None):
+                    address_params.append(addr_json["house"])
+
+                if addr_json.get("building", None):
+                    address_params.append(addr_json["building"])
+
+                if addr_json.get("kmRoad", None):
+                    address_params.append(f'{addr_json["kmRoad"]}км')
+
+                address = ", ".join(address_params)
+                return address
+
+        for data in dataset:
+            if data[1] or data[2] or data[3]:
+                data[0].annotate(
+                    {
+                        "azs": {
+                            "name": data[1],
+                            "address": pretty_address(data[2], data[0].system.short_name if data[0].system else None),
+                            "own_type": data[3],
+                        }
+                    }
+                )
+            else:
+                data[0].annotate({"azs": None})
+
+        transactions = [data[0] for data in dataset]
         return transactions
 
     async def get_last_transaction(self, balance_id: str) -> TransactionOrm:

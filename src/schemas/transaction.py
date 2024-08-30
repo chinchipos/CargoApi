@@ -3,9 +3,10 @@ from typing import Annotated
 
 from pydantic import Field
 
+from src.database.models.azs import AzsOwnType
 from src.schemas.base import BaseSchema
 from src.schemas.card import CardMinimumReadSchema
-from src.schemas.goods import OuterGoodsReadSchema, OuterGoodsItemReadSchema
+from src.schemas.goods import OuterGoodsItemReadSchema
 from src.schemas.system import SystemReadMinimumSchema
 from src.schemas.tariff import TariffNewReadMinSchema
 from src.schemas.validators import CompanyFromBalance
@@ -33,13 +34,6 @@ company_ = Annotated[CompanyFromBalance | None, Field(description="Органи�
 
 azs_code_ = Annotated[str, Field(description="Код АЗС", examples=["АЗС № 07 (АБНС)"])]
 
-azs_address_ = Annotated[
-    str, 
-    Field(
-        description="Адрес АЗС", 
-        examples=["Россия, Свердловская область, Заречный, Р351, 46 км, справа, с. Мезенское"])
-]
-
 outer_goods_ = Annotated[OuterGoodsItemReadSchema | None, Field(description="Товар/услуга")]
 
 fuel_volume_ = Annotated[float, Field(description="Кол-во топлива, литры", examples=[80.0])]
@@ -65,7 +59,13 @@ company_balance_ = Annotated[float, Field(description="Баланс органи
 
 comments_ = Annotated[str, Field(description="Комментарии", examples=[""])]
     
-    
+
+class TransactionAzsSchema(BaseSchema):
+    name: Annotated[str, Field(description="Наименование")]
+    own_type: Annotated[AzsOwnType | None, Field(description="Тип АЗС")]
+    address: Annotated[str | None, Field(description="Адрес")]
+
+
 class TransactionReadSchema(BaseSchema):
     id: id_
     date_time: date_time_
@@ -75,6 +75,7 @@ class TransactionReadSchema(BaseSchema):
     card: card_ = None
     company: company_ = None
     azs_code: azs_code_
+    azs: Annotated[TransactionAzsSchema | None, Field(description="АЗС")] = None
     outer_goods: outer_goods_ = None
     fuel_volume: fuel_volume_
     price: price_
