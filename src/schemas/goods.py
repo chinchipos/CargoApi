@@ -91,7 +91,7 @@ class OuterGoodsItemReadSchema(BaseSchema):
     name: outer_goods_name_
     inner_name: inner_goods_name_
     outer_group: Annotated[
-        OuterGoodsGroupReadSchema | None, Field(description="Группа продуктов в системе поставщика")] = None
+       OuterGoodsGroupReadSchema | None, Field(description="Группа продуктов в системе поставщика")] = None
     system: system_ = None
 
 
@@ -101,5 +101,5 @@ class GoodsDictionariesSchema(BaseSchema):
 
 
 class OuterGoodsReadSchema(BaseSchema):
-    outer_goods: Annotated[List[OuterGoodsItemReadSchema], Field(description="Организации")]
+    # outer_goods: Annotated[List[OuterGoodsItemReadSchema], Field(description="Организации")]
     dictionaries: Annotated[GoodsDictionariesSchema | None, Field(description="Справочники")] = None
