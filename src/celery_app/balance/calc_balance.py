@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from src.celery_app.irrelevant_balances import IrrelevantBalances
+from src.database.models import CompanyOrm
 from src.database.models.transaction import TransactionOrm
 from src.database.models.balance import BalanceOrm
 from src.repositories.base import BaseRepository
@@ -125,3 +126,36 @@ class CalcBalances(BaseRepository):
             to_activate = list(balance_ids_to_activate_cards)
         )
         return balance_ids_to_change_card_states
+
+    async def recalculate_transactions(self, from_date_time: datetime, perconal_accounts: List[str] | None) \
+            -> IrrelevantBalances:
+        # Получаем список балансов
+        stmt = (
+            sa_select(BalanceOrm)
+            .where(BalanceOrm.scheme == ContractScheme.OVERBOUGHT)
+        )
+
+        if perconal_accounts:
+            # Делаем выборку только по определенным организациям
+            stmt = (
+                stmt
+                .where(CompanyOrm.id == BalanceOrm.company_id)
+                .where(CompanyOrm.personal_account.in_(perconal_accounts))
+            )
+        else:
+            # Делаем выборку по всем организациям, у которых с указанной даты были транзакции
+            helper_subquery = (
+                sa_select(TransactionOrm.balance_id)
+                .where(TransactionOrm.date_time_load >= from_date_time)
+                .distinct()
+                .subquery()
+            )
+            stmt = stmt.where(helper_subquery.c.balance_id == BalanceOrm.id)
+
+        balances = await self.select_all(stmt)
+
+        irrelevant_balances = IrrelevantBalances()
+        for balance in balances:
+            irrelevant_balances.add(balance.id, from_date_time)
+
+        return irrelevant_balances

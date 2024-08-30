@@ -15,7 +15,8 @@ class IrrelevantBalances(dict):
                     self.irrelevant_balances[balance_id] = irrelevancy_date_time
             else:
                 self.irrelevant_balances[balance_id] = irrelevancy_date_time
-        except Exception:
+        except Exception as e:
+            print(f"Исключение: {str(e)}")
             print(self.irrelevant_balances)
             print(irrelevancy_date_time)
 
