@@ -7,7 +7,7 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from src.config import PROD_URI
+from src.config import PROD_URI, PRODUCTION
 from src.database.models.base import Base
 
 config = context.config
@@ -15,7 +15,10 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-config.set_main_option("sqlalchemy.url", PROD_URI + "?sslmode=verify-full&target_session_attrs=read-write")
+if PRODUCTION:
+    config.set_main_option("sqlalchemy.url", PROD_URI + "?sslmode=verify-full&target_session_attrs=read-write")
+else:
+    config.set_main_option("sqlalchemy.url", PROD_URI + "?target_session_attrs=read-write")
 
 target_metadata = Base.metadata
 

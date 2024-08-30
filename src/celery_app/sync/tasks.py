@@ -30,16 +30,16 @@ def after_sync(irrelevant_balances_list: List[IrrelevantBalances]):
     else:
         messages.append("Ошибка синхронизации с ХНП.")
 
-    if irrelevant_balances_list[1]:
-        irrelevant_balances.extend(irrelevant_balances_list[1])
-    else:
-        messages.append("Ошибка синхронизации с ГПН.")
+    # if irrelevant_balances_list[1]:
+    #     irrelevant_balances.extend(irrelevant_balances_list[1])
+    # else:
+    #     messages.append("Ошибка синхронизации с ГПН.")
 
     changed_balances = [balance_id for balance_id in irrelevant_balances.data().keys()]
     tasks = [
         calc_balances.si(irrelevant_balances),
-        khnp_set_card_states.s(),
-        gpn_set_card_group_limit.si(changed_balances)
+        # khnp_set_card_states.s(),
+        # gpn_set_card_group_limit.si(changed_balances)
     ]
     if messages:
         tasks.append(fail.si(messages))
@@ -49,7 +49,7 @@ def after_sync(irrelevant_balances_list: List[IrrelevantBalances]):
 
 sync = chord(
     header=[
-        khnp_sync.si(),
+        # khnp_sync.si(),
         gpn_sync.si()
     ],
     body=after_sync.s()

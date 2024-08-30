@@ -1070,33 +1070,54 @@ class GPNController(BaseRepository):
             -> TariffNewOrm:
         # Получаем список тарифов, действовавших для компании на момент совершения транзакции
         tariffs = []
+        print('111111111111111111111111')
+        print(len(self._tariffs))
         for tariff in self._tariffs:
+            print('222222222222222222222222')
+            print(f"policy_id: {tariff.policy_id} | {company.tariff_policy_id} | {tariff.policy_id == company.tariff_policy_id}")
+            print(f"policy_id: {tariff.begin_time} | {transaction_time} | {tariff.begin_time <= transaction_time}")
+            print(f"end_time: {tariff.end_time} | {transaction_time} | {(tariff.end_time and tariff.end_time > transaction_time) or not tariff.end_time}")
             if tariff.policy_id == company.tariff_policy_id and tariff.begin_time <= transaction_time:
                 if (tariff.end_time and tariff.end_time > transaction_time) or not tariff.end_time:
                     tariffs.append(tariff)
-                    break
 
+        print('33333333333333333333333333')
+        print(f"tariffs length: {len(tariffs)}")
         # Перебираем тарифы и применяем первый подошедший
         for tariff in tariffs:
             # АЗС
+            print(f"azs_id: {tariff.azs_id} | {azs.id} | {tariff.azs_id and tariff.azs_id != azs.id}")
             if tariff.azs_id and tariff.azs_id != azs.id:
+                print('continue')
                 continue
 
             # Тип АЗС
+            print(f"azs_own_type: {tariff.azs_own_type} | {azs.own_type} | "
+                  f"{tariff.azs_own_type and tariff.azs_own_type != azs.own_type}")
             if tariff.azs_own_type and tariff.azs_own_type != azs.own_type:
+                print('continue')
                 continue
 
             # Регион
+            print(f"region_id: {tariff.region_id} | {azs.region_id} | "
+                  f"{tariff.region_id and tariff.region_id != azs.region_id}")
             if tariff.region_id and tariff.region_id != azs.region_id:
+                print('continue')
                 continue
 
             # Группа продуктов
+            print(f"inner_goods_group_id: {tariff.inner_goods_group_id} | {inner_group.id if inner_group else None} | "
+                  f"{tariff.inner_goods_group_id and inner_group and tariff.inner_goods_group_id != inner_group.id}")
             if tariff.inner_goods_group_id and inner_group and tariff.inner_goods_group_id != inner_group.id:
+                print('continue')
                 continue
 
             # Категория продуктов
+            print(f"inner_goods_category: {tariff.inner_goods_category} | "
+                  f"{inner_group.inner_category if inner_group else None}")
             if tariff.inner_goods_category and inner_group and \
                     tariff.inner_goods_category != inner_group.inner_category:
+                print('continue')
                 continue
 
             # Тариф удовлетворяет критериям - возвращаем его
