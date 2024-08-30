@@ -739,7 +739,7 @@ class GPNController(BaseRepository):
             azs=azs
         )
         if not tariff:
-            self.logger.error(f"Не далось определить тариф для транзакции {remote_transaction}")
+            self.logger.error(f"Не удалось определить тариф для транзакции {remote_transaction}")
 
         # Сумма транзакции
         transaction_type = TransactionType.PURCHASE if purchase else TransactionType.REFUND
@@ -817,7 +817,7 @@ class GPNController(BaseRepository):
         product_id = remote_transaction['product_id']
         # Выполняем поиск товара/услуги
         for goods in self._outer_goods_list:
-            if goods.name == product_id:
+            if goods.external_id == product_id:
                 return goods
 
         # Если товар/услуга не найден(а), то создаем его(её)
