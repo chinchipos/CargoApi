@@ -101,5 +101,5 @@ class GoodsDictionariesSchema(BaseSchema):
 
 
 class OuterGoodsReadSchema(BaseSchema):
-    # outer_goods: Annotated[List[OuterGoodsItemReadSchema], Field(description="Организации")]
+    outer_goods: Annotated[List[OuterGoodsItemReadSchema], Field(description="Организации")]
     dictionaries: Annotated[GoodsDictionariesSchema | None, Field(description="Справочники")] = None

@@ -151,9 +151,8 @@ class CompanyRepository(BaseRepository):
         overbought_balance_id = None
         for balance in company.balances:
             systems = []
-            for bst in balance.balance_system:
-                bst.system.annotate({"tariff": bst.tariff})
-                systems.append(bst.system)
+            for bs in balance.balance_system:
+                systems.append(bs.system)
             balance.annotate({"systems": systems})
 
             if balance.scheme == ContractScheme.OVERBOUGHT:

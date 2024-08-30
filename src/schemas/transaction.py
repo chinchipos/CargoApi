@@ -5,7 +5,7 @@ from pydantic import Field
 
 from src.schemas.base import BaseSchema
 from src.schemas.card import CardMinimumReadSchema
-from src.schemas.goods import OuterGoodsReadSchema
+from src.schemas.goods import OuterGoodsReadSchema, OuterGoodsItemReadSchema
 from src.schemas.system import SystemReadMinimumSchema
 from src.schemas.tariff import TariffNewReadMinSchema
 from src.schemas.validators import CompanyFromBalance
@@ -40,7 +40,7 @@ azs_address_ = Annotated[
         examples=["Россия, Свердловская область, Заречный, Р351, 46 км, справа, с. Мезенское"])
 ]
 
-outer_goods_ = Annotated[OuterGoodsReadSchema | None, Field(description="Товар/услуга")]
+outer_goods_ = Annotated[OuterGoodsItemReadSchema | None, Field(description="Товар/услуга")]
 
 fuel_volume_ = Annotated[float, Field(description="Кол-во топлива, литры", examples=[80.0])]
 
