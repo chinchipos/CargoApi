@@ -13,13 +13,13 @@ from src.celery_app.gpn.config import SYSTEM_SHORT_NAME
 from src.celery_app.irrelevant_balances import IrrelevantBalances
 from src.celery_app.transaction_helper import get_local_cards, get_local_card
 from src.config import TZ, PRODUCTION
-from src.database.models import CompanyOrm, CardLimitOrm, AzsOrm, RegionOrm, TariffNewOrm
+from src.database.models import CompanyOrm, CardLimitOrm, AzsOrm, RegionOrm, TariffNewOrm, InnerGoodsGroupOrm
 from src.database.models.azs import AzsOwnType
 from src.database.models.balance import BalanceOrm as BalanceOrm
 from src.database.models.balance_system import BalanceSystemOrm
 from src.database.models.card import CardOrm, BlockingCardReason, CardHistoryOrm
 from src.database.models.card_type import CardTypeOrm
-from src.database.models.goods import OuterGoodsOrm, InnerGoodsOrm
+from src.database.models.goods import OuterGoodsOrm
 from src.database.models.goods_category import GoodsCategory
 from src.database.models.system import CardSystemOrm
 from src.database.models.transaction import TransactionOrm
@@ -735,7 +735,7 @@ class GPNController(BaseRepository):
         tariff = self.get_company_tariff_on_transaction_time(
             company=balance.company,
             transaction_time=remote_transaction['timestamp'],
-            inner_goods=outer_goods.inner_goods,
+            inner_group=outer_goods.outer_group.inner_group if outer_goods.outer_group else None,
             azs=azs
         )
         if not tariff:
@@ -1066,7 +1066,8 @@ class GPNController(BaseRepository):
         return azs
 
     def get_company_tariff_on_transaction_time(self, company: CompanyOrm, transaction_time: datetime,
-                                               inner_goods: InnerGoodsOrm | None, azs: AzsOrm | None) -> TariffNewOrm:
+                                               inner_group: InnerGoodsGroupOrm | None, azs: AzsOrm | None) \
+            -> TariffNewOrm:
         # Получаем список тарифов, действовавших для компании на момент совершения транзакции
         tariffs = []
         for tariff in self._tariffs:
@@ -1090,11 +1091,12 @@ class GPNController(BaseRepository):
                 continue
 
             # Группа продуктов
-            if tariff.inner_goods_group_id and tariff.inner_goods_group_id != inner_goods.inner_group_id:
+            if tariff.inner_goods_group_id and inner_group and tariff.inner_goods_group_id != inner_group.id:
                 continue
 
             # Категория продуктов
-            if tariff.inner_goods_category and tariff.inner_goods_category != inner_goods.inner_group.inner_category:
+            if tariff.inner_goods_category and inner_group and \
+                    tariff.inner_goods_category != inner_group.inner_category:
                 continue
 
             # Тариф удовлетворяет критериям - возвращаем его
