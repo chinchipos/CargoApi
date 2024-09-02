@@ -28,8 +28,8 @@ class OpsApi:
         self.history = HistoryPlugin()
 
         if PRODUCTION:
-            self.host = OPS_SSH_HOST
-            self.port = OPS_SSH_PORT
+            self.host = OPS_SERVER
+            self.port = OPS_PORT
         else:
             urllib3.disable_warnings()
             self.host = "localhost"
