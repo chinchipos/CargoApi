@@ -46,10 +46,12 @@ OVERDRAFTS_MAIL_TO = json.loads(os.environ.get('OVERDRAFTS_MAIL_TO'))
 
 GOODS_FILE_PATH = os.environ.get("GOODS_FILE_PATH")
 
-OPS_SSH_HOST = os.environ.get('OPS_SSH_HOST')
-OPS_SSH_PORT = int(os.environ.get('OPS_SSH_PORT'))
-OPS_SSH_USER = os.environ.get('OPS_SSH_USER')
-OPS_SSH_PRIVATE_KEY_FILE = os.environ.get('OPS_SSH_PRIVATE_KEY_FILE')
+
+if not PRODUCTION:
+    OPS_SSH_HOST = os.environ.get('OPS_SSH_HOST')
+    OPS_SSH_PORT = int(os.environ.get('OPS_SSH_PORT'))
+    OPS_SSH_USER = os.environ.get('OPS_SSH_USER')
+    OPS_SSH_PRIVATE_KEY_FILE = os.environ.get('OPS_SSH_PRIVATE_KEY_FILE')
 OPS_SERVER = os.environ.get('OPS_SERVER')
 OPS_PORT = int(os.environ.get('OPS_PORT'))
 OPS_CONTRACT_ID = int(os.environ.get('OPS_CONTRACT_ID'))
