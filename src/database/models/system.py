@@ -26,6 +26,7 @@ class SystemOrm(Base):
         sa.String(255),
         nullable=False,
         unique=True,
+        init=True,
         comment="Полное наименование организации"
     )
 
@@ -33,6 +34,7 @@ class SystemOrm(Base):
         sa.String(30),
         nullable=False,
         unique=True,
+        init=True,
         comment="Сокращенное наименование организации"
     )
 
@@ -41,18 +43,20 @@ class SystemOrm(Base):
         nullable=False,
         server_default=sa.text("0"),
         init=False,
-        comment="Наш текущий баланс в системе поспавщика услуг (актуален для перекупной схемы)"
+        comment="Наш текущий баланс в системе поставщика услуг (актуален для перекупной схемы)"
     )
 
     transaction_days: Mapped[int] = mapped_column(
         sa.SmallInteger(),
         nullable=False,
         server_default=sa.text("50"),
+        init=False,
         comment="Период, за который запрашиваются транзакции при синхронизации"
     )
 
     scheme: Mapped[ContractScheme] = mapped_column(
         comment="Схема работы (агентская, перекупная, ...). См. соответствующий public -> Types.",
+        init=True,
         server_default=ContractScheme.OVERBOUGHT.name
     )
 
@@ -60,6 +64,7 @@ class SystemOrm(Base):
         sa.Boolean,
         nullable=False,
         server_default=sa.sql.true(),
+        init=False,
         comment='Признак - в системе доступна функция установки лимитов'
     )
 
@@ -67,6 +72,7 @@ class SystemOrm(Base):
         sa.Boolean,
         nullable=False,
         server_default=sa.sql.true(),
+        init=False,
         comment='Признак - с системой заключен договор, можно в ней обслуживаться на текущий момент'
     )
 

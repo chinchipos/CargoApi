@@ -7,7 +7,7 @@ from src.config import PROD_URI
 from src.database.db import DatabaseSessionManager
 from src.repositories.card import CardRepository
 from src.repositories.system import SystemRepository
-from src.utils.enums import ContractScheme
+from src.utils.enums import ContractScheme, System
 
 
 async def set_card_group_limit_fn(balance_ids: List[str]) -> None:
@@ -18,7 +18,7 @@ async def set_card_group_limit_fn(balance_ids: List[str]) -> None:
         # Проверяем есть ли у этого клиента карты ГПН. Если ДА, то устанавливаем в ГПН новый лимит.
         system_repository = SystemRepository(session=session)
         gpn_system = await system_repository.get_system_by_short_name(
-            system_fhort_name='ГПН',
+            short_name=System.GPN.value,
             scheme=ContractScheme.OVERBOUGHT
         )
 

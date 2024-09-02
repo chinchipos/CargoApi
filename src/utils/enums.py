@@ -52,6 +52,7 @@ class LogType(StrEnum):
 class System(Enum):
     KHNP = 'ХНП'
     GPN = 'ГПН'
+    OPS = 'ОПС'
 
 
 class Finance(StrEnum):

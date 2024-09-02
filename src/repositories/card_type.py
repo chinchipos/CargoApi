@@ -20,3 +20,8 @@ class CardTypeRepository(BaseRepository):
         stmt = sa_select(CardTypeOrm).order_by(CardTypeOrm.name)
         card_types = await self.select_all(stmt)
         return card_types
+
+    async def get_card_type(self, name: str) -> CardTypeOrm:
+        stmt = sa_select(CardTypeOrm).where(CardTypeOrm.name == name)
+        card_type = await self.select_first(stmt)
+        return card_type

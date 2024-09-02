@@ -44,11 +44,11 @@ class CompanyRepository(BaseRepository):
         # Привязываем перекупной баланс к системам
         system_repository = SystemRepository(session=self.session, user=self.user)
         khnp_system = await system_repository.get_system_by_short_name(
-            system_fhort_name=System.KHNP.value,
+            short_name=System.KHNP.value,
             scheme=ContractScheme.OVERBOUGHT
         )
         gpn_system = await system_repository.get_system_by_short_name(
-            system_fhort_name=System.GPN.value,
+            short_name=System.GPN.value,
             scheme=ContractScheme.OVERBOUGHT
         )
 
@@ -73,7 +73,7 @@ class CompanyRepository(BaseRepository):
     async def get_khnp_system(self) -> SystemOrm:
         system_repository = SystemRepository(self.session)
         khnp_system = await system_repository.get_system_by_short_name(
-            system_fhort_name='ХНП',
+            short_name=System.KHNP.value,
             scheme=ContractScheme.OVERBOUGHT
         )
         return khnp_system
@@ -81,7 +81,7 @@ class CompanyRepository(BaseRepository):
     async def get_gpn_system(self) -> SystemOrm:
         system_repository = SystemRepository(self.session)
         khnp_system = await system_repository.get_system_by_short_name(
-            system_fhort_name='ГПН',
+            short_name=System.GPN.value,
             scheme=ContractScheme.OVERBOUGHT
         )
         return khnp_system

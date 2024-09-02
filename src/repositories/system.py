@@ -108,10 +108,10 @@ class SystemRepository(BaseRepository):
         amount = await self.select_single_field(stmt)
         return amount
 
-    async def get_system_by_short_name(self, system_fhort_name: str, scheme: ContractScheme) -> SystemOrm:
+    async def get_system_by_short_name(self, short_name: str, scheme: ContractScheme) -> SystemOrm:
         stmt = (
             sa_select(SystemOrm)
-            .where(SystemOrm.short_name == system_fhort_name)
+            .where(SystemOrm.short_name == short_name)
             .where(SystemOrm.scheme == scheme)
         )
         system = await self.select_first(stmt)

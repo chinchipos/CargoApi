@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, aliased
 
 from src.celery_app.gpn.api import GPNApi, ProductCategory
-from src.celery_app.gpn.config import SYSTEM_SHORT_NAME
 from src.celery_app.irrelevant_balances import IrrelevantBalances
 from src.celery_app.transaction_helper import get_local_cards, get_local_card
 from src.config import TZ, PRODUCTION
@@ -30,7 +29,7 @@ from src.repositories.system import SystemRepository
 from src.repositories.tariff import TariffRepository
 from src.repositories.transaction import TransactionRepository
 from src.utils.common import calc_available_balance
-from src.utils.enums import ContractScheme, TransactionType
+from src.utils.enums import ContractScheme, TransactionType, System
 from src.utils.loggers import get_logger
 
 
@@ -57,7 +56,7 @@ class GPNController(BaseRepository):
         if not self.system:
             system_repository = SystemRepository(self.session)
             self.system = await system_repository.get_system_by_short_name(
-                system_fhort_name=SYSTEM_SHORT_NAME,
+                short_name=System.GPN.value,
                 scheme=ContractScheme.OVERBOUGHT
             )
 

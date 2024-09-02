@@ -3,9 +3,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-SYSTEM_SHORT_NAME = 'ГПН'
 
-# GPN_URL = "https://api-demo.opti-24.ru"
 GPN_URL = "https://api.opti-24.ru"
 GPN_USERNAME = os.environ.get('GPN_USERNAME')
 GPN_PASSWORD = os.environ.get('GPN_PASSWORD')

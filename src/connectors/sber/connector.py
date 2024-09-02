@@ -6,7 +6,9 @@ from sqlalchemy.orm import joinedload, load_only, selectinload
 
 from src.connectors.sber.sber_api import SberApi
 from src.connectors.sber.statement import SberStatement
-from src.database.models.models import User as UserOrm, TransactionOrm as TransactionOrm, MoneyReceipt as MoneyReceiptOrm
+from src.database.models.user import UserOrm
+from src.database.models.transaction import TransactionOrm
+from src.database.models.money_receipt import MoneyReceiptOrm
 from src.database.models.balance import BalanceOrm as BalanceOrm
 from src.database.models.company import CompanyOrm as CompanyOrm
 from src.repositories.base import BaseRepository
@@ -49,7 +51,7 @@ class SberConnector(BaseRepository):
         temp = await self._save_transactions(statement=statement)
 
         # Пересчитываем балансы
-        calc_balances
+        # calc_balances
 
     async def _get_balances(self, inn_list: List[str]) -> List[BalanceOrm]:
         stmt = (
@@ -215,7 +217,7 @@ sber_api = SberApi()
 # company_info = sber_api.get_company_info()
 # pprint.pprint(company_info)
 # begin_time = datetime.now()
-s = sber_api.get_statement(from_date=date(2024, 7, 15))
+s = sber_api.get_statement(from_date=date(2024, 8, 30))
 # end_time = datetime.now()
 s.print_payments()
 # print(end_time - begin_time)

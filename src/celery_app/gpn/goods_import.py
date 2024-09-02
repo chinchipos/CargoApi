@@ -10,7 +10,7 @@ from src.database.models import OuterGoodsGroupOrm, OuterGoodsOrm
 from src.database.models.goods_category import OuterGoodsCategoryOrm
 from src.repositories.goods import GoodsRepository
 from src.repositories.system import SystemRepository
-from src.utils.enums import ContractScheme
+from src.utils.enums import ContractScheme, System
 from src.utils.loggers import get_logger
 
 _logger = get_logger(name="GpnGoodsImporter", filename="celery.log")
@@ -129,7 +129,7 @@ async def import_goods(session: AsyncSession):
     system_repository = SystemRepository(session=session, user=None)
 
     gpn_system = await system_repository.get_system_by_short_name(
-        system_fhort_name='ГПН',
+        short_name=System.GPN.value,
         scheme=ContractScheme.OVERBOUGHT
     )
 
