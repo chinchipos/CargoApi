@@ -10,11 +10,11 @@ from zeep.plugins import HistoryPlugin
 from zeep.transports import Transport
 from zeep.xsd import ComplexType, Element, String
 
-from src.config import TZ, PRODUCTION, OPS_SSH_HOST, OPS_SSH_PORT, OPS_SSH_USER, OPS_SSH_PRIVATE_KEY_FILE, OPS_SERVER, \
-    OPS_PORT, OPS_CONTRACT_ID
+from src.config import TZ, PRODUCTION, OPS_SERVER, OPS_PORT, OPS_CONTRACT_ID
 from src.utils.loggers import get_logger
 
 if not PRODUCTION:
+    from src.config import OPS_SSH_HOST, OPS_SSH_PORT, OPS_SSH_USER, OPS_SSH_PRIVATE_KEY_FILE
     import paramiko
     from sshtunnel import SSHTunnelForwarder
 
