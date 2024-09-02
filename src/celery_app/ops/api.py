@@ -3,9 +3,7 @@ import urllib3
 from datetime import datetime
 from typing import Dict, Any
 
-import paramiko
 import requests
-from sshtunnel import SSHTunnelForwarder
 from zeep import Client, Settings
 from zeep.helpers import serialize_object
 from zeep.plugins import HistoryPlugin
@@ -15,6 +13,10 @@ from zeep.xsd import ComplexType, Element, String
 from src.config import TZ, PRODUCTION, OPS_SSH_HOST, OPS_SSH_PORT, OPS_SSH_USER, OPS_SSH_PRIVATE_KEY_FILE, OPS_SERVER, \
     OPS_PORT, OPS_CONTRACT_ID
 from src.utils.loggers import get_logger
+
+if not PRODUCTION:
+    import paramiko
+    from sshtunnel import SSHTunnelForwarder
 
 
 class OpsApi:
