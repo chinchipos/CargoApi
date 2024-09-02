@@ -14,7 +14,7 @@ async def ops_import_cards_fn() -> None:
     async with sessionmanager.session() as session:
         ops_controller = OpsController(session)
         await ops_controller.init_system()
-        await ops_controller.import_cards()
+        await ops_controller.import_new_cards()
 
     # Закрываем соединение с БД
     await sessionmanager.close()

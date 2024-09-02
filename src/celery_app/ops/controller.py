@@ -45,7 +45,7 @@ class OpsController(BaseRepository):
         if not self.system:
             raise CeleryError("В БД не найдена запись о системе", trace=False)
 
-    async def import_cards(self) -> None:
+    async def import_new_cards(self) -> None:
         self.api.show_wsdl_methods("Cards")
         self.logger.info("Начинаю импорт карт")
         try:
