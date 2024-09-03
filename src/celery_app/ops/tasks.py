@@ -36,3 +36,35 @@ def ops_sync() -> IrrelevantBalances:
     except Exception as e:
         _logger.exception(str(e))
         _logger.info("Ошибка синхронизации с ОПС")
+
+
+async def ops_import_dicts_fn() -> None:
+    sessionmanager = DatabaseSessionManager()
+    sessionmanager.init(PROD_URI)
+
+    async with sessionmanager.session() as session:
+        ops_controller = OpsController(session)
+        await ops_controller.init_system()
+
+        # _logger.info('Импорт карт...')
+        # await ops_controller.load_cards()
+        # _logger.info('Выполнено')
+
+        _logger.info('Импорт АЗС и терминалов...')
+        await ops_controller.load_azs()
+        _logger.info('Выполнено')
+
+        _logger.info('Импорт продуктов...')
+        await ops_controller.load_goods()
+        _logger.info('Выполнено')
+
+    # Закрываем соединение с БД
+    await sessionmanager.close()
+
+
+@celery.task(name="OPS_IMPORT_DICTS")
+def ops_import_dicts() -> None:
+    if sys.platform == 'win32':
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+    asyncio.run(ops_import_dicts_fn())
