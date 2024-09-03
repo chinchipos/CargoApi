@@ -37,8 +37,7 @@ async def get_companies(
     tariff_policy_id: str = None,
     service: CompanyService = Depends(get_service_company)
 ):
-    # Получить список организаций может любой пользователь.
-    # Состав списка зависит от роли пользователя.
+    # Получить список организаций может любой пользователь. Состав списка зависит от роли пользователя.
     # Проверка будет выполнена при формировании списка.
     filters = {
         "tariff_policy_id": tariff_policy_id,

@@ -27,9 +27,7 @@ filter_tag_metadata = {
 async def get_companies(
     service: FilterService = Depends(get_service_filter)
 ):
-    # Проверка прав доступа. Получить список тарифов могут только сотрудники ПроАвто
-    if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
-        raise ForbiddenException()
-
+    # Получить список организаций может любой пользователь. Состав списка зависит от роли пользователя.
+    # Проверка будет выполнена при формировании списка.
     companies = await service.get_companies()
     return companies

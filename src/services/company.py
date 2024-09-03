@@ -148,9 +148,9 @@ class CompanyService:
         # Отдаем пользователю только ту информацию, которая соответствует его роли
         major_roles = [enums.Role.CARGO_SUPER_ADMIN.name, enums.Role.CARGO_MANAGER.name, enums.Role.COMPANY_ADMIN.name]
         if self.repository.user.role.name in major_roles:
-            company_read_schemas = [CompanyReadSchema.model_validate(company) for company in companies]
+            companies_read_schema = [CompanyReadSchema.model_validate(company) for company in companies]
         else:
-            company_read_schemas = [CompanyReadMinimumSchema.model_validate(company) for company in companies]
+            companies_read_schema = [CompanyReadMinimumSchema.model_validate(company) for company in companies]
 
         dictionaries = None
         if with_dictionaries:
@@ -163,7 +163,7 @@ class CompanyService:
             }
 
         data = {
-            "companies": company_read_schemas,
+            "companies": companies_read_schema,
             "dictionaries": dictionaries
         }
 
