@@ -4,9 +4,10 @@ from celery import chain, chord
 
 from src.celery_app.balance.tasks import calc_balances
 from src.celery_app.exceptions import CeleryError
-from src.celery_app.gpn.tasks import gpn_sync
-from src.celery_app.irrelevant_balances import IrrelevantBalances
 from src.celery_app.khnp.tasks import khnp_sync, khnp_set_card_states
+from src.celery_app.gpn.tasks import gpn_sync
+from src.celery_app.ops.tasks import ops_sync
+from src.celery_app.irrelevant_balances import IrrelevantBalances
 from src.celery_app.limits.tasks import gpn_set_card_group_limit
 from src.celery_app.main import celery
 from src.utils.loggers import get_logger
@@ -28,12 +29,17 @@ def after_sync(irrelevant_balances_list: List[IrrelevantBalances]):
     if irrelevant_balances_list[0]:
         irrelevant_balances.extend(irrelevant_balances_list[0])
     else:
-        messages.append("Ошибка синхронизации с ХНП.")
+        messages.append("Ошибка синхронизации с ХНП")
 
     if irrelevant_balances_list[1]:
         irrelevant_balances.extend(irrelevant_balances_list[1])
     else:
-        messages.append("Ошибка синхронизации с ГПН.")
+        messages.append("Ошибка синхронизации с ГПН")
+
+    if irrelevant_balances_list[2]:
+        irrelevant_balances.extend(irrelevant_balances_list[2])
+    else:
+        messages.append("Ошибка синхронизации с ОПС")
 
     changed_balances = [balance_id for balance_id in irrelevant_balances.data().keys()]
     tasks = [
@@ -50,7 +56,8 @@ def after_sync(irrelevant_balances_list: List[IrrelevantBalances]):
 sync = chord(
     header=[
         khnp_sync.si(),
-        gpn_sync.si()
+        gpn_sync.si(),
+        ops_sync.si(),
     ],
     body=after_sync.s()
 )

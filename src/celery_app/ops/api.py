@@ -1,7 +1,7 @@
 import os
 import urllib3
-from datetime import datetime
-from typing import Dict, Any
+from datetime import datetime, timedelta, date
+from typing import Dict, Any, List
 
 import requests
 from zeep import Client, Settings
@@ -140,7 +140,7 @@ class OpsApi:
         result = func(**params, _soapheaders=[header_value])
         return result
 
-    def get_remote_cards(self) -> Any:
+    def get_cards(self) -> List[Dict[str, Any]]:
         if not PRODUCTION:
             self.tunnel_forwarder.start()
 
@@ -159,4 +159,121 @@ class OpsApi:
         if not PRODUCTION:
             self.tunnel_forwarder.close()
 
+        for card in cards:
+            card["cardNumber"] = str(card["cardNumber"])
+
         return cards
+
+    def get_transactions(self, transaction_days: int) -> List[Dict[str, Any]]:
+        if not PRODUCTION:
+            self.tunnel_forwarder.start()
+
+        endpoint_tag = "TransactionReceipts"
+        method = "getTransactionReceipts"
+
+        date_from = self.today - timedelta(days=transaction_days)
+        if date_from < date(year=2024, month=9, day=1):
+            date_from = date(year=2024, month=9, day=1)
+        date_from = date_from.isoformat()
+
+        date_to = self.today + timedelta(days=1)
+        date_to = date_to.isoformat()
+
+        params = {
+            "dateFrom": date_from,
+            "dateTo": date_to,
+        }
+
+        result = serialize_object(self.request(endpoint_tag, method, params))
+        transactions = result["transactionReceipts"]["item"]
+        session_id = result.get("idSession", None)
+        while session_id:
+            params = {
+                "dateFrom": date_from,
+                "dateTo": date_to,
+                "idSession": session_id
+            }
+            result = serialize_object(self.request(endpoint_tag, method, params))
+            transactions.extend(result["transactionReceipts"]["item"])
+            session_id = result.get("idSession", None)
+
+        if not PRODUCTION:
+            self.tunnel_forwarder.close()
+
+        # В транзакции может быть несколько записей. Разбиваем до атомарных записей.
+        transactions_ = []
+        for transaction in transactions:
+            for tr_item in transaction["receiptItem"]["item"]:
+                transactions_.append({
+                    "transactionID": str(transaction["transactionID"]),
+                    "cardNumber": str(transaction["cardNumber"]),
+                    "transactionDateTime": datetime.fromisoformat(transaction["transactionDateTime"]),
+                    "terminalID": str(transaction["terminalID"]),
+                    "transactionType": transaction["transactionType"],
+                    "goodsID": str(tr_item["goodsID"]),
+                    "priceWithoutDiscount": tr_item["priceWithoutDiscount"],
+                    "price": tr_item["price"],
+                    "quantity": tr_item["quantity"],
+                    "amountWithoutDiscountRounded": tr_item["amountWithoutDiscountRounded"],
+                    "amountRounded": tr_item["amountRounded"],
+                })
+
+        # Сортируем транзакции по времени совершения
+        def sorting(tr):
+            return tr['transactionDateTime']
+
+        transactions = sorted(transactions_, key=sorting)
+        return transactions
+
+    def get_terminals(self, terminal_external_id: str = None) -> List[Dict[str, Any]]:
+        if not PRODUCTION:
+            self.tunnel_forwarder.start()
+
+        endpoint_tag = "Terminals"
+        method = "getTerminals"
+        params = {"terminalID": int(terminal_external_id)} if terminal_external_id else None
+        result = serialize_object(self.request(endpoint_tag, method, params))
+        terminals = result["terminals"]["item"]
+        session_id = result.get("idSession", None)
+        while session_id:
+            params = {"idSession": session_id}
+            if terminal_external_id:
+                params["terminalID"] = int(terminal_external_id)
+            result = serialize_object(self.request(endpoint_tag, method, params))
+            terminals.extend(result["terminals"]["item"])
+            session_id = result.get("idSession", None)
+
+        if not PRODUCTION:
+            self.tunnel_forwarder.close()
+
+        for terminal in terminals:
+            terminal["terminalID"] = str(terminal["terminalID"])
+            terminal["servicePointID"] = str(terminal["servicePointID"])
+
+        return terminals
+
+    def get_goods(self, goods_id: str = None) -> List[Dict[str, Any]]:
+        if not PRODUCTION:
+            self.tunnel_forwarder.start()
+
+        endpoint_tag = "Goods"
+        method = "getGoods"
+        params = {"goodsID": int(goods_id)} if goods_id else None
+        result = serialize_object(self.request(endpoint_tag, method, params))
+        goods = result["goods"]["item"]
+        session_id = result.get("idSession", None)
+        while session_id:
+            params = {"idSession": session_id}
+            if goods_id:
+                params["goodsID"] = int(goods_id)
+            result = serialize_object(self.request(endpoint_tag, method, params))
+            goods.extend(result["goods"]["item"])
+            session_id = result.get("idSession", None)
+
+        if not PRODUCTION:
+            self.tunnel_forwarder.close()
+
+        for goods_item in goods:
+            goods_item["goodsID"] = str(goods_item["goodsID"])
+
+        return goods

@@ -23,6 +23,7 @@ async def gpn_sync_fn() -> IrrelevantBalances:
 
     # Закрываем соединение с БД
     await sessionmanager.close()
+
     _logger.info('Синхронизация с ГПН успешно завершена')
     return irrelevant_balances
 
@@ -32,6 +33,7 @@ def gpn_sync() -> IrrelevantBalances:
     _logger.info("Запускаю синхронизацию с ГПН")
     try:
         return asyncio.run(gpn_sync_fn())
+
     except Exception as e:
         _logger.exception(str(e))
         _logger.info("Ошибка синхронизации с ГПН")

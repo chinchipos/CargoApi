@@ -274,6 +274,7 @@ class CardRepository(BaseRepository):
             )
             .options(
                 joinedload(CardOrm.company)
+                .selectinload(CompanyOrm.balances)
             )
             .order_by(CardOrm.card_number)
         )

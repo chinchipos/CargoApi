@@ -10,7 +10,8 @@ from src.repositories.base import BaseRepository
 
 
 class GoodsRepository(BaseRepository):
-    async def get_outer_goods(self, transaction_exists: bool = True, limit: int | None = None) -> List[OuterGoodsOrm]:
+    async def get_outer_goods(self, system_id: str = None, transaction_exists: bool = True, limit: int | None = None) \
+            -> List[OuterGoodsOrm]:
         stmt = (
             sa_select(OuterGoodsOrm)
             .options(
@@ -26,6 +27,9 @@ class GoodsRepository(BaseRepository):
             )
             .order_by(nulls_first(OuterGoodsOrm.inner_name), OuterGoodsOrm.name)
         )
+        if system_id:
+            stmt = stmt.where(OuterGoodsOrm.system_id == system_id)
+
         if transaction_exists:
             transaction_exists_criteria = (
                 sa_select(TransactionOrm.id)

@@ -1,10 +1,10 @@
 from typing import List, Dict, Any
 
-from sqlalchemy import select as sa_select
-from sqlalchemy.orm import joinedload
+from sqlalchemy import select as sa_select, and_
+from sqlalchemy.orm import joinedload, contains_eager
 
 from src.database.models import SystemOrm
-from src.database.models.azs import AzsOrm, AzsOwnType
+from src.database.models.azs import AzsOrm, AzsOwnType, TerminalOrm
 from src.repositories.base import BaseRepository
 
 
@@ -34,3 +34,22 @@ class AzsRepository(BaseRepository):
         ]
 
         return azs_types
+
+    async def get_terminals(self, system_id: str) -> List[TerminalOrm]:
+        stmt = (
+            sa_select(TerminalOrm)
+            .join(AzsOrm, and_(
+                AzsOrm.id == TerminalOrm.azs_id,
+                AzsOrm.system_id == system_id
+            ))
+            .options(
+                contains_eager(TerminalOrm.azs)
+            )
+        )
+        terminals = await self.select_all(stmt)
+        return terminals
+
+    async def get_station_by_external_id(self, external_id: str) -> AzsOrm:
+        stmt = sa_select(AzsOrm).where(AzsOrm.external_id == external_id)
+        station = await self.select_first(stmt)
+        return station

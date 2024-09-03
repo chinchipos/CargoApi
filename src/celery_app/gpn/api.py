@@ -9,7 +9,7 @@ import requests
 from fake_useragent import UserAgent
 
 from src.celery_app.exceptions import CeleryError
-from src.celery_app.gpn.config import GPN_USERNAME, GPN_URL, GPN_TOKEN, GPN_PASSWORD
+from src.config import GPN_USERNAME, GPN_URL, GPN_TOKEN, GPN_PASSWORD
 from src.config import PRODUCTION, TZ
 from src.database.models.card_limit import Unit, LimitPeriod
 from src.utils.loggers import get_logger

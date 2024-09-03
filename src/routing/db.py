@@ -1,3 +1,4 @@
+"""
 from typing import Any
 
 from fastapi import APIRouter, Depends
@@ -48,7 +49,6 @@ async def initial_sync(
     return {'success': True}
 
 
-"""
 @router.post(
     path="/db/sync/nnk/regular",
     tags=["db"],

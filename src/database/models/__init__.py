@@ -18,7 +18,7 @@ from src.database.models.tariff import TariffOrm
 from src.database.models.transaction import TransactionOrm
 from src.database.models.user import UserOrm
 from src.database.models.card_limit import CardLimitOrm
-from src.database.models.azs import AzsOrm
+from src.database.models.azs import AzsOrm, TerminalOrm
 from src.database.models.tariff import TariffPolicyOrm, TariffNewOrm
 from src.database.models.notification import NotificationOrm, NotificationMailingOrm
 from src.database.models.region import RegionOrm

@@ -10,7 +10,6 @@ from src.routing.car import router as car_routing, car_tag_metadata
 from src.routing.card import router as card_routing, card_tag_metadata
 from src.routing.card_type import router as card_type_routing, card_type_tag_metadata
 from src.routing.company import router as company_routing, company_tag_metadata
-from src.routing.db import router as db_routing, db_tag_metadata
 from src.routing.goods import router as goods_routing, goods_tag_metadata
 from src.routing.filter import router as filter_routing, filter_tag_metadata
 from src.routing.role import router as role_routing, role_tag_metadata
@@ -39,7 +38,7 @@ def init_app(dsn: str, tests: bool = False):
             "name": "auth",
             "description": 'Аутентификация, авторизация, смена пароля.',
         },
-        db_tag_metadata,
+        # db_tag_metadata,
         user_tag_metadata,
         system_tag_metadata,
         company_tag_metadata,
@@ -71,7 +70,7 @@ def init_app(dsn: str, tests: bool = False):
     async def read_root():
         return {"message": "Cargonomica API"}
 
-    app.include_router(db_routing)
+    # app.include_router(db_routing)
     app.include_router(user_routing)
     app.include_router(system_routing)
     app.include_router(company_routing)

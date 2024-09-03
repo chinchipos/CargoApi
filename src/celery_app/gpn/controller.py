@@ -596,18 +596,13 @@ class GPNController(BaseRepository):
 
         # Удаляем помеченные транзакции из БД
         self.logger.info(f'Удалить тразакции из локальной БД: {len(to_delete_local)} шт')
-        if len(to_delete_local):
-            self.logger.info('Удаляю помеченные локальные транзакции из БД')
+        if to_delete_local:
             for transaction in to_delete_local:
                 await self.delete_object(TransactionOrm, transaction.id)
 
-        # Транзакции от системы, оставшиеся необработанными,
-        # записываем в локальную БД.
+        # Транзакции от системы, оставшиеся необработанными, записываем в локальную БД.
         self.logger.info(f'Новые тразакции от системы ГПН: {len(remote_transactions)} шт')
-        if len(remote_transactions):
-            self.logger.info(
-                'Начинаю обработку транзакций от системы ГПН, которые не обнаружены в локальной БД'
-            )
+        if remote_transactions:
             await self.process_new_remote_transactions(remote_transactions, transaction_repository)
 
         # Записываем в БД время последней успешной синхронизации
@@ -704,28 +699,8 @@ class GPNController(BaseRepository):
             self.logger.error(f"Не найден баланс для карты {card_number}. Пропускаю обработку транзакции.")
             return None
 
-        """
-        # Получаем баланс
-        balance_id = self._balance_card_relations.get(card_number, None)
-        if not balance_id:
-            self.logger.error(f"Не найден баланс для карты {card_number}. Пропускаю обработку транзакции.")
-            return None
-        """
-
         # Получаем продукт
         outer_goods = await self.get_outer_goods(remote_transaction)
-
-        # Получаем тариф
-        """
-        tariff = get_tariff_on_date_by_balance(
-            balance_id=balance_id,
-            transaction_date=remote_transaction['timestamp'].date(),
-            tariffs_history=self._tariffs_history
-        )
-        
-        if not tariff:
-            tariff = get_current_tariff_by_balance(balance_id=balance_id, bst_list=self._bst_list)
-        """
 
         # Получаем АЗС
         azs = await self.get_azs(azs_external_id=remote_transaction['poi_id'])
@@ -751,39 +726,6 @@ class GPNController(BaseRepository):
 
         # Получаем итоговую сумму
         total_sum = transaction_sum + discount_fee_sum
-
-        """
-        if remote_transaction['poi_id'] in ["1-11WJG5CA"]:
-            # Расчет скидки/наценки для франчайзи
-            # Размер скидки
-            discount_sum = 0
-
-            # Размер наценки
-            fee_percent = 5
-            fee_sum = transaction_sum * fee_percent / 100
-
-            comments = "франчайзи: +5%"
-
-        elif remote_transaction['product_id'] in ["00000000000007"]:
-            # Расчет скидки/наценки для категории "Бензины"
-            # Размер скидки
-            discount_sum = 0
-
-            # Размер наценки
-            fee_percent = 1
-            fee_sum = transaction_sum * fee_percent / 100
-
-            comments = "бензины: +1%"
-
-        else:
-            # Размер скидки
-            discount_percent = 2
-            discount_sum = -transaction_sum * discount_percent / 100
-
-            # Размер наценки
-            fee_sum = 0
-            
-        """
 
         transaction_data = dict(
             external_id=str(remote_transaction['id']),
@@ -1069,54 +1011,54 @@ class GPNController(BaseRepository):
             -> TariffNewOrm:
         # Получаем список тарифов, действовавших для компании на момент совершения транзакции
         tariffs = []
-        print('111111111111111111111111')
-        print(len(self._tariffs))
+        # print('111111111111111111111111')
+        # print(len(self._tariffs))
         for tariff in self._tariffs:
-            print('222222222222222222222222')
-            print(f"policy_id: {tariff.policy_id} | {company.tariff_policy_id} | {tariff.policy_id == company.tariff_policy_id}")
-            print(f"policy_id: {tariff.begin_time} | {transaction_time} | {tariff.begin_time <= transaction_time}")
-            print(f"end_time: {tariff.end_time} | {transaction_time} | {(tariff.end_time and tariff.end_time > transaction_time) or not tariff.end_time}")
+            # print('222222222222222222222222')
+            # print(f"policy_id: {tariff.policy_id} | {company.tariff_policy_id} | {tariff.policy_id == company.tariff_policy_id}")
+            # print(f"policy_id: {tariff.begin_time} | {transaction_time} | {tariff.begin_time <= transaction_time}")
+            # print(f"end_time: {tariff.end_time} | {transaction_time} | {(tariff.end_time and tariff.end_time > transaction_time) or not tariff.end_time}")
             if tariff.policy_id == company.tariff_policy_id and tariff.begin_time <= transaction_time:
                 if (tariff.end_time and tariff.end_time > transaction_time) or not tariff.end_time:
                     tariffs.append(tariff)
 
-        print('33333333333333333333333333')
-        print(f"tariffs length: {len(tariffs)}")
+        # print('33333333333333333333333333')
+        # print(f"tariffs length: {len(tariffs)}")
         # Перебираем тарифы и применяем первый подошедший
         for tariff in tariffs:
             # АЗС
-            print(f"azs_id: {tariff.azs_id} | {azs.id} | {tariff.azs_id and tariff.azs_id != azs.id}")
+            # print(f"azs_id: {tariff.azs_id} | {azs.id} | {tariff.azs_id and tariff.azs_id != azs.id}")
             if tariff.azs_id and tariff.azs_id != azs.id:
-                print('continue')
+                # print('continue')
                 continue
 
             # Тип АЗС
-            print(f"azs_own_type: {tariff.azs_own_type} | {azs.own_type} | "
-                  f"{tariff.azs_own_type and tariff.azs_own_type != azs.own_type}")
+            # print(f"azs_own_type: {tariff.azs_own_type} | {azs.own_type} | "
+            #       f"{tariff.azs_own_type and tariff.azs_own_type != azs.own_type}")
             if tariff.azs_own_type and tariff.azs_own_type != azs.own_type:
-                print('continue')
+                # print('continue')
                 continue
 
             # Регион
-            print(f"region_id: {tariff.region_id} | {azs.region_id} | "
-                  f"{tariff.region_id and tariff.region_id != azs.region_id}")
+            # print(f"region_id: {tariff.region_id} | {azs.region_id} | "
+            #       f"{tariff.region_id and tariff.region_id != azs.region_id}")
             if tariff.region_id and tariff.region_id != azs.region_id:
-                print('continue')
+                # print('continue')
                 continue
 
             # Группа продуктов
-            print(f"inner_goods_group_id: {tariff.inner_goods_group_id} | {inner_group.id if inner_group else None} | "
-                  f"{tariff.inner_goods_group_id and inner_group and tariff.inner_goods_group_id != inner_group.id}")
+            # print(f"inner_goods_group_id: {tariff.inner_goods_group_id} | {inner_group.id if inner_group else None} | "
+            #       f"{tariff.inner_goods_group_id and inner_group and tariff.inner_goods_group_id != inner_group.id}")
             if tariff.inner_goods_group_id and inner_group and tariff.inner_goods_group_id != inner_group.id:
-                print('continue')
+                # print('continue')
                 continue
 
             # Категория продуктов
-            print(f"inner_goods_category: {tariff.inner_goods_category} | "
-                  f"{inner_group.inner_category if inner_group else None}")
+            # print(f"inner_goods_category: {tariff.inner_goods_category} | "
+            #       f"{inner_group.inner_category if inner_group else None}")
             if tariff.inner_goods_category and inner_group and \
                     tariff.inner_goods_category != inner_group.inner_category:
-                print('continue')
+                # print('continue')
                 continue
 
             # Тариф удовлетворяет критериям - возвращаем его

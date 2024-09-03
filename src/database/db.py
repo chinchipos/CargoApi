@@ -5,7 +5,7 @@ from psycopg import AsyncConnection
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession, AsyncEngine
 from sqlalchemy.sql.ddl import CreateSchema
 
-from src.config import SQLALCHEMY_ECHO, SCHEMA
+from src.config import SQLALCHEMY_ECHO, SCHEMA, PRODUCTION
 from src.database.models.base import Base
 
 
@@ -20,9 +20,14 @@ class DatabaseSessionManager:
         else:
             echo = SQLALCHEMY_ECHO
 
+        if PRODUCTION:
+            connect_args = {'sslmode': "verify-full", 'target_session_attrs': 'read-write'}
+        else:
+            connect_args = {'target_session_attrs': 'read-write'}
+
         self._engine = create_async_engine(
             connection_string,
-            connect_args={'sslmode': "verify-full", 'target_session_attrs': 'read-write'},
+            connect_args=connect_args,
             pool_size=10,
             max_overflow=5,
             echo=echo
