@@ -1,0 +1,4 @@
+#!/usr/bin/bash
+
+rm -f /tmp/cargonomica.tar.gz
+tar -czvf /tmp/cargonomica.tar.gz -C /home/cargo cargonomica

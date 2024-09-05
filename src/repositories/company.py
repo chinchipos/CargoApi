@@ -43,28 +43,11 @@ class CompanyRepository(BaseRepository):
 
         # Привязываем перекупной баланс к системам
         system_repository = SystemRepository(session=self.session, user=self.user)
-        khnp_system = await system_repository.get_system_by_short_name(
-            short_name=System.KHNP.value,
-            scheme=ContractScheme.OVERBOUGHT
-        )
-        gpn_system = await system_repository.get_system_by_short_name(
-            short_name=System.GPN.value,
-            scheme=ContractScheme.OVERBOUGHT
-        )
-
-        khnp_bst = BalanceSystemOrm(
-            balance_id=balance.id,
-            system_id=khnp_system.id,
-            tariff_id=None
-        )
-        await self.save_object(khnp_bst)
-
-        gpn_bst = BalanceSystemOrm(
-            balance_id=balance.id,
-            system_id=gpn_system.id,
-            tariff_id=None
-        )
-        await self.save_object(gpn_bst)
+        systems = await system_repository.get_systems()
+        for system in systems:
+            if system.enabled:
+                balance_system = BalanceSystemOrm(balance_id=balance.id, system_id=system.id)
+                await self.save_object(balance_system)
 
         # Получаем организацию из БД
         company = await self.get_company(company.id)

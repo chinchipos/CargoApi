@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.auth.auth import get_current_active_user
 from src.database.db import get_session
 from src.database.models.user import UserOrm
+from src.repositories.azs import AzsRepository
 from src.repositories.car import CarRepository
 from src.repositories.card import CardRepository
 from src.repositories.card_type import CardTypeRepository
@@ -17,6 +18,7 @@ from src.repositories.system import SystemRepository
 from src.repositories.tariff import TariffRepository
 from src.repositories.transaction import TransactionRepository
 from src.repositories.user import UserRepository
+from src.services.azs import AzsService
 from src.services.car import CarService
 from src.services.card import CardService
 from src.services.card_type import CardTypeService
@@ -130,6 +132,15 @@ def get_service_goods(
 ) -> GoodsService:
     repository = GoodsRepository(session, user)
     service = GoodsService(repository)
+    return service
+
+
+def get_service_azs(
+    session: AsyncSession = Depends(get_session),
+    user: UserOrm = Depends(get_current_active_user)
+) -> AzsService:
+    repository = AzsRepository(session, user)
+    service = AzsService(repository)
     return service
 
 

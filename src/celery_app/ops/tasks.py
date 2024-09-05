@@ -2,6 +2,7 @@ import asyncio
 import sys
 
 from src.celery_app.irrelevant_balances import IrrelevantBalances
+from src.celery_app.ops.api import OpsApi
 from src.celery_app.ops.controller import OpsController
 from src.celery_app.main import celery
 from src.config import PROD_URI
@@ -50,13 +51,16 @@ async def ops_import_dicts_fn() -> None:
         # await ops_controller.load_cards()
         # _logger.info('Выполнено')
 
-        _logger.info('Импорт АЗС и терминалов...')
-        await ops_controller.load_azs()
-        _logger.info('Выполнено')
+        # _logger.info('Импорт АЗС и терминалов...')
+        # await ops_controller.load_azs()
+        # _logger.info('Выполнено')
 
-        _logger.info('Импорт продуктов...')
-        await ops_controller.load_goods()
-        _logger.info('Выполнено')
+        api = OpsApi()
+        api.export_transactions()
+
+        # _logger.info('Импорт продуктов...')
+        # await ops_controller.load_goods()
+        # _logger.info('Выполнено')
 
     # Закрываем соединение с БД
     await sessionmanager.close()

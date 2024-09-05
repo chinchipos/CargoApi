@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import List
 
 import sqlalchemy as sa
+from sqlalchemy import Index, and_
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database.models.azs import AzsOwnType
@@ -83,6 +84,7 @@ class TariffPolicyOrm(Base):
 
 
 class TariffNewOrm(Base):
+
     __tablename__ = "tariff_new"
     __table_args__ = (
         sa.UniqueConstraint(
@@ -90,13 +92,15 @@ class TariffNewOrm(Base):
             "system_id",
             "inner_goods_group_id",
             "inner_goods_category",
+            "azs_id",
             "azs_own_type",
             "region_id",
             "end_time",
             name="complex_uniq1",
-            postgresql_nulls_not_distinct=True
+            # postgresql_nulls_not_distinct=True    # Эта фича работает только в PG версии 15+
         ),
         {'comment': 'Тарифы'}
+
     )
 
     # Тарифная политика

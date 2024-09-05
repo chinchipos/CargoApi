@@ -72,7 +72,7 @@ class UserRepository(BaseRepository):
         elif self.user.role.name == enums.Role.COMPANY_ADMIN.name:
             stmt = stmt.where(UserOrm.company_id == self.user.company_id)
 
-        self.statement(stmt)
+        # self.statement(stmt)
         users = await self.select_all(stmt)
 
         def sorting(user):

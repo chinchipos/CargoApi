@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, List
+from typing import Any, List, Dict
 
 import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -58,7 +58,7 @@ class AzsOrm(Base):
         comment="Код АЗС"
     )
 
-    address: Mapped[dict[str, Any]] = mapped_column(
+    address: Mapped[Dict[str, Any]] = mapped_column(
         JSON,
         nullable=False,
         init=True,

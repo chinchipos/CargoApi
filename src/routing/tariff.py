@@ -20,7 +20,7 @@ tariff_tag_metadata = {
     "description": tariff_tag_description,
 }
 
-
+"""
 @router.get(
     path="/tariff/all",
     tags=["tariff"],
@@ -39,6 +39,7 @@ async def get_tariffs(
 
     tariffs = await service.get_tariffs()
     return tariffs
+"""
 
 
 @router.get(

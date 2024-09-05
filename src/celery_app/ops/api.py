@@ -11,6 +11,7 @@ from zeep.transports import Transport
 from zeep.xsd import ComplexType, Element, String
 
 from src.config import TZ, PRODUCTION, OPS_SERVER, OPS_PORT, OPS_CONTRACT_ID
+from src.utils.export_to_excel import ExportToExcel
 from src.utils.loggers import get_logger
 
 if not PRODUCTION:
@@ -250,6 +251,15 @@ class OpsApi:
             terminal["terminalID"] = str(terminal["terminalID"])
             terminal["servicePointID"] = str(terminal["servicePointID"])
 
+        # if terminals:
+        #     export = ExportToExcel()
+        #     export.make_excel(
+        #         data=terminals,
+        #         headers=[k for k, v in terminals[0].items()],
+        #         filename="OPS_TERMINALS.xlsx",
+        #         export_dir="D:\\Temp"
+        #     )
+
         return terminals
 
     def get_goods(self, goods_id: str = None) -> List[Dict[str, Any]]:
@@ -277,3 +287,82 @@ class OpsApi:
             goods_item["goodsID"] = str(goods_item["goodsID"])
 
         return goods
+
+    def export_transactions(self):
+        if not PRODUCTION:
+            self.tunnel_forwarder.start()
+
+        endpoint_tag = "TransactionReceipts"
+        method = "getTransactionReceipts"
+
+        periods = [
+            (date(2024, 6, 1).isoformat(), date(2024, 7, 1).isoformat()),
+            # (date(2024, 7, 1).isoformat(), date(2024, 8, 1).isoformat()),
+            # (date(2024, 8, 1).isoformat(), date(2024, 9, 1).isoformat()),
+            # (date(2024, 9, 1).isoformat(), date(2024, 9, 5).isoformat()),
+        ]
+        all_transactions = []
+        for period in periods:
+            params = {
+                "dateFrom": period[0],
+                "dateTo": period[1],
+            }
+
+            result = serialize_object(self.request(endpoint_tag, method, params))
+            transactions = result["transactionReceipts"]["item"] if result["transactionReceipts"] else []
+            session_id = result.get("idSession", None)
+            while session_id:
+                params = {
+                    "dateFrom": period[0],
+                    "dateTo": period[1],
+                    "idSession": session_id
+                }
+                result = serialize_object(self.request(endpoint_tag, method, params))
+                transactions.extend(result["transactionReceipts"]["item"])
+                session_id = result.get("idSession", None)
+
+            if not PRODUCTION:
+                self.tunnel_forwarder.close()
+
+            # В транзакции может быть несколько записей. Разбиваем до атомарных записей.
+            transactions_ = []
+            for transaction in transactions:
+                for tr_item in transaction["receiptItem"]["item"]:
+                    transactions_.append({
+                        "transactionID": str(transaction["transactionID"]),
+                        "transactionDateTime": datetime.fromisoformat(transaction["transactionDateTime"]),
+                        "terminalID": str(transaction["terminalID"]),
+                        "cardNumber": str(transaction["cardNumber"]),
+                        "contractID": str(transaction["contractID"]),
+                        "contractType": transaction["contractType"],
+                        "clientID": str(transaction["clientID"]),
+                        "contractOwnerID": str(transaction["contractOwnerID"]),
+                        "transactionType": transaction["transactionType"],
+                        "position": tr_item["position"],
+                        "goodsID": str(tr_item["goodsID"]),
+                        "paymentType": tr_item["paymentType"],
+                        "priceWithoutDiscount": tr_item["priceWithoutDiscount"],
+                        "price": tr_item["price"],
+                        "quantity": tr_item["quantity"],
+                        "amountWithoutDiscountRounded": tr_item["amountWithoutDiscountRounded"],
+                        "amountRounded": tr_item["amountRounded"],
+                        "receiptDiscount": transaction["receiptDiscount"],
+                        "totalTransactionAmount": transaction["totalTransactionAmount"],
+                    })
+
+            all_transactions.extend(transactions_)
+
+        # Сортируем транзакции по времени совершения
+        def sorting(tr):
+            return tr['transactionDateTime']
+
+        transactions = sorted(all_transactions, key=sorting)
+
+        if transactions:
+            export = ExportToExcel()
+            export.make_excel(
+                data=transactions,
+                headers=[k for k, v in transactions[0].items()],
+                filename="OPS_TRANSACTIONS.xlsx",
+                export_dir="D:\\Temp"
+            )

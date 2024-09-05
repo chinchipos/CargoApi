@@ -206,6 +206,7 @@ class OpsController(BaseRepository):
             if local_station.external_id in remote_stations:
                 remote_stations.pop(local_station.external_id)
                 local_stations.remove(local_station)
+                i += 1
 
         # Если в локальном списке АЗС остались записи, то помечаем эти АЗС как неактивные.
         self.logger.info(f"Количество АЗС, сменивших статус на неактивный: {len(local_stations)} шт")

@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from src.auth.auth import auth_backend, fastapi_users
 from src.config import PROD_URI
 from src.database.db import sessionmanager
+from src.routing.azs import router as azs_routing, azs_tag_metadata
 from src.routing.car import router as car_routing, car_tag_metadata
 from src.routing.card import router as card_routing, card_tag_metadata
 from src.routing.card_type import router as card_type_routing, card_type_tag_metadata
@@ -49,6 +50,7 @@ def init_app(dsn: str, tests: bool = False):
         car_tag_metadata,
         role_tag_metadata,
         goods_tag_metadata,
+        azs_tag_metadata,
         filter_tag_metadata,
     ]
 
@@ -81,6 +83,7 @@ def init_app(dsn: str, tests: bool = False):
     app.include_router(car_routing)
     app.include_router(role_routing)
     app.include_router(goods_routing)
+    app.include_router(azs_routing)
     app.include_router(filter_routing)
     app.include_router(
         fastapi_users.get_auth_router(auth_backend),

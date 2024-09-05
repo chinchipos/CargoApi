@@ -8,6 +8,7 @@ from src.database.models import SystemOrm, RegionOrm
 from src.database.models.azs import AzsOwnType, AzsOrm
 from src.database.models.goods_category import GoodsCategory
 from src.database.models.tariff import TariffPolicyOrm, TariffNewOrm
+from src.repositories.azs import AzsRepository
 from src.repositories.base import BaseRepository
 
 
@@ -70,14 +71,13 @@ class TariffRepository(BaseRepository):
                 contains_eager(TariffPolicyOrm.tariffs)
                 .options(
                     joinedload(TariffNewOrm.system)
-                    .load_only(SystemOrm.id, SystemOrm.full_name)
+                    .load_only(SystemOrm.id, SystemOrm.full_name, SystemOrm.short_name)
                 )
                 .options(
                     joinedload(TariffNewOrm.inner_goods_group)
                 )
                 .options(
                     joinedload(TariffNewOrm.azs)
-                    .load_only(AzsOrm.id, AzsOrm.name)
                 )
                 .options(
                     joinedload(TariffNewOrm.region)
@@ -117,41 +117,18 @@ class TariffRepository(BaseRepository):
         if filters.get("group_id", None):
             stmt = stmt.where(TariffNewOrm.inner_goods_group_id == filters["group_id"])
 
+        azs_repository = AzsRepository(session=self.session)
         polices: List[TariffPolicyOrm] = await self.select_all(stmt)
+        for policy in polices:
+            for tariff in policy.tariffs:
+                if tariff.azs:
+                    pretty_address = azs_repository.pretty_address(
+                        addr_json=tariff.azs.address,
+                        system_short_name=tariff.system.short_name if tariff.system else None
+                    )
+                    tariff.azs.address = pretty_address
+
         return polices
-
-    """
-    async def get_tariff_on_date(self, balance_id: str, system_id: str, date_: date) -> TariffOrm:
-        # Получаем историю применения тарифов для найденной организации
-        bth = aliased(BalanceTariffHistoryOrm, name="bth")
-        stmt = (
-            sa_select(TariffOrm)
-            .join(bth, and_(
-                bth.balance_id == balance_id,
-                bth.system_id == system_id,
-                bth.start_date <= date_,
-                or_(
-                    bth.end_date > date_,
-                    bth.end_date.is_(null())
-                )
-            ))
-        )
-        tariff = await self.select_first(stmt)
-
-        # Если в истории никаких записей не найдено, то возвращаем текущий тариф
-        if not tariff:
-            bst = aliased(BalanceSystemTariffOrm, name="bst")
-            stmt = (
-                sa_select(TariffOrm)
-                .join(bst, and_(
-                    bst.balance_id == balance_id,
-                    bst.system_id == system_id
-                ))
-            )
-            tariff = await self.select_first(stmt)
-
-        return tariff
-    """
 
     async def create_tariff_policy(self, policy_name: str, is_active: bool = True) -> TariffPolicyOrm:
         policy = TariffPolicyOrm(name=policy_name, is_active=is_active)
