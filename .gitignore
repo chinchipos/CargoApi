@@ -2,3 +2,4 @@
 /src/connectors/log/
 /log/
 /.env
+/chromedriver.exe
