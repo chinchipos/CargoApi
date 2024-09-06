@@ -41,53 +41,39 @@ class TariffService:
         # Если полученный тариф отсутствует в БД, то сохраняем его.
         # Если найден в БД, то, при наличиии изменений, архивируем действующий, создаем новый
         for received_tariff in tariff_create_schema.tariffs:
-            found = False
-            need_update = False
-            for saved_tariff in policy.tariffs:
-                if received_tariff.system_id == saved_tariff.system_id and \
-                        received_tariff.azs_own_type == saved_tariff.azs_own_type and \
-                        received_tariff.region_id == saved_tariff.region_id and \
-                        received_tariff.goods_group_id == saved_tariff.inner_goods_group_id and \
-                        received_tariff.goods_category == saved_tariff.inner_goods_category:
+            received_azs_ids = received_tariff.azs_ids if received_tariff.azs_ids else [None]
+            for received_azs_id in received_azs_ids:
+                found = False
+                need_update = False
+                for saved_tariff in policy.tariffs:
+                    if received_tariff.system_id == saved_tariff.system_id and \
+                            received_tariff.azs_own_type == saved_tariff.azs_own_type and \
+                            received_tariff.region_id == saved_tariff.region_id and \
+                            received_azs_id == saved_tariff.azs_id and \
+                            received_tariff.goods_group_id == saved_tariff.inner_goods_group_id and \
+                            received_tariff.goods_category == saved_tariff.inner_goods_category:
 
-                    found = True
-                    if received_tariff.discount_fee != saved_tariff.discount_fee:
-                        need_update = True
-                        # Архивируем действующий тариф
-                        saved_tariff.end_time = self.now
-                        await self.repository.save_object(saved_tariff)
+                        found = True
+                        if received_tariff.discount_fee != saved_tariff.discount_fee:
+                            need_update = True
+                            # Архивируем действующий тариф
+                            saved_tariff.end_time = self.now
+                            await self.repository.save_object(saved_tariff)
 
-            # Создаем новый тариф
-            begin_time = datetime(year=2020, month=1, day=1) if not found else self.now
-            if not found or need_update:
-                await self.repository.create_tariff(
-                    policy_id=policy_id,
-                    system_id=received_tariff.system_id,
-                    azs_own_type=received_tariff.azs_own_type,
-                    region_id=received_tariff.region_id,
-                    goods_group_id=received_tariff.goods_group_id,
-                    goods_category=received_tariff.goods_category,
-                    discount_fee=received_tariff.discount_fee,
-                    begin_time=begin_time
-                )
-
-    """
-    async def edit(self, tariff_id: str, tariff_edit_schema: TariffEditSchema) -> TariffNewReadSchema:
-        # Получаем тариф из БД
-        tariff_obj = await self.repository.session.get(TariffOrm, tariff_id)
-        if not tariff_obj:
-            raise BadRequestException('Запись не найдена')
-
-        # Обновляем данные, сохраняем в БД
-        update_data = tariff_edit_schema.model_dump(exclude_unset=True)
-        await self.repository.update_object(tariff_obj, update_data)
-
-        # Формируем ответ
-        # companies_amount = await self.repository.get_companies_amount(tariff_id)
-        # tariff_obj.annotate({'companies_amount': companies_amount})
-        tariff_read_schema = TariffNewReadSchema.model_validate(tariff_obj)
-        return tariff_read_schema
-    """
+                # Создаем новый тариф
+                begin_time = datetime(year=2020, month=1, day=1) if not found else self.now
+                if not found or need_update:
+                    await self.repository.create_tariff(
+                        policy_id=policy_id,
+                        system_id=received_tariff.system_id,
+                        azs_own_type=received_tariff.azs_own_type,
+                        region_id=received_tariff.region_id,
+                        azs_id=received_azs_id,
+                        goods_group_id=received_tariff.goods_group_id,
+                        goods_category=received_tariff.goods_category,
+                        discount_fee=received_tariff.discount_fee,
+                        begin_time=begin_time
+                    )
 
     async def get_tariffs(self) -> List[TariffNewOrm]:
         tariffs = await self.repository.get_tariffs()

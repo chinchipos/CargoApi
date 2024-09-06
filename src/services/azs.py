@@ -13,3 +13,7 @@ class AzsService:
     async def get_filtered_stations(self, term: str) -> List[AzsOrm]:
         stations = await self.repository.get_filtered_stations(term)
         return stations
+
+    async def get_station(self, azs_id: str) -> AzsOrm:
+        station = await self.repository.get_station(azs_id=azs_id)
+        return station

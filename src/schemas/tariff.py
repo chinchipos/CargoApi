@@ -45,7 +45,7 @@ inner_goods_group_id_ = Annotated[EmptyStrToNone, Field(description="UUID гру
 inner_goods_group_ = Annotated[
     InnerGoodsGroupReadSchema | None, Field(description="Группа продуктов в нашей системе")]
 
-azs_id_ = Annotated[EmptyStrToNone, Field(description="UUID АЗС")]
+azs_ids_ = Annotated[List[str] | None, Field(description="UUID АЗС")]
 azs_ = Annotated[AzsReadMinSchema | None, Field(description="АЗС")]
 
 region_id_ = Annotated[EmptyStrToNone, Field(description="UUID Региона")]
@@ -113,7 +113,7 @@ class TariffPoliciesReadSchema(BaseSchema):
 class TariffParamsSchema(BaseSchema):
     tariff_id: tariff_id_ = None
     system_id: system_id_
-    azs_id: azs_id_ = None
+    azs_ids: azs_ids_ = None
     region_id: region_id_ = None
     azs_own_type: azs_own_type_ = None
     goods_group_id: inner_goods_group_id_ = None

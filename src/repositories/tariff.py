@@ -78,6 +78,7 @@ class TariffRepository(BaseRepository):
                 )
                 .options(
                     joinedload(TariffNewOrm.azs)
+                    .joinedload(AzsOrm.system)
                 )
                 .options(
                     joinedload(TariffNewOrm.region)
@@ -124,9 +125,9 @@ class TariffRepository(BaseRepository):
                 if tariff.azs:
                     pretty_address = azs_repository.pretty_address(
                         addr_json=tariff.azs.address,
-                        system_short_name=tariff.system.short_name if tariff.system else None
+                        system_short_name=tariff.azs.system.short_name if tariff.system else None
                     )
-                    tariff.azs.address = pretty_address
+                    tariff.azs.annotate({"pretty_address": pretty_address})
 
         return polices
 
@@ -151,13 +152,14 @@ class TariffRepository(BaseRepository):
         return policy
 
     async def create_tariff(self, policy_id: str, system_id: str, azs_own_type: AzsOwnType, region_id: str,
-                            goods_group_id: str, goods_category: GoodsCategory,  discount_fee: float,
+                            azs_id: str, goods_group_id: str, goods_category: GoodsCategory,  discount_fee: float,
                             begin_time: datetime) -> TariffNewOrm:
         tariff = TariffNewOrm(
             policy_id=policy_id,
             system_id=system_id,
             azs_own_type=azs_own_type,
             region_id=region_id,
+            azs_id=azs_id,
             inner_goods_group_id=goods_group_id,
             inner_goods_category=goods_category,
             discount_fee=discount_fee,

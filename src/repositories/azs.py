@@ -1,7 +1,8 @@
+import copy
 import json
 from typing import List, Dict, Any
 
-from sqlalchemy import select as sa_select, and_
+from sqlalchemy import select as sa_select, and_, or_, cast, String
 from sqlalchemy.orm import joinedload, contains_eager
 
 from src.database.models import SystemOrm
@@ -61,7 +62,7 @@ class AzsRepository(BaseRepository):
         if not addr_json:
             return None
 
-        addr_json_ = addr_json
+        addr_json_ = copy.deepcopy(addr_json)
         if isinstance(addr_json_, str):
             try:
                 addr_json_ = json.loads(addr_json_)
@@ -89,24 +90,66 @@ class AzsRepository(BaseRepository):
             return address
 
     async def get_filtered_stations(self, term: str) -> List[AzsOrm]:
+        term = term.replace(",", ".")
         stmt = (
             sa_select(AzsOrm)
             .options(
                 joinedload(AzsOrm.system)
             )
+            .outerjoin(TerminalOrm, TerminalOrm.azs_id == AzsOrm.id)
             .order_by(AzsOrm.name)
         )
         if len(term) < 3:
-            stmt = stmt.where(AzsOrm.name == term)
+            stmt = stmt.where(
+                or_(
+                    AzsOrm.external_id == term,
+                    AzsOrm.name == term
+                )
+            )
+        elif "." in term:
+            stmt = stmt.where(
+                or_(
+                    AzsOrm.external_id.icontains(term),
+                    AzsOrm.name.icontains(term),
+                    cast(AzsOrm.latitude, String).icontains(term),
+                    cast(AzsOrm.longitude, String).icontains(term),
+                    TerminalOrm.external_id.icontains(term),
+                    TerminalOrm.name.icontains(term)
+                )
+            )
         else:
-            stmt = stmt.where(AzsOrm.name.icontains(term))
+            stmt = stmt.where(
+                or_(
+                    AzsOrm.external_id.icontains(term),
+                    AzsOrm.name.icontains(term),
+                    TerminalOrm.external_id.icontains(term),
+                    TerminalOrm.name.icontains(term)
+                )
+            )
 
+        # self.statement(stmt)
         stations = await self.select_all(stmt)
         for station in stations:
             pretty_address = self.pretty_address(
                 addr_json=station.address,
                 system_short_name=station.system.short_name if station.system else None
             )
-            station.annotate({"address": pretty_address})
+            station.annotate({"pretty_address": pretty_address})
 
         return stations
+
+    async def get_station(self, azs_id: str) -> AzsOrm:
+        stmt = (
+            sa_select(AzsOrm)
+            .options(
+                joinedload(AzsOrm.system)
+            )
+            .where(AzsOrm.id == azs_id)
+        )
+        station = await self.select_first(stmt)
+        pretty_address = self.pretty_address(
+            addr_json=station.address,
+            system_short_name=station.system.short_name if station.system else None
+        )
+        station.annotate({"pretty_address": pretty_address})
+        return station

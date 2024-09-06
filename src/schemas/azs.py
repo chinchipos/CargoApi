@@ -17,6 +17,7 @@ from src.schemas.base import BaseSchema
 
 class AzsReadMinSchema(BaseSchema):
     id: Annotated[str, Field(description="UUID АЗС")]
+    external_id: Annotated[str, Field(description="Идентификатор АЗС в системе поставщика")]
     name: Annotated[str, Field(description="Наименование")]
     own_type: Annotated[AzsOwnType | None, Field(description="Тип АЗС")]
-    address: Annotated[str | None, Field(description="Адрес")]
+    pretty_address: Annotated[str | None, Field(description="Адрес")]

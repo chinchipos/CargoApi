@@ -137,8 +137,9 @@ class TransactionRepository(BaseRepository):
                     {
                         "azs": {
                             "id": azs.id,
+                            "external_id": azs.external_id,
                             "name": azs.name,
-                            "address": pretty_address,
+                            "pretty_address": pretty_address,
                             "own_type": azs.own_type,
                         }
                     }

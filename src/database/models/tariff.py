@@ -155,21 +155,6 @@ class TariffNewOrm(Base):
         comment="Категория продуктов в нашей системе"
     )
 
-    # АЗС
-    azs_id: Mapped[str] = mapped_column(
-        sa.ForeignKey("cargonomica.azs.id"),
-        nullable=True,
-        init=False,
-        comment="АЗС"
-    )
-
-    # АЗС
-    azs: Mapped["AzsOrm"] = relationship(
-        back_populates="tariffs",
-        init=False,
-        lazy="noload"
-    )
-
     # Тип АЗС
     azs_own_type: Mapped[AzsOwnType] = mapped_column(
         nullable=True,
@@ -177,7 +162,7 @@ class TariffNewOrm(Base):
         comment="Тип АЗС"
     )
 
-    # АЗС
+    # Регион
     region_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.region.id"),
         nullable=True,
@@ -185,7 +170,7 @@ class TariffNewOrm(Base):
         comment="Регион"
     )
 
-    # АЗС
+    # Регион
     region: Mapped["RegionOrm"] = relationship(
         back_populates="tariffs",
         init=False,
@@ -213,6 +198,22 @@ class TariffNewOrm(Base):
         nullable=True,
         init=False,
         comment="Время прекращения действия"
+    )
+
+    # АЗС
+    azs_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.azs.id"),
+        nullable=True,
+        init=True,
+        default=None,
+        comment="АЗС"
+    )
+
+    # АЗС
+    azs: Mapped["AzsOrm"] = relationship(
+        back_populates="tariffs",
+        init=False,
+        lazy="noload"
     )
 
     # Список транзакций по этому тарифу
