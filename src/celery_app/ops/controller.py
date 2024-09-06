@@ -313,7 +313,7 @@ class OpsController(BaseRepository):
                 await self.delete_object(TransactionOrm, transaction.id)
 
         # Транзакции от системы, оставшиеся необработанными, записываем в локальную БД.
-        self.logger.info(f'Новые тразакции от системы ГПН: {len(remote_transactions)} шт')
+        self.logger.info(f'Новые тразакции от системы ОПС: {len(remote_transactions)} шт')
         if remote_transactions:
             await self.process_new_remote_transactions(remote_transactions, transaction_repository)
 
