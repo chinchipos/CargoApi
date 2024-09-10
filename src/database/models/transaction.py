@@ -77,10 +77,10 @@ class TransactionOrm(Base):
     )
 
     # Организация
-    company: Mapped[List["BalanceOrm"]] = relationship(
-        viewonly=True,
-        lazy="noload"
-    )
+    # company: Mapped[List["BalanceOrm"]] = relationship(
+    #     viewonly=True,
+    #     lazy="noload"
+    # )
 
     # Поставщик услуг
     system_id: Mapped[str] = mapped_column(

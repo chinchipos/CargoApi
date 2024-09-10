@@ -6,6 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database.models.base import Base
 from src.database.models.balance import BalanceOrm
+from src.utils.enums import ContractScheme
 
 
 class CompanyOrm(Base):
@@ -169,5 +170,37 @@ class CompanyOrm(Base):
         lazy="noload",
         init=False
     )
+
+    # Список карточных групп этой организации
+    card_groups: Mapped[List["CardGroupOrm"]] = relationship(
+        back_populates="company",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
+    # Список групповых лимитов этой организации
+    group_limits: Mapped[List["GroupLimitOrm"]] = relationship(
+        back_populates="company",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
+    def overbought_balance(self) -> BalanceOrm | None:
+        for balance in self.balances:
+            if balance.scheme == ContractScheme.OVERBOUGHT:
+                return balance
+
+    def has_card_group(self, system_id: str) -> bool:
+        for group in self.card_groups:
+            if group.system_id == system_id:
+                return True
+        return False
+
+    def get_card_group(self, system_id: str):
+        for group in self.card_groups:
+            if group.system_id == system_id:
+                return group
 
     repr_cols = ("name", "inn")

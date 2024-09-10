@@ -10,7 +10,7 @@ from src.celery_app.irrelevant_balances import IrrelevantBalances
 from src.celery_app.khnp.api import KHNPParser, CardStatus
 from src.celery_app.transaction_helper import get_local_cards, get_local_card
 from src.config import TZ
-from src.database.models import BalanceOrm, AzsOrm, TariffNewOrm, CompanyOrm, InnerGoodsGroupOrm
+from src.database.models import AzsOrm, TariffNewOrm, CompanyOrm, InnerGoodsGroupOrm
 from src.database.models.card import CardOrm, BlockingCardReason, CardHistoryOrm
 from src.database.models.card_type import CardTypeOrm
 from src.database.models.transaction import TransactionOrm
@@ -38,7 +38,7 @@ class KHNPController(BaseRepository):
         self._azs_stations: List[AzsOrm] = []
         self._tariffs: List[TariffNewOrm] = []
         self._local_cards: List[CardOrm] = []
-        self._irrelevant_balances = IrrelevantBalances()
+        self._irrelevant_balances = IrrelevantBalances(system=System.KHNP)
         self._outer_goods_list: List[OuterGoodsOrm] = []
 
     async def sync(self) -> IrrelevantBalances:
@@ -187,10 +187,8 @@ class KHNPController(BaseRepository):
         # card = await self.get_local_card(card_number)
 
         # Получаем баланс
-        balance = self.get_balance_by_card_number(card_number=card_number)
-        if not balance:
-            self.logger.error(f"Не найден баланс для карты {card_number}. Пропускаю обработку транзакции.")
-            return None
+        company = self.get_company_by_card_number(card_number=card_number)
+        balance = company.overbought_balance()
 
         # Получаем продукт
         outer_goods = await self.get_outer_goods_item(goods_name=remote_transaction['product_type'])
@@ -241,6 +239,13 @@ class KHNPController(BaseRepository):
             comments='',
         )
 
+        # Вычисляем дельту изменения суммы баланса - понадобится позже для правильного
+        # выставления лимита на группу карт
+        if company.personal_account in self._irrelevant_balances.sum_deltas:
+            self._irrelevant_balances.sum_deltas[company.personal_account] += transaction_data["total_sum"]
+        else:
+            self._irrelevant_balances.sum_deltas[company.personal_account] = transaction_data["total_sum"]
+
         # Это нужно, чтобы в БД у транзакций отличалось время и можно было корректно выбрать транзакцию,
         # которая предшествовала измененной
         sleep(0.001)
@@ -278,11 +283,11 @@ class KHNPController(BaseRepository):
                 transaction_data = await self.process_new_remote_transaction(card_number, card_transaction)
                 if transaction_data:
                     transactions_to_save.append(transaction_data)
-                    if transaction_data['balance_id']:
-                        self._irrelevant_balances.add(
-                            balance_id=str(transaction_data['balance_id']),
-                            irrelevancy_date_time=transaction_data['date_time_load']
-                        )
+                    # if transaction_data['balance_id']:
+                    self._irrelevant_balances.add(
+                        balance_id=str(transaction_data['balance_id']),
+                        irrelevancy_date_time=transaction_data['date_time_load']
+                    )
 
         # Сохраняем транзакции в БД
         await self.bulk_insert_or_update(TransactionOrm, transactions_to_save)
@@ -319,11 +324,19 @@ class KHNPController(BaseRepository):
                     # Транзакция присутствует локально, но у поставщика услуг её нет.
                     # Помечаем на удаление локальную транзакцию.
                     to_delete.append(local_transaction)
-                    if local_transaction.balance_id:
-                        self._irrelevant_balances.add(
-                            balance_id=str(local_transaction.balance_id),
-                            irrelevancy_date_time=local_transaction.date_time_load
-                        )
+                    # if local_transaction.balance_id:
+                    self._irrelevant_balances.add(
+                        balance_id=str(local_transaction.balance_id),
+                        irrelevancy_date_time=local_transaction.date_time_load
+                    )
+
+                    # Вычисляем дельту изменения суммы баланса - понадобится позже для правильного
+                    # выставления лимита на группу карт
+                    personal_account = local_transaction.balance.company.personal_account
+                    if personal_account in self._irrelevant_balances.sum_deltas:
+                        self._irrelevant_balances.sum_deltas[personal_account] -= local_transaction.total_sum
+                    else:
+                        self._irrelevant_balances.sum_deltas[personal_account] = local_transaction.total_sum
 
         # Удаляем помеченные транзакции из БД
         self.logger.info(f'Удалить тразакции из локальной БД: {len(to_delete)} шт')
@@ -531,18 +544,15 @@ class KHNPController(BaseRepository):
         local_cards: List[CardOrm] = local_cards_to_be_active + local_cards_to_be_blocked
         return khnp_cards_to_change_state, local_cards
 
-    def get_balance_by_card_number(self, card_number: str) -> BalanceOrm | None:
+    def get_company_by_card_number(self, card_number: str) -> CompanyOrm | None:
+        card = None
         company = None
         for record in self._card_history:
             if record.card.card_number == card_number:
+                card = record.card
                 company = record.company
 
-        if not company:
-            return None
-
-        for balance in company.balances:
-            if balance.scheme == ContractScheme.OVERBOUGHT:
-                return balance
+        return company if company else card.company
 
     async def get_azs(self, azs_external_id: str) -> AzsOrm:
         # Выполняем поиск АЗС

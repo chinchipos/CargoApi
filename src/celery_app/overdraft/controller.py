@@ -187,7 +187,6 @@ class Overdraft(BaseRepository):
             # берем плату и открываем овер, а при отключенном помечаем клиентов на блокировку карт.
             # Если выше, то ничего не делаем
             # min_balance - всегда меньше, либо равно нулю
-            # fee_base = last_transaction.company_balance - last_transaction.balance.company.min_balance
             trigger = True if last_transaction.company_balance < last_transaction.balance.company.min_balance \
                 else False
             if not trigger:

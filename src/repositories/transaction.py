@@ -192,9 +192,16 @@ class TransactionRepository(BaseRepository):
         stmt = (
             sa_select(TransactionOrm)
             .options(
-                joinedload(TransactionOrm.card),
-                joinedload(TransactionOrm.company),
-                joinedload(TransactionOrm.outer_goods),
+                joinedload(TransactionOrm.card)
+            )
+            .options(
+                joinedload(TransactionOrm.balance)
+                .joinedload(BalanceOrm.company)
+            )
+            .options(
+                joinedload(TransactionOrm.outer_goods)
+            )
+            .options(
                 joinedload(TransactionOrm.tariff_new)
             )
             .where(TransactionOrm.date_time >= start_date)

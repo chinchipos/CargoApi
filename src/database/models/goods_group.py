@@ -4,7 +4,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database.models.base import Base
-from src.database.models.card_limit import Unit
+from src.database.models.limit import Unit
 from src.database.models.goods_category import GoodsCategory
 
 

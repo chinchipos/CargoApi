@@ -170,8 +170,32 @@ class SystemOrm(Base):
         init=False
     )
 
-    # Список АЗС, этой системы
+    # Список АЗС этой системы
     azs_list: Mapped[List["AzsOrm"]] = relationship(
+        back_populates="system",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
+    # Список карточных групп этой системы
+    card_groups: Mapped[List["CardGroupOrm"]] = relationship(
+        back_populates="system",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
+    # Список карточных лимитов этой системы
+    card_limits: Mapped[List["CardLimitOrm"]] = relationship(
+        back_populates="system",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
+    # Список групповых лимитов этой системы
+    group_limits: Mapped[List["GroupLimitOrm"]] = relationship(
         back_populates="system",
         cascade="all, delete-orphan",
         lazy="noload",

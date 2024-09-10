@@ -52,7 +52,7 @@ async def create(
     card: CardCreateSchema,
     systems: List[uuid.UUID] | None = None,
     service: CardService = Depends(get_service_card)
-) -> CardReadSchema:
+):
     if systems is None:
         systems = []
     # Создавать карты может только суперадмин.

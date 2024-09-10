@@ -35,7 +35,7 @@ class OpsController(BaseRepository):
         self.logger = get_logger(name="OPSController", filename="celery.log")
         self.api = OpsApi()
         self.system = None
-        self._irrelevant_balances = IrrelevantBalances()
+        self._irrelevant_balances = IrrelevantBalances(system=System.OPS)
         self._outer_goods_list: List[OuterGoodsOrm] = []
         self._card_history: List[CardHistoryOrm] = []
         self._terminals: List[TerminalOrm] = []
@@ -300,11 +300,19 @@ class OpsController(BaseRepository):
                 # Транзакция присутствует локально, но в системе поставщика её нет.
                 # Помечаем на удаление локальную транзакцию.
                 to_delete_local.append(local_transaction)
-                if local_transaction.balance_id:
-                    self._irrelevant_balances.add(
-                        balance_id=str(local_transaction.balance_id),
-                        irrelevancy_date_time=local_transaction.date_time_load
-                    )
+                # if local_transaction.balance_id:
+                self._irrelevant_balances.add(
+                    balance_id=str(local_transaction.balance_id),
+                    irrelevancy_date_time=local_transaction.date_time_load
+                )
+
+                # Вычисляем дельту изменения суммы баланса - понадобится позже для правильного
+                # выставления лимита на группу карт
+                personal_account = local_transaction.balance.company.personal_account
+                if personal_account in self._irrelevant_balances.sum_deltas:
+                    self._irrelevant_balances.sum_deltas[personal_account] -= local_transaction.total_sum
+                else:
+                    self._irrelevant_balances.sum_deltas[personal_account] = local_transaction.total_sum
 
         # Удаляем помеченные транзакции из БД
         self.logger.info(f'Удалить тразакции из локальной БД: {len(to_delete_local)} шт')
@@ -364,11 +372,11 @@ class OpsController(BaseRepository):
             )
             if transaction_data:
                 transactions_to_save.append(transaction_data)
-                if transaction_data['balance_id']:
-                    self._irrelevant_balances.add(
-                        balance_id=str(transaction_data['balance_id']),
-                        irrelevancy_date_time=transaction_data['date_time_load']
-                    )
+                # if transaction_data['balance_id']:
+                self._irrelevant_balances.add(
+                    balance_id=str(transaction_data['balance_id']),
+                    irrelevancy_date_time=transaction_data['date_time_load']
+                )
 
         # Сохраняем транзакции в БД
         await self.bulk_insert_or_update(TransactionOrm, transactions_to_save)
@@ -416,11 +424,8 @@ class OpsController(BaseRepository):
         card = await get_local_card(remote_transaction["cardNumber"], self._local_cards)
 
         # Получаем баланс
-        balance = self.get_balance_by_card_number(card_number=remote_transaction["cardNumber"])
-        if not balance:
-            self.logger.error(f"Не найден баланс для карты {remote_transaction['cardNumber']}. "
-                              "Пропускаю обработку транзакции.")
-            return None
+        company = self.get_company_by_card_number(card_number=remote_transaction["cardNumber"])
+        balance = company.overbought_balance()
 
         # Получаем продукт
         outer_goods = await self.get_outer_goods(remote_transaction)
@@ -471,29 +476,28 @@ class OpsController(BaseRepository):
             comments=comments,
         )
 
+        # Вычисляем дельту изменения суммы баланса - понадобится позже для правильного
+        # выставления лимита на группу карт
+        if company.personal_account in self._irrelevant_balances.sum_deltas:
+            self._irrelevant_balances.sum_deltas[company.personal_account] += transaction_data["total_sum"]
+        else:
+            self._irrelevant_balances.sum_deltas[company.personal_account] = transaction_data["total_sum"]
+
         # Это нужно, чтобы в БД у транзакций отличалось время и можно было корректно выбрать транзакцию,
         # которая предшествовала измененной
         time.sleep(0.001)
 
         return transaction_data
 
-    def get_balance_by_card_number(self, card_number: str) -> BalanceOrm | None:
+    def get_company_by_card_number(self, card_number: str) -> CompanyOrm | None:
+        card = None
         company = None
         for record in self._card_history:
             if record.card.card_number == card_number:
+                card = record.card
                 company = record.company
 
-        if not company:
-            for card in self._local_cards:
-                if card.card_number == card_number:
-                    company = card.company
-
-        if not company:
-            return None
-
-        for balance in company.balances:
-            if balance.scheme == ContractScheme.OVERBOUGHT:
-                return balance
+        return company if company else card.company
 
     async def get_outer_goods(self, remote_transaction: Dict[str, Any]) -> OuterGoodsOrm:
         product_id = remote_transaction['goodsID']

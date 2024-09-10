@@ -1,19 +1,22 @@
 from datetime import datetime
 from typing import List, Any, Dict
 
-from src.celery_app.limits.tasks import gpn_set_card_group_limit
+from src.celery_app.gpn.tasks import gpn_update_group_limits
+from src.celery_app.group_limit_order import GroupLimitOrder
 from src.config import TZ
-from src.database.models.balance_system import BalanceSystemOrm
+from src.database.models import BalanceOrm, BalanceSystemOrm
 from src.database.models.company import CompanyOrm
 from src.database.models.notification import NotificationMailingOrm
 from src.database.models.user import UserOrm
 from src.repositories.company import CompanyRepository
+from src.repositories.system import SystemRepository
 from src.repositories.tariff import TariffRepository
 from src.repositories.transaction import TransactionRepository
 from src.repositories.user import UserRepository
 from src.schemas.company import CompanyEditSchema, CompanyReadSchema, CompanyReadMinimumSchema, \
     CompanyBalanceEditSchema, CompanyCreateSchema
 from src.utils import enums
+from src.utils.common import make_personal_account, calc_available_balance
 from src.utils.enums import TransactionType
 from src.utils.exceptions import BadRequestException, ForbiddenException
 
@@ -25,7 +28,30 @@ class CompanyService:
         self.logger = repository.logger
 
     async def create(self, company_create_schema: CompanyCreateSchema) -> CompanyOrm:
-        company = await self.repository.create(company_create_schema)
+        # Создаем организацию
+        personal_account = make_personal_account()
+        company_data = company_create_schema.model_dump()
+        company = CompanyOrm(**company_data, personal_account=personal_account)
+        await self.repository.save_object(company)
+        await self.repository.session.refresh(company)
+
+        # Создаем перекупной баланс
+        balance = BalanceOrm(
+            company_id=company.id,
+            scheme=enums.ContractScheme.OVERBOUGHT.name
+        )
+        await self.repository.save_object(balance)
+
+        # Привязываем перекупной баланс к системам
+        system_repository = SystemRepository(session=self.repository.session, user=self.repository.user)
+        systems = await system_repository.get_systems()
+        for system in systems:
+            if system.enabled:
+                balance_system = BalanceSystemOrm(balance_id=balance.id, system_id=system.id)
+                await self.repository.save_object(balance_system)
+
+        # Получаем организацию из БД
+        company = await self.get_company(company.id)
         return company
 
     async def edit(self, company_id: str, company_edit_schema: CompanyEditSchema) -> CompanyOrm:
@@ -66,6 +92,14 @@ class CompanyService:
         if not company:
             raise BadRequestException('Запись не найдена')
 
+        # Вычисляем доступный баланс до применения изменений
+        available_balance_before = calc_available_balance(
+            current_balance=company.overbought_balance().balance,
+            min_balance=company.min_balance,
+            overdraft_on=company.overdraft_on,
+            overdraft_sum=company.overdraft_sum
+        )
+
         # Обновляем данные, сохраняем в БД
         update_data = company_edit_schema.model_dump(exclude_unset=True)
         if not update_data:
@@ -75,50 +109,22 @@ class CompanyService:
 
         company = await self.repository.get_company(company_id)
 
-        # Получаем перекупной баланс
-        balance = None
-        for cb in company.balances:
-            if cb.scheme == enums.ContractScheme.OVERBOUGHT:
-                balance = cb
-                break
+        # Вычисляем доступный баланс после применения изменений
+        available_balance_after = calc_available_balance(
+            current_balance=company.overbought_balance().balance,
+            min_balance=company.min_balance,
+            overdraft_on=company.overdraft_on,
+            overdraft_sum=company.overdraft_sum
+        )
 
-        # Запускаем установку лимитов в системе ГПН
-        if balance:
-            gpn_set_card_group_limit.delay(balance_ids=[balance.id])
+        # Если доступный баланс изменился, то обновляем лимит в системе ГПН.
+        # Проверка на предмет наличия карт этой системы будет выполнена на следующем этапе.
+        order = GroupLimitOrder(
+            personal_account=company.personal_account,
+            delta_sum=available_balance_after - available_balance_before
+        )
+        gpn_update_group_limits.delay([order])
 
-        """
-        # Сравниваем текущие настройки тарифов с полученными
-        bst_list_current = await self.repository.get_systems_tariffs(balance.id)
-
-        # Удаляем отвязанные
-        for bst_current in bst_list_current:
-            for system_tariff_received in company_edit_schema.tariffs:
-                system_id = system_tariff_received['system_id']
-                tariff_id = system_tariff_received['tariff_id']
-                if bst_current.system_id == system_id and not tariff_id:
-                    await self.repository.delete_object(BalanceSystemOrm, bst_current.id)
-
-        # Создаем новые связи, изменяем существующие
-        for system_tariff_received in company_edit_schema.tariffs:
-            system_id = system_tariff_received['system_id']
-            tariff_id = system_tariff_received['tariff_id']
-            if tariff_id:
-                found = False
-                for bst_current in bst_list_current:
-                    if bst_current.system_id == system_id:
-                        found = True
-                        if bst_current.tariff_id != tariff_id:
-                            # Меняем тариф для этой системы у этой организации
-                            await self.repository.update_object(bst_current, {"tariff_id": tariff_id})
-
-                if not found:
-                    # Создаем новую связь "Система - Тариф" для этой организации
-                    new_bst = BalanceSystemOrm(balance_id=balance.id, system_id=system_id, tariff_id=tariff_id)
-                    await self.repository.save_object(new_bst)
-        """
-
-        # Формируем ответ
-        # company = await self.repository.get_company(company_id)
         return company
 
     async def bind_manager(self, company_id: str, user_id: str) -> None:
@@ -188,21 +194,28 @@ class CompanyService:
         else:
             raise ForbiddenException()
 
-        # Получаем перекупной баланс организации (он может быть всего 1 у организации)
-        balance = await self.repository.get_overbought_balance_by_company_id(company_id)
+        # Получаем перекупной баланс
+        company = await self.repository.get_company(company_id)
+        balance = company.overbought_balance()
 
         # Создаем транзакцию
         transaction_repository = TransactionRepository(self.repository.session, self.repository.user)
         transaction_type = TransactionType.DECREASE if edit_balance_schema.direction == enums.Finance.DEBIT.name \
             else TransactionType.REFILL
+
         await transaction_repository.create_corrective_transaction(
             balance=balance,
             transaction_type=transaction_type,
             delta_sum=edit_balance_schema.delta_sum
         )
 
-        # В системе поставщика устанавливаем лимит на группу карт (если применимо)
-        gpn_set_card_group_limit.delay(balance_ids=[balance.id])
+        # Обновляем лимит в системе ГПН.
+        # Проверка на предмет наличия карт этой системы будет выполнена на следующем этапе.
+        order = GroupLimitOrder(
+            personal_account=company.personal_account,
+            delta_sum=edit_balance_schema.delta_sum
+        )
+        gpn_update_group_limits.delay([order])
 
     async def get_notifications(self) -> List[NotificationMailingOrm]:
         mailings = await self.repository.get_notification_mailings(self.repository.user.company_id)

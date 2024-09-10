@@ -14,7 +14,7 @@ from src.schemas.driver import DriverReadSchema
 from src.schemas.notification import NotifcationMailingReadSchema
 from src.services.company import CompanyService
 from src.utils import enums
-from src.utils.exceptions import ForbiddenException
+from src.utils.exceptions import ForbiddenException, BadRequestException
 from src.utils.schemas import MessageSchema
 
 router = APIRouter()
@@ -97,9 +97,21 @@ async def create(
     data: CompanyCreateSchema,
     service: CompanyService = Depends(get_service_company)
 ):
-    # Проверка прав доступа. Создавать системы может только суперадмин.
+    # Проверка прав доступа. Создавать организации может только суперадмин.
     if service.repository.user.role.name != enums.Role.CARGO_SUPER_ADMIN.name:
         raise ForbiddenException()
+
+    # Проверяем входные данные
+    if data.overdraft_on:
+        # Если активирован овердрафт, то обязательно должны быть заполнены поля: сумма, дни
+        if data.overdraft_sum is None:
+            raise BadRequestException("Не указана сумма овердрафта")
+
+        if not data.overdraft_days:
+            raise BadRequestException("Не указан срок овердрафта")
+
+        if not data.overdraft_fee_percent:
+            raise BadRequestException("Не указан размер комиссии за овердрафт")
 
     system = await service.create(data)
     return system

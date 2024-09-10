@@ -6,6 +6,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database.models import Base
+from src.utils.enums import System
 
 
 class BlockingCardReason(Enum):
@@ -107,14 +108,6 @@ class CardOrm(Base):
         nullable=True,
         init=False,
         comment="Дата последнего использования"
-    )
-
-    # Группа
-    group_id: Mapped[str] = mapped_column(
-        sa.String(30),
-        nullable=True,
-        init=False,
-        comment="ID группы в системе"
     )
 
     limit_sum: Mapped[int] = mapped_column(

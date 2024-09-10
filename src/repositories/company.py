@@ -5,7 +5,7 @@ from sqlalchemy import select as sa_select, and_, func as sa_func, null, or_
 from sqlalchemy.orm import joinedload, selectinload, aliased, load_only
 
 from src.config import TZ
-from src.database.models import NotificationMailingOrm
+from src.database.models import NotificationMailingOrm, CardGroupOrm
 from src.database.models.balance import BalanceOrm
 from src.database.models.card import CardOrm
 from src.database.models.company import CompanyOrm
@@ -17,41 +17,12 @@ from src.database.models.car import CarOrm
 from src.database.models.overdrafts_history import OverdraftsHistoryOrm
 from src.repositories.base import BaseRepository
 from src.repositories.system import SystemRepository
-from src.schemas.company import CompanyCreateSchema
 from src.utils import enums
-from src.utils.common import make_personal_account
+
 from src.utils.enums import ContractScheme, System
 
 
 class CompanyRepository(BaseRepository):
-
-    async def create(self, company_create_schema: CompanyCreateSchema) -> CompanyOrm:
-        # Создаем организацию
-        personal_account = make_personal_account()
-        company_data = company_create_schema.model_dump()
-        # tariffs = company_data.pop("tariffs")
-        company = CompanyOrm(**company_data, personal_account=personal_account)
-        await self.save_object(company)
-        await self.session.refresh(company)
-
-        # Создаем перекупной баланс
-        balance = BalanceOrm(
-            company_id=company.id,
-            scheme=enums.ContractScheme.OVERBOUGHT.name
-        )
-        await self.save_object(balance)
-
-        # Привязываем перекупной баланс к системам
-        system_repository = SystemRepository(session=self.session, user=self.user)
-        systems = await system_repository.get_systems()
-        for system in systems:
-            if system.enabled:
-                balance_system = BalanceSystemOrm(balance_id=balance.id, system_id=system.id)
-                await self.save_object(balance_system)
-
-        # Получаем организацию из БД
-        company = await self.get_company(company.id)
-        return company
 
     async def get_khnp_system(self) -> SystemOrm:
         system_repository = SystemRepository(self.session)
@@ -330,3 +301,12 @@ class CompanyRepository(BaseRepository):
 
         mailings = await self.select_all(stmt)
         return mailings
+
+    async def get_card_group(self, company_id: str, system_id: str) -> CardGroupOrm | None:
+        stmt = (
+            sa_select(CardGroupOrm)
+            .where(CardGroupOrm.company_id == company_id)
+            .where(CardGroupOrm.system_id == system_id)
+        )
+        card_group = await self.select_first(stmt)
+        return card_group

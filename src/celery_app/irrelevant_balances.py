@@ -1,12 +1,21 @@
 from datetime import datetime
 from typing import Dict
 
+from src.utils.enums import System
+
 
 class IrrelevantBalances(dict):
 
-    def __init__(self):
+    def __init__(self, system: System | None = None):
         self.irrelevant_balances = {}
-        dict.__init__(self, irrelevant_balances=self.irrelevant_balances)
+        self.system = system
+        self.sum_deltas: Dict[str, float] = {}
+        dict.__init__(
+            self,
+            irrelevant_balances=self.irrelevant_balances,
+            system=self.system,
+            sum_deltas=self.sum_deltas
+        )
 
     def add(self, balance_id: str, irrelevancy_date_time: datetime) -> None:
         try:

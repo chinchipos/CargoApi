@@ -2,12 +2,12 @@ import traceback
 from datetime import datetime
 from typing import List
 
-from sqlalchemy import select as sa_select, delete as sa_delete, func as sa_func, or_, null, and_
+from sqlalchemy import select as sa_select, update as sa_update, delete as sa_delete, func as sa_func, or_, null, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload, aliased
 
 from src.config import TZ
-from src.database.models import CardLimitOrm, InnerGoodsGroupOrm
+from src.database.models import CardLimitOrm, InnerGoodsGroupOrm, CardGroupOrm
 from src.database.models.card import CardOrm, CardHistoryOrm
 from src.database.models.card_type import CardTypeOrm
 from src.database.models.user import UserOrm
@@ -61,6 +61,15 @@ class CardRepository(BaseRepository):
 
         card = await self.select_first(stmt)
         return card
+
+    async def finish_cards_history(self, card_ids: List[str]) -> None:
+        stmt = (
+            sa_update(CardHistoryOrm)
+            .where(CardHistoryOrm.card_id.in_(card_ids))
+            .where(CardHistoryOrm.end_time.is_(null()))
+            .values(end_time = datetime.now(tz=TZ))
+        )
+        await self.session.execute(stmt)
 
     async def get_cards(self, card_numbers: List[str] = None) -> List[CardOrm]:
         company_table = aliased(CompanyOrm, name="org")
@@ -346,6 +355,7 @@ class CardRepository(BaseRepository):
             .options(
                 joinedload(CardHistoryOrm.card)
                 .load_only(CardOrm.id, CardOrm.company_id, CardOrm.card_number)
+                .joinedload(CardOrm.company)
             )
             .where(or_(
                 CardHistoryOrm.end_time.is_(null()),

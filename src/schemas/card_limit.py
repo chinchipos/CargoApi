@@ -2,7 +2,7 @@ from typing import Annotated, List
 
 from pydantic import Field, ConfigDict, Extra, BaseModel
 
-from src.database.models.card_limit import Unit, LimitPeriod
+from src.database.models.limit import Unit, LimitPeriod
 from src.database.models.goods_category import GoodsCategory
 from src.schemas.base import BaseSchema
 from src.schemas.goods import InnerGoodsGroupReadSchema

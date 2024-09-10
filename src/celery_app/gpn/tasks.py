@@ -5,6 +5,7 @@ from typing import Dict, List
 from src.celery_app.gpn.api import GPNApi
 from src.celery_app.gpn.controller import GPNController
 from src.celery_app.irrelevant_balances import IrrelevantBalances
+from src.celery_app.group_limit_order import GroupLimitOrder
 from src.celery_app.main import celery
 from src.config import PROD_URI
 from src.database.db import DatabaseSessionManager
@@ -89,44 +90,25 @@ def gpn_cards_bind_company(card_ids: List[str], personal_account: str, company_a
     asyncio.run(gpn_cards_bind_company_fn(card_ids, personal_account, company_available_balance))
 
 
-async def gpn_cards_unbind_company_fn(card_ids: List[str]) -> None:
+async def service_sync_fn() -> None:
     sessionmanager = DatabaseSessionManager()
     sessionmanager.init(PROD_URI)
 
     async with sessionmanager.session() as session:
-        gpn = GPNController(session)
-        await gpn.gpn_unbind_company_from_cards(card_ids)
+        gpn_controller = GPNController(session)
+        await gpn_controller.init_system()
+        await gpn_controller.service_sync()
 
     # Закрываем соединение с БД
     await sessionmanager.close()
 
 
-@celery.task(name="GPN_CARD_UNBIND_COMPANY")
-def gpn_cards_unbind_company(card_ids: List[str]) -> None:
+@celery.task(name="GPN_SERVICE_SYNC")
+def gpn_service_sync() -> None:
     if sys.platform == 'win32':
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-    asyncio.run(gpn_cards_unbind_company_fn(card_ids))
-
-
-async def sync_gpn_cards_fn() -> None:
-    sessionmanager = DatabaseSessionManager()
-    sessionmanager.init(PROD_URI)
-
-    async with sessionmanager.session() as session:
-        gpn = GPNController(session)
-        await gpn.sync_cards()
-
-    # Закрываем соединение с БД
-    await sessionmanager.close()
-
-
-@celery.task(name="SYNC_GPN_CARDS")
-def sync_gpn_cards() -> None:
-    if sys.platform == 'win32':
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-
-    asyncio.run(sync_gpn_cards_fn())
+    asyncio.run(service_sync_fn())
 
 
 async def gpn_issue_virtual_cards_fn(amount: int) -> None:
@@ -218,6 +200,62 @@ def gpn_import_azs() -> None:
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
     asyncio.run(gpn_import_azs_fn())
+
+
+async def update_group_limits_fn(orders: List[GroupLimitOrder]) -> None:
+    if not orders:
+        return None
+
+    sessionmanager = DatabaseSessionManager()
+    sessionmanager.init(PROD_URI)
+
+    async with sessionmanager.session() as session:
+        gpn_controller = GPNController(session)
+        await gpn_controller.init_system()
+        await gpn_controller.update_group_limits(orders=orders)
+
+    # Закрываем соединение с БД
+    await sessionmanager.close()
+
+
+@celery.task(name="GPN_UPDATE_GROUP_LIMITS")
+def gpn_update_group_limits(orders: List[GroupLimitOrder]) -> None:
+    asyncio.run(update_group_limits_fn(orders))
+
+
+async def binding_cards_fn(card_numbers: List[str], previous_company_id: str, new_company_id: str) -> None:
+    sessionmanager = DatabaseSessionManager()
+    sessionmanager.init(PROD_URI)
+
+    async with sessionmanager.session() as session:
+        gpn_controller = GPNController(session)
+        await gpn_controller.init_system()
+        await gpn_controller.binding_cards(card_numbers, previous_company_id, new_company_id)
+
+    # Закрываем соединение с БД
+    await sessionmanager.close()
+
+
+@celery.task(name="GPN_BINDING_CARDS")
+def gpn_binding_cards(card_numbers: List[str], previous_company_id: str, new_company_id: str) -> None:
+    asyncio.run(binding_cards_fn(card_numbers, previous_company_id, new_company_id))
+
+# async def create_company_fn(company_id: str, personal_account: str, available_balance: float) -> None:
+#     sessionmanager = DatabaseSessionManager()
+#     sessionmanager.init(PROD_URI)
+#
+#     async with sessionmanager.session() as session:
+#         gpn_controller = GPNController(session)
+#         await gpn_controller.init_system()
+#         await gpn_controller.create_company(company_id, personal_account, available_balance)
+#
+#     # Закрываем соединение с БД
+#     await sessionmanager.close()
+#
+#
+# @celery.task(name="GPN_CREATE_COMPANY_EVENT")
+# def gpn_create_company_event(company_id: str, personal_account: str, available_balance: float) -> None:
+#     asyncio.run(create_company_fn(company_id, personal_account, available_balance))
 
 
 @celery.task(name="GPN_TEST")

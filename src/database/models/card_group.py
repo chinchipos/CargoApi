@@ -12,6 +12,21 @@ class CardGroupOrm(Base):
         'comment': 'Группы карт'
     }
 
+    # Система
+    system_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.system.id"),
+        nullable=False,
+        init=True,
+        comment="Система"
+    )
+
+    # Система
+    system: Mapped["SystemOrm"] = relationship(
+        back_populates="card_groups",
+        init=False,
+        lazy="noload"
+    )
+
     external_id: Mapped[str] = mapped_column(
         sa.String(),
         nullable=False,
@@ -24,6 +39,21 @@ class CardGroupOrm(Base):
         unique=True,
         nullable=False,
         comment="Название группы"
+    )
+
+    # Организация
+    company_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.company.id"),
+        nullable=False,
+        init=True,
+        comment="Организация"
+    )
+
+    # Организация
+    company: Mapped["CompanyOrm"] = relationship(
+        back_populates="card_groups",
+        init=False,
+        lazy="noload"
     )
 
     repr_cols = ("name",)

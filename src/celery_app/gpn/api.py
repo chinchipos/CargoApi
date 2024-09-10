@@ -11,27 +11,35 @@ from fake_useragent import UserAgent
 from src.celery_app.exceptions import CeleryError
 from src.config import GPN_USERNAME, GPN_URL, GPN_TOKEN, GPN_PASSWORD
 from src.config import PRODUCTION, TZ
-from src.database.models.card_limit import Unit, LimitPeriod
+from src.database.models.goods_category import GoodsCategory
+from src.database.models.limit import Unit, LimitPeriod
 from src.utils.loggers import get_logger
 
 
-class ProductCategory(Enum):
-    FOOD = {"id": "1-C8J1M", "code": "40100000000", "unit": "IT"}
-    CAFE = {"id": "1-C8J1I", "code": "40200000000", "unit": "IT"}
-    NON_FOOD = {"id": "1-C8J1Z", "code": "40300000000", "unit": "IT"}
-    OTHER_SERVICES = {"id": "1-C8J2B", "code": "40400000000", "unit": "IT"}
-    CS_SERVICES = {"id": "1-4SE0LKU", "code": "CS_SERVICES", "unit": "IT"}
-    FUEL = {"id": "1-CK231", "code": "FUEL", "unit": "LIT"}
+class GpnGoodsCategory(Enum):
+    FOOD = {"id": "1-C8J1M", "code": "40100000000", "unit": "IT", "local_category": GoodsCategory.FOOD}
+    CAFE = {"id": "1-C8J1I", "code": "40200000000", "unit": "IT", "local_category": GoodsCategory.CAFE}
+    NON_FOOD = {"id": "1-C8J1Z", "code": "40300000000", "unit": "IT", "local_category": GoodsCategory.NON_FOOD}
+    OTHER_SERVICES = {"id": "1-C8J2B", "code": "40400000000", "unit": "IT",
+                      "local_category": GoodsCategory.OTHER_SERVICES}
+    CS_SERVICES = {"id": "1-4SE0LKU", "code": "CS_SERVICES", "unit": "IT", "local_category": GoodsCategory.ROAD_PAYING}
+    FUEL = {"id": "1-CK231", "code": "FUEL", "unit": "LIT", "local_category": GoodsCategory.FUEL}
 
     @staticmethod
     def not_fuel_categories():
         return [
-            ProductCategory.FOOD,
-            ProductCategory.CAFE,
-            ProductCategory.NON_FOOD,
-            ProductCategory.OTHER_SERVICES,
-            ProductCategory.CS_SERVICES
+            GpnGoodsCategory.FOOD,
+            GpnGoodsCategory.CAFE,
+            GpnGoodsCategory.NON_FOOD,
+            GpnGoodsCategory.OTHER_SERVICES,
+            GpnGoodsCategory.CS_SERVICES
         ]
+
+    @staticmethod
+    def get_equal_by_local(local_category: GoodsCategory):
+        for gpn_category in GpnGoodsCategory:
+            if gpn_category.value["local_category"] == local_category:
+                return gpn_category
 
 
 class GPNApi:
@@ -117,27 +125,30 @@ class GPNApi:
         return groups
 
     def create_card_group(self, group_name: str) -> str:
-        # Создаем группу в API
-        new_group_name = group_name
-        data = {
-            "contract_id": self.contract_id,
-            "name": new_group_name
-        }
-        response = requests.post(
-            url=self.endpoint(self.api_v1, "setCardGroup"),
-            headers=self.headers | {"session_id": self.api_session_id},
-            data=data
-        )
-        res = response.json()
-        if res["status"]["code"] != 200:
-            raise CeleryError(message=f"Ошибка при создании группы карт ГПН. Ответ API: {res['status']['errors']}. "
-                                      f"Наш запрос: {data}")
+        if PRODUCTION:
+            data = {
+                "contract_id": self.contract_id,
+                "name": group_name
+            }
+            response = requests.post(
+                url=self.endpoint(self.api_v1, "setCardGroup"),
+                headers=self.headers | {"session_id": self.api_session_id},
+                data=data
+            )
+            res = response.json()
+            if res["status"]["code"] != 200:
+                raise CeleryError(message=f"Ошибка при создании группы карт ГПН. Ответ API: {res['status']['errors']}. "
+                                          f"Наш запрос: {data}")
 
-        gpn_group_id = res['data']['id']
-        self.logger.info(f"{new_group_name} | в ГПН создана группа карт")
-        self.logger.info("Пауза 40 сек")
-        time.sleep(40)
-        return gpn_group_id
+            gpn_group_id = res['data']['id']
+            self.logger.info(f"В ГПН создана группа карт {group_name}")
+            self.logger.info("Пауза 40 сек")
+            time.sleep(40)
+            return gpn_group_id
+
+        else:
+            self.logger.info(f"В ГПН псевдо создана группа карт {group_name}")
+            return ""
 
     def delete_gpn_group(self, group_id: str, group_name: str) -> None:
         # Удаляем группу в API
@@ -155,7 +166,7 @@ class GPNApi:
                 message=f"Не удалось удалить группу карт в ГПН | ID: {group_id} | NAME: {group_name}"
             )
 
-    def bind_cards_to_group(self, card_external_ids: List[str], group_id: str) -> None:
+    def bind_cards_to_group(self, card_numbers: List[str], card_external_ids: List[str], group_id: str) -> None:
         # Получаем список карт ГПН.
         # Если картам уже назначена эта группа, то ничего с ней не делаем.
         # Если картам назначена другая группа, то открепляем карту от группы.
@@ -167,7 +178,11 @@ class GPNApi:
 
         if remote_cards:
             external_ids = [card['id'] for card in remote_cards_to_unbind_group]
-            self.unbind_cards_from_group(external_ids, remote_cards_to_unbind_group)
+            self.unbind_cards_from_group(
+                card_numbers=card_numbers,
+                card_external_ids=external_ids,
+                group_id=group_id
+            )
             self.logger.info('Пауза 40 сек')
             time.sleep(40)
 
@@ -176,56 +191,36 @@ class GPNApi:
             if card['id'] in card_external_ids and card['group_id'] != group_id
         ]
 
-        cards_list = [{"id": card_ext_id, "type": "Attach"} for card_ext_id in card_external_ids_to_bind_group]
-        data = {
-            "contract_id": self.contract_id,
-            "group_id": group_id,
-            "cards_list": json.dumps(cards_list)
-        }
-        response = requests.post(
-            url=self.endpoint(self.api_v1, "setCardsToGroup"),
-            headers=self.headers | {"session_id": self.api_session_id},
-            data=data
-        )
-        res = response.json()
-        if res['status']['code'] == 200:
-            self.logger.info(f"Прикреплены карты {card_external_ids_to_bind_group} к группе {group_id}")
-        else:
-            raise CeleryError(
-                message=f"Не удалось включить карту в группу. "
-                        f"Ответ API ГПН: {res['status']['errors']}. Наш запрос: {data}"
-            )
-
-    def unbind_cards_from_group(self, card_external_ids: List[str], remote_cards: List[Dict[str, Any]] | None = None) \
-            -> None:
-        if not card_external_ids:
-            return None
-
-        # Получаем список карт ГПН
-        if not remote_cards:
-            remote_cards = self.get_gpn_cards()
-
-        remote_cards = {card['id']: card for card in remote_cards if card['id'] in card_external_ids}
-
-        # Группируем карты по идентификатору группы
-        grouped_cards = {}
-        for card_external_id in card_external_ids:
-            if card_external_id in remote_cards:
-                card = remote_cards[card_external_id]
-                group_id = card['group_id']
-                if group_id:
-                    if group_id in grouped_cards:
-                        grouped_cards[group_id].append(card)
-                    else:
-                        grouped_cards[group_id] = [card]
-
-        for group_id, cards in grouped_cards.items():
-            # открепляем карты от группы
-            cards_list = [{"id": card['id'], "type": "Detach"} for card in cards]
+        card_list = [{"id": card_ext_id, "type": "Attach"} for card_ext_id in card_external_ids_to_bind_group]
+        if PRODUCTION:
             data = {
                 "contract_id": self.contract_id,
                 "group_id": group_id,
-                "cards_list": json.dumps(cards_list)
+                "cards_list": json.dumps(card_list)
+            }
+            response = requests.post(
+                url=self.endpoint(self.api_v1, "setCardsToGroup"),
+                headers=self.headers | {"session_id": self.api_session_id},
+                data=data
+            )
+            res = response.json()
+            if res['status']['code'] == 200:
+                self.logger.info(f"Прикреплены карты {card_external_ids_to_bind_group} к группе {group_id}")
+            else:
+                raise CeleryError(message="Не удалось привязать карты к группе. Ответ API ГПН: "
+                                          f"{res['status']['errors']}. Наш запрос: {data}")
+        else:
+            self.logger.info(f"К группе {group_id} псевдо привязаны карты {', '.join(card_numbers)}")
+
+    def unbind_cards_from_group(self, card_numbers: List[str], card_external_ids: List[str],
+                                group_id: str) -> None:
+        # Открепляем карты от группы
+        if PRODUCTION:
+            card_list = [{"id": card_id, "type": "Detach"} for card_id in card_external_ids]
+            data = {
+                "contract_id": self.contract_id,
+                "group_id": group_id,
+                "cards_list": json.dumps(card_list)
             }
             response = requests.post(
                 url=self.endpoint(self.api_v1, "setCardsToGroup"),
@@ -234,14 +229,15 @@ class GPNApi:
             )
             res = response.json()
             if res['status']['code'] != 200:
-                raise CeleryError(
-                    message=f"Не удалось открепить карту от группы. "
-                            f"Ответ API ГПН: {res['status']['errors']}. Наш запрос: {data}"
-                )
+                raise CeleryError(message="Не удалось открепить карту от группы. Ответ API ГПН: "
+                                          f"{res['status']['errors']}. Наш запрос: {data}")
 
-            self.logger.info(f"Карты {[card['id'] for card in cards]} откреплены от группы {group_id}")
+            self.logger.info(f"От группы {group_id} откреплены карты {', '.join(card_numbers)}")
             self.logger.info("Пауза 40 сек")
             time.sleep(40)
+
+        else:
+            self.logger.info(f"От группы {group_id} псевдо откреплены карты {', '.join(card_numbers)}")
 
     def get_gpn_cards(self) -> List[Dict[str, Any]]:
         response = requests.get(
@@ -331,8 +327,8 @@ class GPNApi:
 
         return transactions
 
-    def set_group_limit(self, limit_id: str | None, group_id: str, product_category: ProductCategory, limit_sum: int) \
-            -> None:
+    def set_group_limit(self, limit_id: str | None, group_id: str, product_category: GpnGoodsCategory, limit_sum: int) \
+            -> str:
         new_limit = {
             "contract_id": self.contract_id,
             "group_id": group_id,
@@ -363,71 +359,8 @@ class GPNApi:
 
         self.logger.info(f"Установлен лимит {new_limit}")
         time.sleep(0.4)
-
-        """
-        new_limits = []
-
-        # Получаем все возможные категории продуктов
-        product_types = self.get_product_types()
-
-        # Получаем от ГПН список всех групп
-        if not groups:
-            groups = self.get_card_groups()
-
-        for limit_data in limits_dataset:
-            personal_account = limit_data[0]
-            limit_value = limit_data[1]
-
-            if limit_value < 1:
-                limit_value = 1
-
-            # По ЛС организации определяем ID группы
-            group_id = None
-            for group in groups:
-                if group['name'] == personal_account:
-                    group_id = group['id']
-                    break
-
-            if not group_id:
-                group_id = self.create_card_group(personal_account)
-
-            # Запрашиваем список установленных на группу товарных лимитов
-            limits = self.get_card_group_limits(group_id)
-
-            # Проверяем по всем ли категориям продуктов установлен лимит для заданной группы карт
-            for product_type in product_types:
-                limit_id = None
-                for limit in limits:
-                    if limit['productType'] == product_type['id']:
-                        # Изменяем лимит на эту категорию товаров для этой группы
-                        limit_id = limit['id']
-                        break
-
-                new_limits.append(
-                    self.make_card_group_limit_data(
-                        limit_id=limit_id,
-                        group_id=group_id,
-                        product_type_id=product_type['id'],
-                        limit_value=limit_value)
-                )
-
-        # Устанавливаем новые лимиты
-        for new_limit in new_limits:
-            time.sleep(0.5)
-            data = {"limit": json.dumps([new_limit])}
-            response = requests.post(
-                url=self.endpoint(self.api_v1, "setLimit"),
-                headers=self.headers | {"session_id": self.api_session_id},
-                data=data
-            )
-            res = response.json()
-
-            if res["status"]["code"] != 200:
-                raise CeleryError(message=f"Ошибка при установке лимитов. Ответ сервера API: "
-                                          f"{res['status']['errors']}. Наш запрос: {data}")
-
-            self.logger.info(f"Установлен лимит {new_limit}")
-        """
+        # Возвращаем идентификатор созданного лимита
+        return res["data"][0]
 
     def delete_group_limit(self, limit_id: str, group_id: str) -> None:
         data = {
@@ -470,7 +403,7 @@ class GPNApi:
 
     def get_card_group_limits(self, group_id: str) -> List[Dict[str, Any]]:
         """
-        Лимиты можно получить либо по договору, либо по группе карт, либо по карте.
+        Лимиты можно получить либо привязанные к договору, либо привязанные к группе карт, либо по конкретной карте.
         Нет возможности получить все лимиты одним запросом.
         """
         params = {

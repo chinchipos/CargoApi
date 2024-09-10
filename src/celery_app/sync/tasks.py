@@ -4,12 +4,14 @@ from celery import chain, chord
 
 from src.celery_app.balance.tasks import calc_balances
 from src.celery_app.exceptions import CeleryError
+from src.celery_app.group_limit_order import GroupLimitOrder
 from src.celery_app.khnp.tasks import khnp_sync, khnp_set_card_states
-from src.celery_app.gpn.tasks import gpn_sync
+from src.celery_app.gpn.tasks import gpn_sync, gpn_update_group_limits
 from src.celery_app.ops.tasks import ops_sync
 from src.celery_app.irrelevant_balances import IrrelevantBalances
 from src.celery_app.limits.tasks import gpn_set_card_group_limit
 from src.celery_app.main import celery
+from src.utils.enums import System
 from src.utils.loggers import get_logger
 
 _logger = get_logger(name="SYNC_TASKS", filename="celery.log")
@@ -25,24 +27,37 @@ def after_sync(irrelevant_balances_list: List[IrrelevantBalances]):
     _logger.info("Агрегирую синхронизационные данные")
     irrelevant_balances = IrrelevantBalances()
     messages = []
+    gpn_sum_deltas = {}
+    systems = [(0, System.KHNP), (1, System.GPN), (2, System.OPS)]
+    for i, system in systems:
+        if irrelevant_balances_list[i]:
+            irrelevant_balances.extend(irrelevant_balances_list[i])
 
-    if irrelevant_balances_list[0]:
-        irrelevant_balances.extend(irrelevant_balances_list[0])
-    else:
-        messages.append("Ошибка синхронизации с ХНП")
+            # Собираем воедино информацию о балансовых дельтах по транзакциям для выставления групповых лимитов ГПН
+            if system != System.GPN:
+                for personal_account, delta_sum in irrelevant_balances_list[i]["sum_deltas"].items():
+                    if personal_account in gpn_sum_deltas:
+                        gpn_sum_deltas[personal_account] += delta_sum
+                    else:
+                        gpn_sum_deltas[personal_account] = delta_sum
 
-    if irrelevant_balances_list[1]:
-        irrelevant_balances.extend(irrelevant_balances_list[1])
-    else:
-        messages.append("Ошибка синхронизации с ГПН")
-
-    if irrelevant_balances_list[2]:
-        irrelevant_balances.extend(irrelevant_balances_list[2])
-    else:
-        messages.append("Ошибка синхронизации с ОПС")
+        else:
+            messages.append(f"Ошибка синхронизации с {system.value}")
 
     changed_balances = [balance_id for balance_id in irrelevant_balances.data().keys()]
+
+    # Создаем ордера на изменение лимитов ГПН
+    gpn_limit_orders = []
+    for personal_account, delta_sum in gpn_sum_deltas.items():
+        gpn_limit_orders.append(
+            GroupLimitOrder(
+                personal_account=personal_account,
+                delta_sum=delta_sum
+            )
+        )
+
     tasks = [
+        gpn_update_group_limits.si(gpn_limit_orders),
         calc_balances.si(irrelevant_balances),
         khnp_set_card_states.s(),
         gpn_set_card_group_limit.si(changed_balances)
