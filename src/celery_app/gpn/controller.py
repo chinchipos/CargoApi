@@ -93,9 +93,7 @@ class GPNController(BaseRepository):
         """
         1. Синхронизируем группы карт
         2. Синхронизируем карты
-        3. Устанавливаем лимиты на группы.
-        4. Сверяем в правильных ли группах находятся карты и в ГПН разносим карты по группам в соответствии с
-        принадлежностью карт в локальной БД
+        3. Синхронизируем лимиты на группы.
         """
 
         # ---- 1 ----
@@ -105,17 +103,22 @@ class GPNController(BaseRepository):
         self.logger.info(f"Количество карт в API ГПН: {len(remote_cards)}")
 
         # Синхронизируем группы карт
+        self.logger.info("Запускаю синхронизацию карточных групп")
         await self.sync_card_groups(remote_cards)
+        self.logger.info("Синхронизация карточных групп завершена")
 
         # ---- 2 ----
 
         # Синхронизируем карты
+        self.logger.info("Запускаю синхронизацию карт")
         await self.sync_cards(remote_cards)
+        self.logger.info("Синхронизация лимитов завершена")
 
         # ---- 3 ----
         # Устанавливаем лимиты на группы
         self.logger.info("Запускаю синхронизацию лимитов на группы карт")
         await self.sync_group_limits()
+        self.logger.info("Синхронизация лимитов завершена")
 
     async def get_card_types(self, gpn_cards: List[Dict[str, Any]]) -> None:
         """
@@ -334,7 +337,8 @@ class GPNController(BaseRepository):
                                 "inner_goods_category": gpn_category.value["local_category"]
                             }
                             await self.insert(GroupLimitOrm, **limit_dataset)
-                            self.logger.info(f"Записан в БД групповой лимит {company.name} на категорию "
+                            self.logger.info(f"Из ГПН импортирован в БД групповой лимит {company.name} "
+                                             f"{remote_limit['sum']['value']} р. на категорию "
                                              f"{gpn_category.value['local_category']}")
                             break
 
@@ -370,8 +374,8 @@ class GPNController(BaseRepository):
                                 "inner_goods_category": gpn_category.value["local_category"]
                             }
                             await self.insert(GroupLimitOrm, **limit_dataset)
-                            self.logger.info(f"Записан в БД групповой лимит {company.name} на категорию "
-                                             f"{gpn_category.value['local_category']}")
+                            self.logger.info(f"Создан и записан в БД групповой лимит {company.name} {limit_sum} р. на "
+                                             f"категорию {gpn_category.value['local_category']}")
 
     async def bind_or_create_card(self, card_number: str, card_type_name: str, is_active: bool) -> None:
         stmt = sa_select(CardOrm).where(CardOrm.card_number == card_number)
