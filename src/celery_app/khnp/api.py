@@ -173,7 +173,7 @@ class KHNPParser:
             return cards
 
         except Exception:
-            raise CeleryError(trace=True, message='Не удалось получить список карт от поставщика услуг')
+            raise CeleryError(trace=True, message='Не удалось получить список карт от ХНП')
 
     def clear_card_filters(self) -> None:
         # Отображаем все карты (активные и заблокированные)

@@ -114,7 +114,7 @@ class KHNPController(BaseRepository):
 
         # Записываем в БД время последней успешной синхронизации
         await self.update_object(self.system, update_data={"cards_sync_dt": datetime.now(tz=TZ)})
-        self.logger.info('Синхронизация карт выполнена')
+        self.logger.info('Синхронизация карт ХНП выполнена')
 
     async def get_provider_transactions(self, need_authorization: bool = True) -> Dict[str, Any]:
         if need_authorization:
