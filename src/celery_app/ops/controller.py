@@ -14,7 +14,7 @@ from src.celery_app.ops.api import OpsApi
 from src.celery_app.transaction_helper import get_local_cards, get_local_card
 from src.config import TZ
 from src.database.models import CardOrm, SystemOrm, CardSystemOrm, AzsOrm, TerminalOrm, OuterGoodsOrm, TransactionOrm, \
-    TariffNewOrm, BalanceOrm, CompanyOrm, InnerGoodsGroupOrm
+    TariffNewOrm, CompanyOrm, InnerGoodsGroupOrm
 from src.database.models.card import BlockingCardReason, CardHistoryOrm
 from src.repositories.azs import AzsRepository
 from src.repositories.base import BaseRepository
@@ -35,7 +35,7 @@ class OpsController(BaseRepository):
         self.logger = get_logger(name="OPSController", filename="celery.log")
         self.api = OpsApi()
         self.system = None
-        self._irrelevant_balances = IrrelevantBalances(system=System.OPS)
+        self._irrelevant_balances = None
         self._outer_goods_list: List[OuterGoodsOrm] = []
         self._card_history: List[CardHistoryOrm] = []
         self._terminals: List[TerminalOrm] = []
@@ -43,23 +43,14 @@ class OpsController(BaseRepository):
         self._local_cards: List[CardOrm] = []
 
     async def init_system(self) -> None:
-        system_repository = SystemRepository(self.session)
-        # Проверяем существование системы, если нет - создаем.
-        self.system = await system_repository.get_system_by_short_name(
-            short_name=System.OPS.value,
-            scheme=ContractScheme.OVERBOUGHT
-        )
-
         if not self.system:
-            self.system = SystemOrm(
-                full_name=System.OPS.value,
+            system_repository = SystemRepository(self.session)
+            # Проверяем существование системы, если нет - создаем.
+            self.system = await system_repository.get_system_by_short_name(
                 short_name=System.OPS.value,
                 scheme=ContractScheme.OVERBOUGHT
             )
-            await self.save_object(self.system)
-
-        if not self.system:
-            raise CeleryError("В БД не найдена запись о системе", trace=False)
+            self._irrelevant_balances = IrrelevantBalances(system_id=self.system.id)
 
     async def load_cards(self) -> None:
         # self.api.show_wsdl_methods("Cards")
@@ -435,7 +426,7 @@ class OpsController(BaseRepository):
 
         # Получаем тариф
         tariff = self.get_company_tariff_on_transaction_time(
-            company=balance.company,
+            company=company,
             transaction_time=remote_transaction["transactionDateTime"],
             inner_group=outer_goods.outer_group.inner_group if outer_goods.outer_group else None,
             azs=azs

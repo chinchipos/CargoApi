@@ -38,7 +38,7 @@ class KHNPController(BaseRepository):
         self._azs_stations: List[AzsOrm] = []
         self._tariffs: List[TariffNewOrm] = []
         self._local_cards: List[CardOrm] = []
-        self._irrelevant_balances = IrrelevantBalances(system=System.KHNP)
+        self._irrelevant_balances = None
         self._outer_goods_list: List[OuterGoodsOrm] = []
 
     async def sync(self) -> IrrelevantBalances:
@@ -57,11 +57,13 @@ class KHNPController(BaseRepository):
         return self._irrelevant_balances
 
     async def init_system(self) -> None:
-        system_repository = SystemRepository(self.session)
-        self.system = await system_repository.get_system_by_short_name(
-            short_name=System.KHNP.value,
-            scheme=ContractScheme.OVERBOUGHT
-        )
+        if not self.system:
+            system_repository = SystemRepository(self.session)
+            self.system = await system_repository.get_system_by_short_name(
+                short_name=System.KHNP.value,
+                scheme=ContractScheme.OVERBOUGHT
+            )
+            self._irrelevant_balances = IrrelevantBalances(system_id=self.system.id)
 
     async def load_balance(self, need_authorization: bool = True) -> None:
         if need_authorization:
@@ -198,7 +200,7 @@ class KHNPController(BaseRepository):
 
         # Получаем тариф
         tariff = self.get_company_tariff_on_transaction_time(
-            company=balance.company,
+            company=company,
             transaction_time=remote_transaction['date_time'],
             inner_group=outer_goods.outer_group.inner_group if outer_goods.outer_group else None,
             azs=azs

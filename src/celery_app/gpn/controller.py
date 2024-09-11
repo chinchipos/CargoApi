@@ -44,7 +44,7 @@ class GPNController(BaseRepository):
         self.logger = get_logger(name="GPNController", filename="celery.log")
         self.api = GPNApi()
         self.system = None
-        self._irrelevant_balances = IrrelevantBalances(system=System.GPN)
+        self._irrelevant_balances = None
         self.card_groups = None
         self.card_types = {}
 
@@ -62,6 +62,7 @@ class GPNController(BaseRepository):
                 short_name=System.GPN.value,
                 scheme=ContractScheme.OVERBOUGHT
             )
+            self._irrelevant_balances = IrrelevantBalances(system_id=self.system.id)
 
     async def sync(self) -> IrrelevantBalances:
         await self.init_system()
@@ -814,7 +815,7 @@ class GPNController(BaseRepository):
 
         # Получаем тариф
         tariff = self.get_company_tariff_on_transaction_time(
-            company=balance.company,
+            company=company,
             transaction_time=remote_transaction['timestamp'],
             inner_group=outer_goods.outer_group.inner_group if outer_goods.outer_group else None,
             azs=azs

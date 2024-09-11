@@ -6,14 +6,14 @@ from src.utils.enums import System
 
 class IrrelevantBalances(dict):
 
-    def __init__(self, system: System | None = None):
+    def __init__(self, system_id: str | None = None):
         self.irrelevant_balances = {}
-        self.system = system
+        self.system_id = system_id
         self.sum_deltas: Dict[str, float] = {}
         dict.__init__(
             self,
             irrelevant_balances=self.irrelevant_balances,
-            system=self.system,
+            system_id=self.system_id,
             sum_deltas=self.sum_deltas
         )
 
