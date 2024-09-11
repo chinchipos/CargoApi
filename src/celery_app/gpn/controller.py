@@ -253,9 +253,8 @@ class GPNController(BaseRepository):
             gpn_card = gpn_cards_dict[local_card.card_number]
             if not gpn_card['group_id']:
                 self.logger.warning(f"Карта ГПН не прикреплена ни к какой группе: {gpn_card}")
-            if not local_card.company_id \
-                    or (gpn_card['group_id'] and
-                        local_card.company.personal_account != gpn_group_name_by_id[gpn_card['group_id']]):
+            elif not local_card.company_id \
+                    or local_card.company.personal_account != gpn_group_name_by_id[gpn_card['group_id']]:
                 self.api.unbind_cards_from_group(
                     card_numbers=[local_card.card_number],
                     card_external_ids=[local_card.external_id],
