@@ -1403,12 +1403,12 @@ class GPNController(BaseRepository):
                 company_id=previous_company_id,
                 system_id=self.system.id
             )
-
-            self.api.unbind_cards_from_group(
-                card_numbers=[card.card_number for card in cards],
-                card_external_ids=[card.external_id for card in cards],
-                group_id=previous_card_group.external_id
-            )
+            if previous_card_group:
+                self.api.unbind_cards_from_group(
+                    card_numbers=[card.card_number for card in cards],
+                    card_external_ids=[card.external_id for card in cards],
+                    group_id=previous_card_group.external_id
+                )
 
         # Привязываем карты к новой группе
         if new_company_id:

@@ -210,7 +210,7 @@ class CardService:
         await self.repository.bulk_insert_or_update(CardHistoryOrm, card_history_dataset)
 
         gpn_binding_cards.delay(
-            card_ids=[card.card_number for card in cards],
+            card_numbers=[card.card_number for card in cards],
             previous_company_id=None,
             new_company_id=company_id
         )
@@ -298,7 +298,7 @@ class CardService:
         # Отвязываем карты от групп в ГПН
         for company_id, card_ids in company_cards.items():
             gpn_binding_cards.delay(
-                card_ids=card_numbers,
+                card_numbers=card_numbers,
                 previous_company_id=company_id,
                 new_company_id=None
             )
