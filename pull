@@ -1,9 +1,19 @@
 #!/usr/bin/bash
 
+chmod u-x ./pull
+chmod u-x ./backup
 chmod u-x ./alembic_make_revision
 chmod u-x ./alembic_upgrade_db
+chmod u-x ./cron_*
+chmod u-x ./celery_run_in_debug_mode
+chmod u-x ./fastapi_run_in_debug_mode
 
 git pull origin experimental
 
+chmod u+x ./pull
+chmod u+x ./backup
 chmod u+x ./alembic_make_revision
 chmod u+x ./alembic_upgrade_db
+chmod u+x ./cron_*
+chmod u+x ./celery_run_in_debug_mode
+chmod u+x ./fastapi_run_in_debug_mode
