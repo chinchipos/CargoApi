@@ -187,7 +187,7 @@ class KHNPController(BaseRepository):
         # card = await self.get_local_card(card_number)
 
         # Получаем баланс
-        company = self.get_company_by_card_number(card_number=card_number)
+        company = self.get_card_company(card_number=card_number)
         balance = company.overbought_balance()
 
         # Получаем продукт
@@ -544,15 +544,12 @@ class KHNPController(BaseRepository):
         local_cards: List[CardOrm] = local_cards_to_be_active + local_cards_to_be_blocked
         return khnp_cards_to_change_state, local_cards
 
-    def get_company_by_card_number(self, card_number: str) -> CompanyOrm | None:
-        card = None
-        company = None
+    def get_card_company(self, card: CardOrm) -> CompanyOrm:
         for record in self._card_history:
-            if record.card.card_number == card_number:
-                card = record.card
-                company = record.company
+            if record.card_id == card.id:
+                return record.company
 
-        return company if company else card.company
+        return card.company
 
     async def get_azs(self, azs_external_id: str) -> AzsOrm:
         # Выполняем поиск АЗС

@@ -1087,7 +1087,7 @@ class GPNController(BaseRepository):
         ]
         await self.bulk_insert_or_update(AzsOrm, azs_dataset, "external_id")
 
-    def get_card_company(self, card: CardOrm) -> CompanyOrm | None:
+    def get_card_company(self, card: CardOrm) -> CompanyOrm:
         for record in self._card_history:
             if record.card_id == card.id:
                 return record.company
