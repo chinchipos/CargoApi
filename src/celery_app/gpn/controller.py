@@ -1179,10 +1179,16 @@ class GPNController(BaseRepository):
 
         return self.card_groups
 
-    async def update_group_limits(self, orders: List[GroupLimitOrder]) -> None:
+    async def update_group_limits(self, orders: List[Dict[str, Any]]) -> None:
         if not orders:
             return None
 
+        orders = [
+            GroupLimitOrder(
+                personal_account=order["personal_account"],
+                delta_sum=order["delta_sum"]
+            ) for order in orders
+        ]
         # Получаем из БД организации
         personal_accounts = {order.personal_account for order in orders}
         stmt = (

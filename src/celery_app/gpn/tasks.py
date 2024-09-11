@@ -1,6 +1,6 @@
 import asyncio
 import sys
-from typing import Dict, List
+from typing import Dict, List, Any
 
 from src.celery_app.gpn.api import GPNApi
 from src.celery_app.gpn.controller import GPNController
@@ -202,7 +202,7 @@ def gpn_import_azs() -> None:
     asyncio.run(gpn_import_azs_fn())
 
 
-async def update_group_limits_fn(orders: List[GroupLimitOrder]) -> None:
+async def update_group_limits_fn(orders: List[Dict[str, Any]]) -> None:
     if not orders:
         return None
 
@@ -219,7 +219,7 @@ async def update_group_limits_fn(orders: List[GroupLimitOrder]) -> None:
 
 
 @celery.task(name="GPN_UPDATE_GROUP_LIMITS")
-def gpn_update_group_limits(orders: List[GroupLimitOrder]) -> None:
+def gpn_update_group_limits(orders: List[Dict[str, Any]]) -> None:
     asyncio.run(update_group_limits_fn(orders))
 
 
