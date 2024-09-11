@@ -1044,7 +1044,7 @@ class GPNController(BaseRepository):
             if system_own_type.upper() == 'EXT':
                 return AzsOwnType.PARTNER
             elif system_own_type.upper() == 'FRAN':
-                return AzsOwnType.PARTNER
+                return AzsOwnType.FRANCHISEE
             elif system_own_type.upper() == 'OPTI':
                 return AzsOwnType.OPTI
             else:

@@ -41,6 +41,7 @@ class AzsOrm(Base):
         sa.String(36),
         nullable=False,
         init=True,
+        unique=True,
         comment="Внешний ID"
     )
 
