@@ -146,6 +146,9 @@ class TransactionRepository(BaseRepository):
             else:
                 transaction.annotate({"azs": None})
 
+            company = transaction.balance.company if transaction.balance_id else None
+            transaction.annotate({"company": company})
+
         transactions = [data[0] for data in dataset]
         return transactions
 

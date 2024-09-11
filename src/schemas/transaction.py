@@ -9,7 +9,7 @@ from src.schemas.card import CardMinimumReadSchema
 from src.schemas.goods import OuterGoodsItemReadSchema
 from src.schemas.system import SystemReadMinimumSchema
 from src.schemas.tariff import TariffNewReadMinSchema
-from src.schemas.validators import CompanyFromBalance
+from src.schemas.validators import CompanyMinimumSchema
 from src.utils.enums import TransactionType
 
 id_ = Annotated[str, Field(description="UUID транзакции", examples=["c39e5c5c-b980-45eb-a192-585e6823faa7"])]
@@ -30,7 +30,7 @@ system_ = Annotated[SystemReadMinimumSchema | None, Field(description="Пост�
 
 card_ = Annotated[CardMinimumReadSchema | None, Field(description="Карта")]
 
-company_ = Annotated[CompanyFromBalance | None, Field(description="Организация")]
+company_ = Annotated[CompanyMinimumSchema | None, Field(description="Организация")]
 
 azs_code_ = Annotated[str, Field(description="Код АЗС", examples=["АЗС № 07 (АБНС)"])]
 

@@ -21,10 +21,10 @@ class TransactionService:
         if not from_dt:
             rows_limit = 1000
             relative_delta = relativedelta(years = 3) if company_id else relativedelta(months=1)
-            from_dt = datetime.now(tz=TZ).date() - relative_delta
+            from_dt = datetime.now().date() - relative_delta
 
         if not to_dt:
-            to_dt = datetime.now(tz=TZ).date() + timedelta(days=1)
+            to_dt = datetime.now().date() + timedelta(days=1)
 
         transactions = await self.repository.get_transactions(company_id, from_dt, to_dt, rows_limit)
         return transactions
