@@ -1199,7 +1199,7 @@ class GPNController(BaseRepository):
             .options(
                 contains_eager(CompanyOrm.card_groups)
             )
-            .join(CardGroupOrm, and_(
+            .outerjoin(CardGroupOrm, and_(
                 CompanyOrm.id == CardGroupOrm.company_id,
                 CardGroupOrm.system_id == self.system.id
             ))
@@ -1215,6 +1215,8 @@ class GPNController(BaseRepository):
             for company in companies:
                 self.logger.info(f"{order.personal_account} | {company.personal_account}")
                 if order.personal_account == company.personal_account:
+                    if not company.card_groups:
+                        raise CeleryError(f"Не удалось определить карточную группу ГПН для организации {company.name}")
                     order.company = company
                     companies.remove(company)
                     break
