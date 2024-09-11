@@ -240,23 +240,6 @@ async def binding_cards_fn(card_numbers: List[str], previous_company_id: str, ne
 def gpn_binding_cards(card_numbers: List[str], previous_company_id: str, new_company_id: str) -> None:
     asyncio.run(binding_cards_fn(card_numbers, previous_company_id, new_company_id))
 
-# async def create_company_fn(company_id: str, personal_account: str, available_balance: float) -> None:
-#     sessionmanager = DatabaseSessionManager()
-#     sessionmanager.init(PROD_URI)
-#
-#     async with sessionmanager.session() as session:
-#         gpn_controller = GPNController(session)
-#         await gpn_controller.init_system()
-#         await gpn_controller.create_company(company_id, personal_account, available_balance)
-#
-#     # Закрываем соединение с БД
-#     await sessionmanager.close()
-#
-#
-# @celery.task(name="GPN_CREATE_COMPANY_EVENT")
-# def gpn_create_company_event(company_id: str, personal_account: str, available_balance: float) -> None:
-#     asyncio.run(create_company_fn(company_id, personal_account, available_balance))
-
 
 @celery.task(name="GPN_TEST")
 def gpn_test() -> None:

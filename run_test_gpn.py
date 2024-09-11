@@ -1,3 +1,3 @@
-from src.celery_app.gpn.tasks import gpn_test
+from src.celery_app.gpn.tasks import gpn_service_sync
 
-gpn_test.delay()
+gpn_service_sync.delay()
