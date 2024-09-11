@@ -1189,11 +1189,8 @@ class GPNController(BaseRepository):
                 delta_sum=order["delta_sum"]
             ) for order in orders
         ]
-        # Получаем из БД организации
+        # Получаем из БД организации, у которых есть карты ГПН
         personal_accounts = {order.personal_account for order in orders}
-        self.logger.info(f"{orders}")
-        self.logger.info('NNNNNNNNNNNNNNNNNNNNNNNNNNNNNN')
-        self.logger.info(f"{personal_accounts}")
         stmt = (
             sa_select(CompanyOrm)
             .options(
@@ -1204,19 +1201,23 @@ class GPNController(BaseRepository):
                 CardGroupOrm.system_id == self.system.id
             ))
             .where(CompanyOrm.personal_account.in_(personal_accounts))
+            .where(CardOrm.company_id == CompanyOrm.id)
+            .where(CardSystemOrm.card_id == CardOrm.id)
+            .where(CardSystemOrm.system_id == self.system.id)
             .order_by(CompanyOrm.personal_account)
         )
         companies: List[CompanyOrm] = copy.deepcopy(await self.select_all(stmt))
-        self.logger.info('YYYYYYYYYYYYYYYYYYYYYYYYYY')
-        self.logger.info(f"{companies}")
+        if not companies:
+            return None
+
         # Раскидываем организации по ордерам
         for order in orders:
-            self.logger.info('UUUUUUUUUUUUUUUUUUUUUUUUUUU')
             for company in companies:
                 self.logger.info(f"{order.personal_account} | {company.personal_account}")
                 if order.personal_account == company.personal_account:
                     if not company.card_groups:
-                        raise CeleryError(f"Не удалось определить карточную группу ГПН для организации {company.name}")
+                        raise CeleryError("Не удалось определить карточную группу ГПН для организации "
+                                          f"{company.name} {company.personal_account}")
                     order.company = company
                     companies.remove(company)
                     break
