@@ -1323,7 +1323,8 @@ class GPNController(BaseRepository):
         print(f"fuel_limit: {fuel_limit}")
 
         # Вычисляем новое значение лимита
-        limit_sum = max(int(math.floor(fuel_limit.limit_sum + order.delta_sum - 1)), 1)
+        fuel_limit_sum = fuel_limit.limit_sum if fuel_limit.limit_sum > 1 else 0
+        limit_sum = max(int(math.floor(fuel_limit_sum + order.delta_sum)), 1)
         print(f"limit_sum: {limit_sum}")
         for limit in limits_to_update:
             if PRODUCTION:
