@@ -351,7 +351,7 @@ class GPNController(BaseRepository):
                         limit_sum = available_balance if gpn_category == GpnGoodsCategory.FUEL else 1.0
                         limit_sum = int(math.floor(limit_sum))
 
-                        group = company.get_card_group()
+                        group = company.get_card_group(self.system.id)
 
                         if PRODUCTION:
                             # Создаем лимит в ГПН
