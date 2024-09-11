@@ -348,8 +348,8 @@ class GPNController(BaseRepository):
                             overdraft_sum=company.overdraft_sum
                         )
 
-                        limit_sum = available_balance if gpn_category == GpnGoodsCategory.FUEL else 1.0
-                        limit_sum = int(math.floor(limit_sum))
+                        limit_sum = max(int(math.floor(available_balance)), 1) \
+                            if gpn_category == GpnGoodsCategory.FUEL else 1
 
                         group = company.get_card_group(self.system.id)
 
@@ -603,7 +603,7 @@ class GPNController(BaseRepository):
 
     def set_company_limits(self, group_id: str, current_company_limits, limit_sum: int | float):
         if isinstance(limit_sum, float):
-            limit_sum = int(math.floor(limit_sum))
+            limit_sum = max(int(math.floor(limit_sum)), 1)
 
         # Если текущие лимиты не относятся к постоянным, то удаляем их
         i = 0
@@ -1263,8 +1263,7 @@ class GPNController(BaseRepository):
         # Создаем лимиты в ГПН на все категории продуктов
         local_limits_dataset = []
         for gpn_category in GpnGoodsCategory:
-            limit_sum = available_balance if gpn_category == GpnGoodsCategory.FUEL else 1.0
-            limit_sum = int(math.floor(limit_sum))
+            limit_sum = max(int(math.floor(available_balance)), 1) if gpn_category == GpnGoodsCategory.FUEL else 1
 
             if PRODUCTION:
                 # Создаем лимит в ГПН
@@ -1333,7 +1332,7 @@ class GPNController(BaseRepository):
             order.local_group_limits
         )
         fuel_limit: GroupLimitOrm | None = fuel_limit[0] if fuel_limit else None
-        limit_sum = int(math.floor(fuel_limit.limit_sum))
+        limit_sum = max(int(math.floor(fuel_limit.limit_sum)), 1)
 
         # Если в локальной БД нет записи о групповом лимите на категорию Топливо, то это исключительная ситуация
         if not fuel_limit:
