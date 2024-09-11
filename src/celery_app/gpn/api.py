@@ -175,8 +175,7 @@ class GPNApi:
             card for card in remote_cards
             if card['id'] in card_external_ids and card['group_id'] and card['group_id'] != group_id
         ]
-        self.logger.info("YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY")
-        self.logger.info(remote_cards_to_unbind_group)
+
         if remote_cards_to_unbind_group:
             external_ids = [card['id'] for card in remote_cards_to_unbind_group]
             self.unbind_cards_from_group(
