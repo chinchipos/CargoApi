@@ -353,11 +353,11 @@ class KHNPController(BaseRepository):
         counter = sum(list(map(
             lambda card_number: len(remote_transactions.get(card_number)), remote_transactions
         )))
-        self.logger.info(f'Новые тразакции от системы ХНП: {counter} шт')
+        self.logger.info(f'Новые тразакции от ХНП: {counter} шт')
 
         if counter:
             self.logger.info(
-                'Начинаю обработку транзакций от системы ХНП, которые не обнаружены в локальной БД'
+                'Начинаю обработку транзакций ХНП, которые не обнаружены в локальной БД'
             )
             await self.process_new_remote_transactions(remote_transactions, transaction_repository)
 

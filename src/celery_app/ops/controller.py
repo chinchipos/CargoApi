@@ -54,7 +54,7 @@ class OpsController(BaseRepository):
 
     async def load_cards(self) -> None:
         # self.api.show_wsdl_methods("Cards")
-        self.logger.info("Начинаю импорт карт")
+        self.logger.info("Начинаю импорт карт ОПС")
         try:
             start_time = datetime.now()
 
@@ -167,7 +167,7 @@ class OpsController(BaseRepository):
 
     async def load_azs(self) -> None:
         # self.api.show_wsdl_methods("Terminals")
-        self.logger.info("Начинаю прогрузку АЗС")
+        self.logger.info("Начинаю прогрузку АЗС ОПС")
         start_time = datetime.now()
 
         # Получаем список АЗС от системы ОПС
@@ -262,7 +262,7 @@ class OpsController(BaseRepository):
 
     async def load_transactions(self) -> None:
         # self.api.show_wsdl_methods("TransactionReceipts")
-        self.logger.info("Начинаю прогрузку транзакций")
+        self.logger.info("Начинаю прогрузку транзакций ОПС")
 
         # Получаем список транзакций от поставщика услуг
         remote_transactions = self.api.get_transactions(transaction_days=self.system.transaction_days)
@@ -607,7 +607,7 @@ class OpsController(BaseRepository):
 
     async def load_goods(self) -> None:
         self.api.show_wsdl_methods("Goods")
-        self.logger.info("Начинаю прогрузку продуктов")
+        self.logger.info("Начинаю прогрузку продуктов ОПС")
         start_time = datetime.now()
 
         # Получаем список продуктов от системы ОПС
