@@ -211,9 +211,11 @@ class CompanyService:
 
         # Обновляем лимит в системе ГПН.
         # Проверка на предмет наличия карт этой системы будет выполнена на следующем этапе.
+        delta_sum = edit_balance_schema.delta_sum if transaction_type == TransactionType.REFILL \
+            else -edit_balance_schema.delta_sum
         order = GroupLimitOrder(
             personal_account=company.personal_account,
-            delta_sum=edit_balance_schema.delta_sum
+            delta_sum=delta_sum
         )
         gpn_update_group_limits.delay([order])
 
