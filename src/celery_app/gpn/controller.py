@@ -1177,10 +1177,14 @@ class GPNController(BaseRepository):
         ]
         # Получаем из БД организации, у которых есть карты ГПН
         personal_accounts = {order.personal_account for order in orders}
+        print(f"personal_accounts: {personal_accounts}")
         stmt = (
             sa_select(CompanyOrm)
             .options(
                 contains_eager(CompanyOrm.card_groups)
+            )
+            .options(
+                selectinload(CompanyOrm.group_limits)
             )
             .outerjoin(CardGroupOrm, and_(
                 CompanyOrm.id == CardGroupOrm.company_id,
@@ -1210,7 +1214,7 @@ class GPNController(BaseRepository):
                     order.company = company
                     companies.remove(company)
                     break
-
+        """
         # Получаем из БД групповые лимиты переданных в функцию организаций
         org = aliased(CompanyOrm, name="org")
         stmt = (
@@ -1226,7 +1230,8 @@ class GPNController(BaseRepository):
             .order_by(org.personal_account)
         )
         local_group_limits: List[GroupLimitOrm] = copy.deepcopy(await self.select_all(stmt))
-
+        print('BBBBBBBBBBBBBBBBBBBBBBBBBBB')
+        print(local_group_limits)
         # Раскидываем групповые лимиты по ордерам
         for order in orders:
             i = 0
@@ -1239,6 +1244,7 @@ class GPNController(BaseRepository):
                     break
                 else:
                     i += 1
+        """
 
         # Обрабатываем полученные задания на установку / изменение групповых лимитов
         for order in orders:
@@ -1253,6 +1259,7 @@ class GPNController(BaseRepository):
                 Предполагается, что в БД уже существуют записи о групповых лимитах по всем категориям 
                 (на момент написания комментария их 6).
                 """
+                print('IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII')
                 await self.update_group_limits_by_delta_sum(order)
 
             else:
@@ -1300,9 +1307,12 @@ class GPNController(BaseRepository):
         group_external_id = order.company.card_groups[0].external_id
 
         # Из локальной БД получаем все лимиты, которые больше единицы
-        limits_to_update = [limit for limit in order.local_group_limits
+        print('SSSSSSSSSSSSSSSSSSSSSSSS')
+        print(f"local_group_limits: {order.local_group_limits}")
+        limits_to_update = [limit for limit in order.company.group_limits
                             if limit.limit_sum > 1 or limit.inner_goods_category == GoodsCategory.FUEL]
-
+        print('DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD')
+        print(f"limits_to_update: {limits_to_update}")
         # Получаем лимит на Топливо
         fuel_limit = None
         for limit in limits_to_update:
@@ -1310,9 +1320,11 @@ class GPNController(BaseRepository):
                 fuel_limit = limit
                 break
 
-        # Вычисляем новое значение лимита
-        limit_sum = max(int(math.floor(fuel_limit.limit_sum + order.delta_sum)), 1)
+        print(f"fuel_limit: {fuel_limit}")
 
+        # Вычисляем новое значение лимита
+        limit_sum = max(int(math.floor(fuel_limit.limit_sum + order.delta_sum - 1)), 1)
+        print(f"limit_sum: {limit_sum}")
         for limit in limits_to_update:
             if PRODUCTION:
                 # Обновляем лимит в ГПН
