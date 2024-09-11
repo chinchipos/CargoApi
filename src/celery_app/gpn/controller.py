@@ -252,7 +252,7 @@ class GPNController(BaseRepository):
         for local_card in local_cards:
             gpn_card = gpn_cards_dict[local_card.card_number]
             print('UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU')
-            print(gpn_card['group_id'])
+            print(gpn_card)
             if not local_card.company_id \
                     or local_card.company.personal_account != gpn_group_name_by_id[gpn_card['group_id']]:
                 self.api.unbind_cards_from_group(
