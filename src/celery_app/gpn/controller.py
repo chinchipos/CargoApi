@@ -1191,6 +1191,9 @@ class GPNController(BaseRepository):
         ]
         # Получаем из БД организации
         personal_accounts = {order.personal_account for order in orders}
+        self.logger.info(f"{orders}")
+        self.logger.info('NNNNNNNNNNNNNNNNNNNNNNNNNNNNNN')
+        self.logger.info(f"{personal_accounts}")
         stmt = (
             sa_select(CompanyOrm)
             .options(
@@ -1208,7 +1211,7 @@ class GPNController(BaseRepository):
         self.logger.info(f"{companies}")
         # Раскидываем организации по ордерам
         for order in orders:
-            self.logger.info('YYYYYYYYYYYYYYYYYYYYYYYYYY')
+            self.logger.info('UUUUUUUUUUUUUUUUUUUUUUUUUUU')
             for company in companies:
                 self.logger.info(f"{order.personal_account} | {company.personal_account}")
                 if order.personal_account == company.personal_account:
