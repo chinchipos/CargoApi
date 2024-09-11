@@ -1208,6 +1208,8 @@ class GPNController(BaseRepository):
         )
         companies: List[CompanyOrm] = copy.deepcopy(await self.select_all(stmt))
         if not companies:
+            self.logger.info("Пустой список организаций, работающих с системой ГПН. "
+                             "Обновление карточных лимитов ГПН не требуется.")
             return None
 
         # Раскидываем организации по ордерам
