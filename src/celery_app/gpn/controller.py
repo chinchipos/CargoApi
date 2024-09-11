@@ -803,7 +803,7 @@ class GPNController(BaseRepository):
         card = await get_local_card(card_number, self._local_cards)
 
         # Получаем баланс
-        company = self.get_company_by_card_number(card_number=card_number)
+        company = self.get_card_company(card=card)
         balance = company.overbought_balance()
 
         # Получаем продукт
@@ -1087,15 +1087,12 @@ class GPNController(BaseRepository):
         ]
         await self.bulk_insert_or_update(AzsOrm, azs_dataset, "external_id")
 
-    def get_company_by_card_number(self, card_number: str) -> CompanyOrm | None:
-        card = None
-        company = None
+    def get_card_company(self, card: CardOrm) -> CompanyOrm | None:
         for record in self._card_history:
-            if record.card.card_number == card_number:
-                card = record.card
-                company = record.company
+            if record.card_id == card.id:
+                return record.company
 
-        return company if company else card.company
+        return card.company
 
     async def get_azs(self, azs_external_id: str) -> AzsOrm:
         # Выполняем поиск АЗС
