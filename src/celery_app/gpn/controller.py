@@ -1204,10 +1204,13 @@ class GPNController(BaseRepository):
             .order_by(CompanyOrm.personal_account)
         )
         companies: List[CompanyOrm] = copy.deepcopy(await self.select_all(stmt))
-
+        self.logger.info('YYYYYYYYYYYYYYYYYYYYYYYYYY')
+        self.logger.info(f"{companies}")
         # Раскидываем организации по ордерам
         for order in orders:
+            self.logger.info('YYYYYYYYYYYYYYYYYYYYYYYYYY')
             for company in companies:
+                self.logger.info(f"{order.personal_account} | {company.personal_account}")
                 if order.personal_account == company.personal_account:
                     order.company = company
                     companies.remove(company)
