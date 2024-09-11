@@ -334,7 +334,7 @@ class GPNController(BaseRepository):
                                 "inner_goods_category": gpn_category.value["local_category"]
                             }
                             await self.insert(GroupLimitOrm, **limit_dataset)
-                            self.logger("Лимит записан в локальную БД")
+                            self.logger.info("Лимит записан в локальную БД")
                             break
 
                     if not found_remotely:
@@ -369,7 +369,7 @@ class GPNController(BaseRepository):
                                 "inner_goods_category": gpn_category.value["local_category"]
                             }
                             await self.insert(GroupLimitOrm, **limit_dataset)
-                            self.logger("Лимит записан в локальную БД")
+                            self.logger.info("Лимит записан в локальную БД")
 
     async def bind_or_create_card(self, card_number: str, card_type_name: str, is_active: bool) -> None:
         stmt = sa_select(CardOrm).where(CardOrm.card_number == card_number)
