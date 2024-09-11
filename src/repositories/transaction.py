@@ -107,8 +107,7 @@ class TransactionRepository(BaseRepository):
                 .joinedload(TariffNewOrm.policy)
             )
             .options(
-                joinedload(TransactionOrm.company)
-                .load_only()
+                joinedload(TransactionOrm.balance)
                 .joinedload(BalanceOrm.company)
                 .load_only(CompanyOrm.id, CompanyOrm.name, CompanyOrm.inn, CompanyOrm.personal_account)
             )
