@@ -1192,10 +1192,11 @@ class GPNController(BaseRepository):
             .where(CardSystemOrm.system_id == self.system.id)
             .order_by(CompanyOrm.personal_account)
         )
+        # self.statement(stmt)
         companies: List[CompanyOrm] = copy.deepcopy(await self.select_all(stmt))
         if not companies:
-            self.logger.info("Пустой список организаций, работающих с системой ГПН. "
-                             "Обновление карточных лимитов ГПН не требуется.")
+            self.logger.warning("Пустой список организаций, работающих с системой ГПН. "
+                                "Обновление карточных лимитов ГПН не требуется.")
             return None
 
         # Раскидываем организации по ордерам
