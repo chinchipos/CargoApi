@@ -44,7 +44,7 @@ def after_sync(irrelevant_balances_list: List[IrrelevantBalances]):
         else:
             messages.append(f"Ошибка синхронизации с {system.value}")
 
-    changed_balances = [balance_id for balance_id in irrelevant_balances.data().keys()]
+    # changed_balances = [balance_id for balance_id in irrelevant_balances.data().keys()]
 
     # Создаем ордера на изменение лимитов ГПН
     gpn_limit_orders = []
@@ -59,7 +59,7 @@ def after_sync(irrelevant_balances_list: List[IrrelevantBalances]):
     tasks = [
         gpn_update_group_limits.si(gpn_limit_orders),
         calc_balances.si(irrelevant_balances),
-        # khnp_set_card_states.s(),
+        khnp_set_card_states.s(),
         # gpn_set_card_group_limit.si(changed_balances)
     ]
     if messages:
