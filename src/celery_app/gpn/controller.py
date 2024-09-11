@@ -267,12 +267,14 @@ class GPNController(BaseRepository):
             gpn_card = gpn_cards_dict[local_card.card_number]
             if local_card.company_id:
                 true_group_id = gpn_group_id_by_name[local_card.company.personal_account]
+                self.logger.info(f"{gpn_card['group_id']} | {true_group_id}")
                 if gpn_card['group_id'] != true_group_id:
                     if true_group_id in binding_data:
                         binding_data[true_group_id].append(gpn_card['id'])
                     else:
                         binding_data[true_group_id] = [gpn_card['id']]
-
+        self.logger.info("UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU")
+        self.logger.info(binding_data)
         for group_id, card_external_ids in binding_data.items():
             self.api.bind_cards_to_group(
                 card_numbers=[local_card.card_number for local_card in local_cards
