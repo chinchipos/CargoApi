@@ -550,27 +550,15 @@ class GPNController(BaseRepository):
             self.logger.info(f"Организация {j} из {companies_amount}: {balance.company.personal_account}")
             j += 1
 
-            # if balance.company.personal_account == "9229609":
-            #     print("Найден баланс организации ОВР")
-
             # Получаем идентификатор группы карт
             group_id = get_group_id_by_name(balance.company.personal_account)
             if not group_id:
                 group_id = self.api.create_card_group(balance.company.personal_account)
 
-            # if balance.company.personal_account == "9229609":
-            #     print(f"Идентификатор группы ОВР: {group_id}")
-
             # Получаем текущие лимиты организации
             current_company_limits = self.api.get_card_group_limits(group_id)
-            # if current_company_limits and balance.company.personal_account == "9229609":
-            #     print(f"Действующие лимиты организации ОВР:")
-            #     for current_company_limit in current_company_limits:
-            #         print(current_company_limit)
 
             # Вычисляем новый доступный лимит на категорию "Топливо"
-            # overdraft_sum = balance.company.overdraft_sum if balance.company.overdraft_on else 0
-            # company_available_balance = int(balance.balance + overdraft_sum)
             company_available_balance = calc_available_balance(
                 current_balance=balance.balance,
                 min_balance=balance.company.min_balance,
@@ -583,8 +571,6 @@ class GPNController(BaseRepository):
             )
             self.logger.info(f"personal_account: {balance.company.personal_account} | "
                              f"available_balance:{company_available_balance} | limit_sum: {limit_sum}")
-            # if balance.company.personal_account == "9229609":
-            #     print(f"Новый лимит для организации ОВР: {limit_sum} руб")
 
             # Устанавливаем лимиты на группу по всем категориям
             self.set_company_limits(
