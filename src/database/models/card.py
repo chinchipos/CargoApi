@@ -169,6 +169,12 @@ class CardOrm(Base):
 
     repr_cols = ("card_number",)
 
+    def is_binded_to_system(self, system: System) -> bool:
+        for binded_system in self.systems:
+            if binded_system.short_name == system.value:
+                return True
+        return False
+
 
 class CardHistoryOrm(Base):
     __tablename__ = "card_history"

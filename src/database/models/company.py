@@ -6,7 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database.models.base import Base
 from src.database.models.balance import BalanceOrm
-from src.utils.enums import ContractScheme
+from src.utils.enums import ContractScheme, System
 
 
 class CompanyOrm(Base):
@@ -192,15 +192,15 @@ class CompanyOrm(Base):
             if balance.scheme == ContractScheme.OVERBOUGHT:
                 return balance
 
-    def has_card_group(self, system_id: str) -> bool:
+    def has_card_group(self, system: System) -> bool:
         for group in self.card_groups:
-            if group.system_id == system_id:
+            if group.system.short_name == system.value:
                 return True
         return False
 
-    def get_card_group(self, system_id: str):
+    def get_card_group(self, system: System):
         for group in self.card_groups:
-            if group.system_id == system_id:
+            if group.system.short_name == system.value:
                 return group
 
     repr_cols = ("name", "inn")

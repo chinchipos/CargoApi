@@ -8,9 +8,11 @@ from src.database.models.limit import Unit, LimitPeriod, CardLimitOrm
 from src.database.models.system import CardSystemOrm
 from src.repositories.card import CardRepository
 from src.repositories.goods import GoodsRepository
+from src.repositories.system import SystemRepository
 from src.schemas.card import CardCreateSchema, CardEditSchema
 from src.schemas.card_limit import CardLimitParamsSchema, CardLimitCreateSchema
 from src.utils import enums
+from src.utils.enums import System, ContractScheme
 from src.utils.exceptions import BadRequestException, ForbiddenException
 
 
@@ -426,11 +428,10 @@ class CardService:
 
     async def set_limits(self, card: CardOrm, limits: List[CardLimitCreateSchema]) -> List[CardLimitOrm]:
         # Оптимизируем полученные лимиты - убираем избыточные и дублирующиеся
-        received_limits: List[CardLimitCreateSchema] = []
-        while len(limits) > 0:
-            limit = limits[0]
+        unique_received_limits: List[CardLimitCreateSchema] = []
+        for limit in limits:
             found = False
-            for unique_limit in received_limits:
+            for unique_limit in unique_received_limits:
                 if limit.inner_goods_category == unique_limit.inner_goods_category \
                         and limit.inner_goods_group_id == unique_limit.inner_goods_group_id \
                         and limit.period == unique_limit.period and limit.unit == unique_limit.unit:
@@ -443,9 +444,7 @@ class CardService:
                     break
 
             if not found:
-                received_limits.append(limit)
-
-            limits.remove(limit)
+                unique_received_limits.append(limit)
 
         # Получаем доступный баланс организации
         # company_repository = CompanyRepository(session=self.repository.session, user=self.repository.user)
@@ -458,42 +457,51 @@ class CardService:
         #     if limit.value > company_available_balance:
         #         limit.value = int(math.floor(company_available_balance))
 
+        """Сначала удаляем/создаем лимиты в БД, а потом в системах. Это нужно, чтобы функция вернула пользователю 
+        новые лимиты. А в системах лимиты будут удаляться/устанавливаться фоном."""
+
         # Получаем действующие лимиты
         limits_to_delete = await self.repository.get_limits(card_id=card.id)
 
         # Удаляем из БД действующие лимиты
         await self.repository.delete_card_limits(card_id=card.id)
 
-        # Сохраняем в БД новые лимиты
-        new_limits = [
-            {
-                "card_id": card.id,
-                "value": limit.value,
-                "unit": limit.unit,
-                "period": limit.period,
-                "inner_goods_group_id": limit.inner_goods_group_id,
-                "inner_goods_category": limit.inner_goods_category,
-            } for limit in received_limits
-        ]
-        await self.repository.bulk_insert_or_update(CardLimitOrm, new_limits)
+        # Сохраняем в БД новые лимиты ГПН
+        system_repository = SystemRepository(session=self.repository.session, user=self.repository.user)
+        gpn_system = await system_repository.get_system_by_short_name(System.GPN.value, ContractScheme.OVERBOUGHT)
+        new_limits = []
+        if unique_received_limits:
+            new_limits = [
+                {
+                    "system_id": gpn_system.id,
+                    "card_id": card.id,
+                    "value": limit.value,
+                    "unit": limit.unit,
+                    "period": limit.period,
+                    "inner_goods_group_id": limit.inner_goods_group_id,
+                    "inner_goods_category": limit.inner_goods_category,
+                } for limit in unique_received_limits
+            ]
+            await self.repository.bulk_insert_or_update(CardLimitOrm, new_limits)
 
-        # Получаем новые действующие лимиты
-        new_limits = await self.repository.get_limits(card_id=card.id)
+            # Получаем новые действующие лимиты
+            new_limits = await self.repository.get_limits(card_id=card.id)
 
         # Изменяем сведения о лимитах в API систем
-        for system in card.systems:
-            if system.short_name == 'ГПН':
-                # Удаляем в ГПН текущие лимиты
-                gpn_delete_card_limits.delay(
-                    limit_ids=[limit.external_id for limit in limits_to_delete if limit.external_id]
-                )
+        if card.is_binded_to_system(System.GPN):
+            # Удаляем в ГПН текущие лимиты
+            limit_ids = [limit.external_id for limit in limits_to_delete
+                         if limit.external_id and limit.system.short_name == System.GPN.value]
+            if limit_ids:
+                gpn_delete_card_limits.delay(limit_ids=limit_ids)
 
-                # Создаем в ГПН новые лимиты
+            # Создаем в ГПН новые лимиты
+            if new_limits:
                 gpn_create_card_limits.delay(
+                    company_id=card.company_id,
                     card_external_id=card.external_id,
                     limit_ids=[limit.id for limit in new_limits]
                 )
-                break
 
         return new_limits
 

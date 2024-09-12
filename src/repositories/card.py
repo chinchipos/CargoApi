@@ -331,9 +331,14 @@ class CardRepository(BaseRepository):
                 joinedload(CardLimitOrm.inner_goods_group)
                 .selectinload(InnerGoodsGroupOrm.outer_goods_groups)
             )
+            .options(
+                joinedload(CardLimitOrm.system)
+            )
         )
+
         if card_id:
             stmt = stmt.where(CardLimitOrm.card_id == card_id)
+
         limits = await self.select_all(stmt)
         return limits
 

@@ -5,7 +5,7 @@ from sqlalchemy import select as sa_select, and_, func as sa_func, null, or_
 from sqlalchemy.orm import joinedload, selectinload, aliased, load_only
 
 from src.config import TZ
-from src.database.models import NotificationMailingOrm, CardGroupOrm
+from src.database.models import NotificationMailingOrm, CardGroupOrm, GroupLimitOrm
 from src.database.models.balance import BalanceOrm
 from src.database.models.card import CardOrm
 from src.database.models.company import CompanyOrm
@@ -97,6 +97,14 @@ class CompanyRepository(BaseRepository):
             .options(
                 selectinload(CompanyOrm.cars)
                 .load_only(CarOrm.id, CarOrm.model, CarOrm.reg_number)
+            )
+            .options(
+                selectinload(CompanyOrm.card_groups)
+                .joinedload(CardGroupOrm.system)
+            )
+            .options(
+                selectinload(CompanyOrm.group_limits)
+                .joinedload(GroupLimitOrm.system)
             )
             .where(CompanyOrm.id == company_id)
         )
@@ -302,11 +310,11 @@ class CompanyRepository(BaseRepository):
         mailings = await self.select_all(stmt)
         return mailings
 
-    async def get_card_group(self, company_id: str, system_id: str) -> CardGroupOrm | None:
-        stmt = (
-            sa_select(CardGroupOrm)
-            .where(CardGroupOrm.company_id == company_id)
-            .where(CardGroupOrm.system_id == system_id)
-        )
-        card_group = await self.select_first(stmt)
-        return card_group
+    # async def get_card_group(self, company_id: str, system_id: str) -> CardGroupOrm | None:
+    #     stmt = (
+    #         sa_select(CardGroupOrm)
+    #         .where(CardGroupOrm.company_id == company_id)
+    #         .where(CardGroupOrm.system_id == system_id)
+    #     )
+    #     card_group = await self.select_first(stmt)
+    #     return card_group

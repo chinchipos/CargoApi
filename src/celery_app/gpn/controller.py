@@ -4,7 +4,7 @@ import time
 from datetime import datetime
 from typing import Dict, Any, List
 
-from sqlalchemy import select as sa_select, and_
+from sqlalchemy import select as sa_select, delete as sa_delete, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, aliased, contains_eager, selectinload
 
@@ -23,12 +23,11 @@ from src.database.models.card import CardOrm, BlockingCardReason, CardHistoryOrm
 from src.database.models.card_type import CardTypeOrm
 from src.database.models.goods import OuterGoodsOrm
 from src.database.models.goods_category import GoodsCategory
-from src.database.models.system import CardSystemOrm, SystemOrm
+from src.database.models.system import CardSystemOrm
 from src.database.models.transaction import TransactionOrm
 from src.repositories.base import BaseRepository
 from src.repositories.card import CardRepository
 from src.repositories.company import CompanyRepository
-from src.repositories.goods import GoodsRepository
 from src.repositories.system import SystemRepository
 from src.repositories.tariff import TariffRepository
 from src.repositories.transaction import TransactionRepository
@@ -175,7 +174,7 @@ class GPNController(BaseRepository):
                     found = True
 
                     # Проверяем существование записи о группе в локальной БД
-                    if not company.has_card_group(self.system.id):
+                    if not company.has_card_group(System.GPN):
                         card_group = CardGroupOrm(
                             system_id=self.system.id,
                             external_id=gpn_group["id"],
@@ -311,7 +310,7 @@ class GPNController(BaseRepository):
         # Сверяем групповые лимиты
         for company in companies:
             # Из ГПН получаем лимиты по группе карт
-            group: CardGroupOrm = company.get_card_group(self.system.id)
+            group: CardGroupOrm = company.get_card_group(System.GPN)
             gpn_group_limits = self.api.get_card_group_limits(group.external_id)
             for gpn_category in GpnGoodsCategory:
                 # Предполагается, что локально сохраненные лимиты присутствуют в ГПН.
@@ -356,7 +355,7 @@ class GPNController(BaseRepository):
                         limit_sum = max(int(math.floor(available_balance)), 1) \
                             if gpn_category == GpnGoodsCategory.FUEL else 1
 
-                        group = company.get_card_group(self.system.id)
+                        group = company.get_card_group(System.GPN)
 
                         if PRODUCTION:
                             # Создаем лимит в ГПН
@@ -896,7 +895,14 @@ class GPNController(BaseRepository):
         for limit_id in limit_ids:
             self.api.delete_card_limit(limit_id=limit_id)
 
-    async def set_card_limits(self, card_external_id: str, limit_ids: List[str]) -> None:
+        # Удаление лимитов из БД в норме выполняется перед удалением из системы.
+        # На данном этапе их уже не должно быть в БД. Но на всякий случай выполним "пустое" удаление.
+        # Вдруг предшествующий код изменится в будущем.
+        stmt = sa_delete(CardLimitOrm).where(CardLimitOrm.external_id.in_(limit_ids))
+        await self.session.execute(stmt)
+        await self.session.commit()
+
+    async def set_card_limits(self, company_id: str, card_external_id: str, limit_ids: List[str]) -> None:
         await self.init_system()
 
         # Получаем лимиты из БД
@@ -908,83 +914,96 @@ class GPNController(BaseRepository):
 
         # В локальной БД, если не указано поле лимита inner_goods_category, это означает, что лимит
         # действует в отношении всех категорий. В ГПН так не работает - категория обязательно должна быть указана.
-        new_limits = []
-        for limit in limits:
-            if limit.inner_goods_category:
-                new_limit = {
-                    "obj": limit,
-                    "inner_goods_category": limit.inner_goods_category,
-                    "inner_goods_group_id": limit.inner_goods_group_id,
-                    "value": limit.value,
-                    "unit": limit.unit,
-                    "period": limit.period,
-                }
-                new_limits.append(new_limit)
-            else:
-                for category in GoodsCategory:
-                    new_limit = {
-                        "obj": limit,
-                        "inner_goods_category": category,
-                        "inner_goods_group_id": limit.inner_goods_group_id,
-                        "value": limit.value,
-                        "unit": limit.unit,
-                        "period": limit.period,
-                    }
-                    new_limits.append(new_limit)
+        # new_limits = []
+        # for limit in limits:
+        #     if limit.inner_goods_category:
+        #         new_limit = {
+        #             "obj": limit,
+        #             "inner_goods_category": limit.inner_goods_category,
+        #             "inner_goods_group_id": limit.inner_goods_group_id,
+        #             "value": limit.value,
+        #             "unit": limit.unit,
+        #             "period": limit.period,
+        #         }
+        #         new_limits.append(new_limit)
+        #     else:
+        #         for category in GoodsCategory:
+        #             new_limit = {
+        #                 "obj": limit,
+        #                 "inner_goods_category": category,
+        #                 "inner_goods_group_id": limit.inner_goods_group_id,
+        #                 "value": limit.value,
+        #                 "unit": limit.unit,
+        #                 "period": limit.period,
+        #             }
+        #             new_limits.append(new_limit)
 
         # Дополняем записи сведениями об идентификаторах категорий и групп в ГПН
-        goods_repository = GoodsRepository(session=self.session, user=None)
-        gpn_groups = await goods_repository.get_outer_groups(self.system.id)
-        gpn_categories = await goods_repository.get_outer_categories(self.system.id)
-        i = 0
-        while i < len(new_limits):
-            limit = new_limits[i]
-            # Получаем идентификатор категории в ГПН
-            found = False
-            for gpn_category in gpn_categories:
-                if limit["inner_goods_category"] == gpn_category.inner_category:
-                    found = True
-                    limit["gpn_goods_category_id"] = gpn_category.external_id
-                    break
+        # oods_repository = GoodsRepository(session=self.session, user=None)
+        # pn_groups = await goods_repository.get_outer_groups(self.system.id)
+        # ategories = await goods_repository.get_outer_categories(self.system.id)
+        #  = 0
+        # hile i < len(new_limits):
+        #    limit = new_limits[i]
+        #    # Получаем идентификатор категории в ГПН
+        #    found = False
+        #    for category in categories:
+        #        if limit["inner_goods_category"] == category.inner_category:
+        #            found = True
+        #            gpn_goods_category = GpnGoodsCategory.get_equal_by_local(category.inner_category)
+        #            limit["gpn_goods_category_id"] = gpn_goods_category.value["id"]
+        #            break
 
-            # Если не найдено совпадение, то удаляем запись из списка
-            if not found:
-                self.logger.error(f"При создании лимита в ГПН не удалось определить идентификатор категории. "
-                                  f"Лимит не создан: {limit}")
-                new_limits.remove(limit)
-                continue
+        #    # Если не найдено совпадение, то удаляем запись из списка
+        #    if not found:
+        #        self.logger.error(f"При создании лимита в ГПН не удалось определить идентификатор категории. "
+        #                          f"Лимит не создан в ГПН: {limit}")
+        #        new_limits.remove(limit)
+        #        continue
 
-            if limit["inner_goods_group_id"]:
-                found = False
-                for gpn_group in gpn_groups:
-                    if limit["inner_goods_group_id"] == gpn_group.inner_group_id:
-                        found = True
-                        limit["gpn_goods_group_id"] = gpn_group.external_id
+        #    if limit["inner_goods_group_id"]:
+        #        found = False
+        #        for gpn_group in gpn_groups:
+        #            if limit["inner_goods_group_id"] == gpn_group.inner_group_id:
+        #                found = True
+        #                limit["gpn_goods_group_id"] = gpn_group.external_id
 
-            # Если не найдено совпадение, то удаляем запись из списка
-            if not found:
-                self.logger.error(f"При создании лимита в ГПН не удалось определить идентификатор категории. "
-                                  f"Лимит не создан: {limit}")
-                new_limits.remove(limit)
-                continue
+        #    # Если не найдено совпадение, то удаляем запись из списка
+        #    if not found:
+        #        self.logger.error(f"При создании лимита в ГПН не удалось определить идентификатор категории. "
+        #                          f"Лимит не создан в ГПН: {limit}")
+        #        new_limits.remove(limit)
+        #        continue
 
-            # Лимит успешно обработан - увеличиваем счетчик
-            i += 1
+        #    # Лимит успешно обработан - увеличиваем счетчик
+        #    i += 1
+
+        # print('YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY')
+        # print(limits)
 
         # В ГПН создаем лимиты по карте
-        for limit in new_limits:
+        for limit in limits:
+            gpn_goods_group_id = None
+            if limit.inner_goods_group:
+                gpn_goods_group = limit.inner_goods_group.get_outer_goods_group(self.system.id)
+                gpn_goods_group_id = gpn_goods_group.id
+
             gpn_limit_id = self.api.set_card_limit(
                 card_id=card_external_id,
-                goods_category_id=limit["gpn_goods_category_id"],
-                goods_group_id=limit.get("gpn_goods_group_id", None),
-                value=limit["value"],
-                unit=limit["unit"],
-                period=limit["period"],
+                gpn_goods_category=GpnGoodsCategory.get_equal_by_local(limit.inner_goods_category),
+                goods_group_id=gpn_goods_group_id,
+                value=limit.value,
+                unit=limit.unit,
+                period=limit.period,
             )
-            limit["obj"].external_id = gpn_limit_id
-            await self.save_object(limit["obj"])
+            limit.external_id = gpn_limit_id
+            await self.save_object(limit)
 
-        # В ГПН изменяем лимиты по группе карт
+            # Обновляем групповой лимит ГПН
+            await self.update_group_limit_by_card_limit(
+                company_id=company_id,
+                card_limit_goods_category=limit.inner_goods_category
+            )
 
     async def import_azs(self) -> None:
         await self.init_system()
@@ -1106,20 +1125,11 @@ class GPNController(BaseRepository):
             -> TariffNewOrm:
         # Получаем список тарифов, действовавших для компании на момент совершения транзакции
         tariffs = []
-        # print('111111111111111111111111')
-        # print(len(self._tariffs))
         for tariff in self._tariffs:
-            # print('222222222222222222222222')
-            # print(f"policy_id: {tariff.policy_id} | {company.tariff_policy_id} | {tariff.policy_id == company.tariff_policy_id}")
-            # print(f"policy_id: {tariff.begin_time} | {transaction_time} | {tariff.begin_time <= transaction_time}")
-            # print(f"end_time: {tariff.end_time} | {transaction_time} | {(tariff.end_time and tariff.end_time > transaction_time) or not tariff.end_time}")
             if tariff.policy_id == company.tariff_policy_id and tariff.begin_time <= transaction_time:
                 if (tariff.end_time and tariff.end_time > transaction_time) or not tariff.end_time:
                     tariffs.append(tariff)
 
-        # print('33333333333333333333333333')
-        # print(f"tariffs length: {len(tariffs)}")
-        # Перебираем тарифы и применяем первый подошедший
         for tariff in tariffs:
             # АЗС
             # print(f"azs_id: {tariff.azs_id} | {azs.id} | {tariff.azs_id and tariff.azs_id != azs.id}")
@@ -1142,8 +1152,6 @@ class GPNController(BaseRepository):
                 continue
 
             # Группа продуктов
-            # print(f"inner_goods_group_id: {tariff.inner_goods_group_id} | {inner_group.id if inner_group else None} | "
-            #       f"{tariff.inner_goods_group_id and inner_group and tariff.inner_goods_group_id != inner_group.id}")
             if tariff.inner_goods_group_id and inner_group and tariff.inner_goods_group_id != inner_group.id:
                 # print('continue')
                 continue
@@ -1205,7 +1213,6 @@ class GPNController(BaseRepository):
         # Раскидываем организации по ордерам
         for order in orders:
             for company in companies:
-                self.logger.info(f"{order.personal_account} | {company.personal_account}")
                 if order.personal_account == company.personal_account:
                     if not company.card_groups:
                         raise CeleryError("Не удалось определить карточную группу ГПН для организации "
@@ -1228,14 +1235,6 @@ class GPNController(BaseRepository):
                 (на момент написания комментария их 6).
                 """
                 await self.update_group_limits_by_delta_sum(order)
-
-            else:
-                """
-                Такая комбинация имеет место при установке лимитов по карте сотрудником организации.
-                Предполагается, что в БД уже существуют записи о групповых лимитах по всем категориям 
-                (на момент написания комментария их 6).
-                """
-                await self.update_group_limits_by_categories(order)
 
     async def create_group_limits(self, company_id: str, card_group_external_id: str, available_balance: float) -> None:
         # Получаем идентификатор карточной группы ГПН, сохраненный в БД
@@ -1303,41 +1302,43 @@ class GPNController(BaseRepository):
                 print(f"Псевдо обновлен лимит на категорию {limit.inner_goods_category} | "
                       f"GROUP_ID: {group_external_id} | LIMIT_SUM: {limit_sum}")
 
-    async def update_group_limits_by_categories(self, order: GroupLimitOrder) -> None:
-        # Получаем идентификатор карточной группы ГПН, сохраненный в БД
-        group_external_id = order.company.card_groups[0].external_id
+    async def update_group_limit_by_card_limit(self, company_id: str, card_limit_goods_category: GoodsCategory) \
+            -> None:
+        # Получаем организацию
+        company_repository = CompanyRepository(session=self.session)
+        company = await company_repository.get_company(company_id)
 
-        # Получаем размер установленного лимита на категорию "Топливо"
-        fuel_limit: List[GroupLimitOrm] = filter(
+        # Получаем идентификатор карточной группы ГПН
+        group = company.get_card_group(System.GPN)
+
+        # Получаем размер установленного группового лимита на категорию "Топливо"
+        group_fuel_limit: List[GroupLimitOrm] = list(filter(
             lambda local_limit: local_limit.inner_goods_category == GoodsCategory.FUEL,
-            order.local_group_limits
-        )
-        fuel_limit: GroupLimitOrm | None = fuel_limit[0] if fuel_limit else None
-        limit_sum = max(int(math.floor(fuel_limit.limit_sum)), 1)
+            company.group_limits
+        ))
+        group_fuel_limit: GroupLimitOrm | None = group_fuel_limit[0] if group_fuel_limit else None
 
         # Если в локальной БД нет записи о групповом лимите на категорию Топливо, то это исключительная ситуация
-        if not fuel_limit:
+        if not group_fuel_limit:
             raise CeleryError(f"В БД не обнаружен групповой лимит на категорию Топливо для организации "
-                              f"{order.company.name}, personal_account = {order.company.personal_account}")
+                              f"{company.name}, personal_account = {company.personal_account}")
 
         # Сверяем лимиты по категориям, переданным в функцию. Если лимит не равен лимиту на категорию "Топливо",
         # то обновляем его.
-        for limit in order.local_group_limits:
-            if limit.limit_sum != fuel_limit.limit_sum:
-                if PRODUCTION:
-                    # Обновляем лимит в ГПН
-                    self.api.set_group_limit(
-                        limit_id=limit.external_id,
-                        group_id=group_external_id,
-                        product_category=GpnGoodsCategory.get_equal_by_local(limit.inner_goods_category),
-                        limit_sum=limit_sum
-                    )
-                    limit.limit_sum = limit_sum
-                    await self.save_object(limit)
-
-                else:
-                    print(f"Псевдо обновлен лимит на категорию {limit.inner_goods_category} | "
-                          f"GROUP_ID: {group_external_id} | LIMIT_SUM: {limit_sum}")
+        for limit in company.group_limits:
+            if limit.inner_goods_category == card_limit_goods_category \
+                    and limit.limit_sum != group_fuel_limit.limit_sum:
+                # Обновляем лимит в ГПН
+                self.api.set_group_limit(
+                    limit_id=limit.external_id,
+                    group_id=group.external_id,
+                    product_category=GpnGoodsCategory.get_equal_by_local(limit.inner_goods_category),
+                    limit_sum=group_fuel_limit.limit_sum
+                )
+                limit.limit_sum = group_fuel_limit.limit_sum
+                await self.save_object(limit)
+                self.logger.info(f"В БД по организации {company.name} {company.personal_account} установлен "
+                                 f"лимит {limit.limit_sum} р. на категорию {limit.inner_goods_category.name}")
 
     async def create_company(self, company_id: str, personal_account: str, available_balance: float) -> str:
         # Создаем карточную группу в ГПН
@@ -1370,14 +1371,13 @@ class GPNController(BaseRepository):
         cards = await card_repository.get_cards_by_filters(system_id=self.system.id, card_numbers=card_numbers)
 
         company_repository = CompanyRepository(session=self.session)
+        previous_company = await company_repository.get_company(previous_company_id)
+        new_company = await company_repository.get_company(new_company_id)
 
         # Отвязываем карты ГПН от старой группы
         if previous_company_id and cards:
             # Получаем идентификатор группы карт ГПН
-            previous_card_group = await company_repository.get_card_group(
-                company_id=previous_company_id,
-                system_id=self.system.id
-            )
+            previous_card_group = await previous_company.get_card_group(System.GPN)
             if previous_card_group:
                 self.api.unbind_cards_from_group(
                     card_numbers=[card.card_number for card in cards],
@@ -1388,13 +1388,10 @@ class GPNController(BaseRepository):
         # Привязываем карты к новой группе
         if new_company_id:
             # Получаем идентификатор группы карт ГПН
-            card_group = await company_repository.get_card_group(
-                company_id=new_company_id,
-                system_id=self.system.id
-            )
+            new_card_group = await new_company.get_card_group(System.GPN)
 
-            if card_group:
-                group_id = card_group.external_id
+            if new_card_group:
+                group_id = new_card_group.external_id
             else:
                 # Если группа не существует, это означает, что к организации впервые привязали карту ГПН.
                 # В этом случае выполняем набор действий по созданию группы и назначению лимитов.

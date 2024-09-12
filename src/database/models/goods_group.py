@@ -57,6 +57,11 @@ class InnerGoodsGroupOrm(Base):
         init=False
     )
 
+    def get_outer_goods_group(self, system_id: str):
+        for group in self.outer_goods_groups:
+            if group.system_id == system_id:
+                return group
+
 
 class OuterGoodsGroupOrm(Base):
     __tablename__ = "outer_goods_group"

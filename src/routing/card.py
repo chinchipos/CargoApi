@@ -9,7 +9,7 @@ from src.descriptions.card import delete_card_description, get_cards_description
     bulk_unbind_systems_description, bulk_unbind_company_description, bulk_block_description, \
     bulk_activate_description, change_card_state_description
 from src.schemas.card import CardReadSchema, CardCreateSchema, CardEditSchema, BulkBindSchema, BulkUnbindSchema
-from src.schemas.card_limit import CardLimitParamsSchema, CardLimitReadSchema, CardLimitCreateSchema
+from src.schemas.card_limit import CardLimitParamsSchema, CardLimitReadSchema, SetCardLimitsSchema
 from src.schemas.common import SuccessSchema
 from src.services.card import CardService
 from src.utils import enums
@@ -279,7 +279,7 @@ async def set_state(
 )
 async def set_limits(
     id: uuid.UUID,
-    limits: List[CardLimitCreateSchema],
+    data: SetCardLimitsSchema,
     service: CardService = Depends(get_service_card)
 ):
     id = str(id)
@@ -300,7 +300,7 @@ async def set_limits(
         if not service.repository.user.is_worker_of_company(card.company_id):
             raise ForbiddenException()
 
-    new_limits = await service.set_limits(card=card, limits=limits)
+    new_limits = await service.set_limits(card=card, limits=data.limits)
     return new_limits
 
 

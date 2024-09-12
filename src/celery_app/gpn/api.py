@@ -1,5 +1,6 @@
 import hashlib
 import json
+import math
 import time
 from datetime import datetime, timedelta
 from enum import Enum
@@ -327,15 +328,15 @@ class GPNApi:
 
         return transactions
 
-    def set_group_limit(self, limit_id: str | None, group_id: str, product_category: GpnGoodsCategory, limit_sum: int) \
-            -> str:
+    def set_group_limit(self, limit_id: str | None, group_id: str, product_category: GpnGoodsCategory,
+                        limit_sum: float | int) -> str:
         new_limit = {
             "contract_id": self.contract_id,
             "group_id": group_id,
             "productType": product_category.value["id"],
             "sum": {
                 "currency": "810",
-                "value": int(limit_sum)
+                "value": max(int(math.floor(limit_sum)), 1)
             },
             "term": {"type": 1},
             "time": {"number": 1, "type": 2}
@@ -354,11 +355,12 @@ class GPNApi:
         res = response.json()
 
         if res["status"]["code"] != 200:
-            raise CeleryError(message=f"Ошибка при установке лимита. Ответ сервера API: "
+            raise CeleryError(message=f"Ошибка при установке группового лимита. Ответ сервера API: "
                                       f"{res['status']['errors']}. Наш запрос: {data}")
 
-        self.logger.info(f"Установлен лимит {new_limit}")
+        self.logger.info(f"Установлен групповой лимит {new_limit}")
         time.sleep(0.4)
+
         # Возвращаем идентификатор созданного лимита
         return res["data"][0]
 
@@ -387,6 +389,7 @@ class GPNApi:
             "contract_id": self.contract_id,
             "limit_id": limit_id,
         }
+
         response = requests.post(
             url=self.endpoint(self.api_v1, "removeLimit"),
             headers=self.headers | {"session_id": self.api_session_id},
@@ -467,12 +470,12 @@ class GPNApi:
         time.sleep(0.4)
         return card
 
-    def set_card_limit(self, card_id: str, goods_category_id: str, goods_group_id: str | None, value: int,
+    def set_card_limit(self, card_id: str, gpn_goods_category: GpnGoodsCategory, goods_group_id: str | None, value: int,
                        unit: Unit, period: LimitPeriod) -> str:
         new_limit = {
             "contract_id": self.contract_id,
             "card_id": card_id,
-            "productType": goods_category_id,
+            "productType": gpn_goods_category.value["id"],
             "term": {"type": 1},
         }
         if goods_group_id:

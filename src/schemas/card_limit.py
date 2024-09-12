@@ -52,6 +52,10 @@ class CardLimitCreateSchema(BaseSchema):
     inner_goods_category: Annotated[GoodsCategoryByName | None, Field(description="UUID лимита")] = None
 
 
+class SetCardLimitsSchema(BaseSchema):
+    limits: Annotated[List[CardLimitCreateSchema] | None, Field(description="Список устанавливаемых лимитов")] = []
+
+
 class CardLimitReadSchema(BaseModel):
     id: Annotated[str | None, Field(description="UUID лимита")]
     card_id: Annotated[str, Field(description="UUID топливной карты")]

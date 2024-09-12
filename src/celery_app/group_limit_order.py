@@ -1,6 +1,6 @@
 from typing import List
+
 from src.database.models import GroupLimitOrm, CompanyOrm
-from src.database.models.goods_category import GoodsCategory
 
 
 class GroupLimitOrder(dict):
