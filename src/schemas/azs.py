@@ -21,3 +21,4 @@ class AzsReadMinSchema(BaseSchema):
     name: Annotated[str, Field(description="Наименование")]
     own_type: Annotated[AzsOwnType | None, Field(description="Тип АЗС")]
     pretty_address: Annotated[str | None, Field(description="Адрес")]
+    owner: Annotated[str | None, Field(description="Сеть АЗС")]

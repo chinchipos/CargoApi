@@ -111,6 +111,9 @@ class TransactionRepository(BaseRepository):
                 .joinedload(BalanceOrm.company)
                 .load_only(CompanyOrm.id, CompanyOrm.name, CompanyOrm.inn, CompanyOrm.personal_account)
             )
+            .options(
+                joinedload(AzsOrm.owner)
+            )
             .select_from(base_subquery, TransactionOrm)
             .outerjoin(AzsOrm, AzsOrm.external_id == TransactionOrm.azs_code)
             .where(TransactionOrm.id == base_subquery.c.id)
@@ -140,6 +143,7 @@ class TransactionRepository(BaseRepository):
                             "name": azs.name,
                             "pretty_address": pretty_address,
                             "own_type": azs.own_type,
+                            "owner": azs.owner.name if azs.owner_id else None
                         }
                     }
                 )
