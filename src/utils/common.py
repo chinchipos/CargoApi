@@ -1,6 +1,7 @@
 import random
 import ssl
 import socket
+from decimal import Decimal, ROUND_HALF_UP
 
 
 def get_server_certificate(server: str, port: int, our_cert_path: str = None, our_key_path: str = None) -> str:
@@ -39,3 +40,9 @@ def calc_available_balance(current_balance: float, min_balance: float, overdraft
     boundary = min_balance + _overdraft_sum
     available_balance = current_balance - boundary if current_balance > boundary else 0
     return available_balance
+
+
+def banking_round(value: float | int) -> float:
+    d = Decimal(str(value))
+    rounded = d.quantize(Decimal('.01'), rounding=ROUND_HALF_UP)
+    return float(rounded)

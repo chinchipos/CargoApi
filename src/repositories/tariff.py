@@ -35,6 +35,9 @@ class TariffRepository(BaseRepository):
     async def get_tariffs(self, system_id: str = None) -> List[TariffNewOrm]:
         stmt = (
             sa_select(TariffNewOrm)
+            .options(
+                joinedload(TariffNewOrm.azs)
+            )
             .order_by(
                 TariffNewOrm.policy_id,
                 TariffNewOrm.system_id,

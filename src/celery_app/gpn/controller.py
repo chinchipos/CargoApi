@@ -10,16 +10,15 @@ from sqlalchemy.orm import joinedload, aliased, contains_eager, selectinload
 
 from src.celery_app.exceptions import CeleryError
 from src.celery_app.gpn.api import GPNApi, GpnGoodsCategory
-from src.celery_app.irrelevant_balances import IrrelevantBalances
 from src.celery_app.group_limit_order import GroupLimitOrder
-from src.celery_app.transaction_helper import get_local_cards, get_local_card
+from src.celery_app.irrelevant_balances import IrrelevantBalances
+from src.celery_app.transaction_helper import TransactionHelper
 from src.config import TZ, PRODUCTION
-from src.database.models import CompanyOrm, CardLimitOrm, AzsOrm, RegionOrm, TariffNewOrm, InnerGoodsGroupOrm, \
-    GroupLimitOrm, CardGroupOrm
+from src.database.models import CompanyOrm, CardLimitOrm, AzsOrm, RegionOrm, GroupLimitOrm, CardGroupOrm
 from src.database.models.azs import AzsOwnType
 from src.database.models.balance import BalanceOrm as BalanceOrm
 from src.database.models.balance_system import BalanceSystemOrm
-from src.database.models.card import CardOrm, BlockingCardReason, CardHistoryOrm
+from src.database.models.card import CardOrm, BlockingCardReason
 from src.database.models.card_type import CardTypeOrm
 from src.database.models.goods import OuterGoodsOrm
 from src.database.models.goods_category import GoodsCategory
@@ -49,10 +48,8 @@ class GPNController(BaseRepository):
 
         self._local_cards: List[CardOrm] = []
         self._bst_list: List[BalanceSystemOrm] = []
-        self._outer_goods_list: List[OuterGoodsOrm] = []
-        self._card_history: List[CardHistoryOrm] = []
-        self._azs_stations: List[AzsOrm] = []
-        self._tariffs: List[TariffNewOrm] = []
+
+        self.helper: TransactionHelper | None = None
 
     async def init_system(self) -> None:
         if not self.system:
@@ -62,6 +59,7 @@ class GPNController(BaseRepository):
                 scheme=ContractScheme.OVERBOUGHT
             )
             self._irrelevant_balances = IrrelevantBalances(system_id=self.system.id)
+            self.helper = TransactionHelper(session=self.session, logger=self.logger, system_id=self.system.id)
 
     async def sync(self) -> IrrelevantBalances:
         await self.init_system()
@@ -223,7 +221,7 @@ class GPNController(BaseRepository):
         await self.get_card_types(remote_cards)
 
         # Получаем список карт из БД
-        local_cards = await get_local_cards(session=self.session, system_id=self.system.id)
+        local_cards = await self.helper.get_local_cards()
         self.logger.info(f"Количество карт в локальной БД (до синхронизации): {len(local_cards)}")
 
         # Создаем в локальной БД новые карты и привязываем их к ГПН. Статус карты из ГПН транслируем на локальную БД.
@@ -239,7 +237,7 @@ class GPNController(BaseRepository):
                 )
 
         # Из локальной БД заново получаем список карт, привязанных к ГПН
-        local_cards = await get_local_cards(session=self.session, system_id=self.system.id)
+        local_cards = await self.helper.get_local_cards()
         self.logger.info(f"Количество карт в локальной БД (после синхронизации): {len(local_cards)}")
 
         # Из API получаем группы карт
@@ -713,7 +711,7 @@ class GPNController(BaseRepository):
         # Транзакции от системы, оставшиеся необработанными, записываем в локальную БД.
         self.logger.info(f'Новые тразакции от системы ГПН: {len(remote_transactions)} шт')
         if remote_transactions:
-            await self.process_new_remote_transactions(remote_transactions, transaction_repository)
+            await self.process_new_remote_transactions(remote_transactions)
 
         # Записываем в БД время последней успешной синхронизации
         await self.update_object(self.system, update_data={"transactions_sync_dt": datetime.now(tz=TZ)})
@@ -728,35 +726,16 @@ class GPNController(BaseRepository):
             if str(remote_transaction['id']) == local_transaction.external_id:
                 return remote_transaction
 
-    async def process_new_remote_transactions(self, remote_transactions: List[Dict[str, Any]],
-                                              transaction_repository: TransactionRepository) -> None:
+    async def process_new_remote_transactions(self, remote_transactions: List[Dict[str, Any]]) -> None:
         # Сортируем транзакции по времени совершения
         def sorting(tr):
             return tr['timestamp']
 
         remote_transactions = sorted(remote_transactions, key=sorting)
 
-        # Получаем список продуктов / услуг
-        self._outer_goods_list = await transaction_repository.get_outer_goods_list(system_id=self.system.id)
-
-        # Получаем историю принадлежности карт
-        card_repository = CardRepository(session=self.session, user=None)
-        self._card_history = copy.deepcopy(await card_repository.get_card_history())
-
-        # Получаем список АЗС
-        tariff_repository = TariffRepository(session=self.session, user=None)
-        self._azs_stations = copy.deepcopy(await tariff_repository.get_azs_stations(self.system.id))
-
-        # Получаем тарифы
-        self._tariffs = copy.deepcopy(await tariff_repository.get_tariffs(system_id=self.system.id))
-
         # Получаем карты
         card_numbers = [transaction['card_number'] for transaction in remote_transactions]
-        self._local_cards = await get_local_cards(
-            session=self.session,
-            system_id=self.system.id,
-            card_numbers=card_numbers
-        )
+        self._local_cards = await self.helper.get_local_cards(card_numbers=card_numbers)
 
         # Подготавливаем список транзакций для сохранения в БД
         transactions_to_save = []
@@ -786,20 +765,20 @@ class GPNController(BaseRepository):
         comments = ''
 
         # Получаем карту
-        card = await get_local_card(card_number, self._local_cards)
+        card = self.helper.get_local_card(card_number, self._local_cards)
 
         # Получаем баланс
-        company = self.get_card_company(card=card)
+        company = await self.helper.get_card_company(card=card)
         balance = company.overbought_balance()
 
         # Получаем продукт
-        outer_goods = await self.get_outer_goods(remote_transaction)
+        outer_goods = await self.get_outer_goods(goods_external_id=remote_transaction['product_id'])
 
         # Получаем АЗС
         azs = await self.get_azs(azs_external_id=remote_transaction['poi_id'])
 
         # Получаем тариф
-        tariff = self.get_company_tariff_on_transaction_time(
+        tariff = await self.helper.get_company_tariff_on_transaction_time(
             company=company,
             transaction_time=remote_transaction['timestamp'],
             inner_group=outer_goods.outer_group.inner_group if outer_goods.outer_group else None,
@@ -854,23 +833,20 @@ class GPNController(BaseRepository):
 
         return transaction_data
 
-    async def get_outer_goods(self, remote_transaction: Dict[str, Any]) -> OuterGoodsOrm:
-        product_id = remote_transaction['product_id']
-        # Выполняем поиск товара/услуги
-        for goods in self._outer_goods_list:
-            if goods.external_id == product_id:
-                return goods
+    async def get_outer_goods(self, goods_external_id: str) -> OuterGoodsOrm:
+        outer_goods = self.helper.get_outer_goods_item(goods_external_id=goods_external_id)
+        if not outer_goods:
+            # Если продукт не найден, то создаем его
+            outer_goods_data = dict(
+                external_id=goods_external_id,
+                name=goods_external_id,
+                system_id=self.system.id,
+                inner_goods_id=None,
+            )
+            outer_goods = await self.insert(OuterGoodsOrm, **outer_goods_data)
+            self.helper.add_outer_goods(outer_goods)
 
-        # Если товар/услуга не найден(а), то создаем его(её)
-        fields = dict(
-            name=product_id,
-            system_id=self.system.id,
-            inner_goods_id=None,
-        )
-        goods = await self.insert(OuterGoodsOrm, **fields)
-        self._outer_goods_list.append(goods)
-
-        return goods
+        return outer_goods
 
     async def issue_virtual_cards(self, amount: int) -> List[str]:
         stmt = sa_select(CardTypeOrm).where(CardTypeOrm.name == "Виртуальная карта")
@@ -1093,79 +1069,22 @@ class GPNController(BaseRepository):
         ]
         await self.bulk_insert_or_update(AzsOrm, azs_dataset, "external_id")
 
-    def get_card_company(self, card: CardOrm) -> CompanyOrm:
-        for record in self._card_history:
-            if record.card_id == card.id:
-                return record.company
-
-        return card.company
-
     async def get_azs(self, azs_external_id: str) -> AzsOrm:
-        # Выполняем поиск АЗС
-        for azs in self._azs_stations:
-            if azs.external_id == azs_external_id:
-                return azs
+        azs = await self.helper.get_azs(azs_external_id=azs_external_id)
+        if azs:
+            return azs
 
         # Если АЗС не найдена, то создаем её
-        fields = dict(
+        azs_fields = dict(
             system_id=self.system.id,
             external_id=azs_external_id,
             name=azs_external_id,
-            code=azs_external_id,
             is_active=True,
             address={}
         )
-        azs = await self.insert(AzsOrm, **fields)
-        self._azs_stations.append(azs)
-
+        azs = await self.insert(AzsOrm, **azs_fields)
+        self.helper.add_azs(azs)
         return azs
-
-    def get_company_tariff_on_transaction_time(self, company: CompanyOrm, transaction_time: datetime,
-                                               inner_group: InnerGoodsGroupOrm | None, azs: AzsOrm | None) \
-            -> TariffNewOrm:
-        # Получаем список тарифов, действовавших для компании на момент совершения транзакции
-        tariffs = []
-        for tariff in self._tariffs:
-            if tariff.policy_id == company.tariff_policy_id and tariff.begin_time <= transaction_time:
-                if (tariff.end_time and tariff.end_time > transaction_time) or not tariff.end_time:
-                    tariffs.append(tariff)
-
-        for tariff in tariffs:
-            # АЗС
-            # print(f"azs_id: {tariff.azs_id} | {azs.id} | {tariff.azs_id and tariff.azs_id != azs.id}")
-            if tariff.azs_id and tariff.azs_id != azs.id:
-                # print('continue')
-                continue
-
-            # Тип АЗС
-            # print(f"azs_own_type: {tariff.azs_own_type} | {azs.own_type} | "
-            #       f"{tariff.azs_own_type and tariff.azs_own_type != azs.own_type}")
-            if tariff.azs_own_type and tariff.azs_own_type != azs.own_type:
-                # print('continue')
-                continue
-
-            # Регион
-            # print(f"region_id: {tariff.region_id} | {azs.region_id} | "
-            #       f"{tariff.region_id and tariff.region_id != azs.region_id}")
-            if tariff.region_id and tariff.region_id != azs.region_id:
-                # print('continue')
-                continue
-
-            # Группа продуктов
-            if tariff.inner_goods_group_id and inner_group and tariff.inner_goods_group_id != inner_group.id:
-                # print('continue')
-                continue
-
-            # Категория продуктов
-            # print(f"inner_goods_category: {tariff.inner_goods_category} | "
-            #       f"{inner_group.inner_category if inner_group else None}")
-            if tariff.inner_goods_category and inner_group and \
-                    tariff.inner_goods_category != inner_group.inner_category:
-                # print('continue')
-                continue
-
-            # Тариф удовлетворяет критериям - возвращаем его
-            return tariff
 
     def remote_card_groups(self) -> List[Dict[str, Any]]:
         if self.card_groups is None:

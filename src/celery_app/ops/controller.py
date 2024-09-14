@@ -1,9 +1,10 @@
-import copy
 import os
 import time
 from datetime import datetime
 from typing import List, Dict, Any
 
+import numpy as np
+import pandas as pd
 from lxml import etree
 from sqlalchemy.ext.asyncio import AsyncSession
 from zeep.exceptions import Fault
@@ -11,11 +12,12 @@ from zeep.exceptions import Fault
 from src.celery_app.exceptions import CeleryError
 from src.celery_app.irrelevant_balances import IrrelevantBalances
 from src.celery_app.ops.api import OpsApi
-from src.celery_app.transaction_helper import get_local_cards, get_local_card
+from src.celery_app.transaction_helper import TransactionHelper
 from src.config import TZ
-from src.database.models import CardOrm, SystemOrm, CardSystemOrm, AzsOrm, TerminalOrm, OuterGoodsOrm, TransactionOrm, \
-    TariffNewOrm, CompanyOrm, InnerGoodsGroupOrm
-from src.database.models.card import BlockingCardReason, CardHistoryOrm
+from src.database.models import CardOrm, CardSystemOrm, AzsOrm, TerminalOrm, OuterGoodsOrm, TransactionOrm, \
+    TariffNewOrm, RegionOrm, AzsOwnerOrm
+from src.database.models.card import BlockingCardReason
+from src.database.models.goods_category import GoodsCategory
 from src.repositories.azs import AzsRepository
 from src.repositories.base import BaseRepository
 from src.repositories.card import CardRepository
@@ -36,11 +38,8 @@ class OpsController(BaseRepository):
         self.api = OpsApi()
         self.system = None
         self._irrelevant_balances = None
-        self._outer_goods_list: List[OuterGoodsOrm] = []
-        self._card_history: List[CardHistoryOrm] = []
-        self._terminals: List[TerminalOrm] = []
-        self._tariffs: List[TariffNewOrm] = []
         self._local_cards: List[CardOrm] = []
+        self.helper: TransactionHelper | None = None
 
     async def init_system(self) -> None:
         if not self.system:
@@ -51,6 +50,7 @@ class OpsController(BaseRepository):
                 scheme=ContractScheme.OVERBOUGHT
             )
             self._irrelevant_balances = IrrelevantBalances(system_id=self.system.id)
+            self.helper = TransactionHelper(session=self.session, logger=self.logger, system_id=self.system.id)
 
     async def load_cards(self) -> None:
         # self.api.show_wsdl_methods("Cards")
@@ -314,7 +314,7 @@ class OpsController(BaseRepository):
         # Транзакции от системы, оставшиеся необработанными, записываем в локальную БД.
         self.logger.info(f'Новые тразакции от системы ОПС: {len(remote_transactions)} шт')
         if remote_transactions:
-            await self.process_new_remote_transactions(remote_transactions, transaction_repository)
+            await self.process_new_remote_transactions(remote_transactions)
 
         # Записываем в БД время последней успешной синхронизации
         await self.update_object(self.system, update_data={"transactions_sync_dt": datetime.now(tz=TZ)})
@@ -329,31 +329,10 @@ class OpsController(BaseRepository):
             if remote_transaction['transactionID'] == local_transaction.external_id:
                 return remote_transaction
 
-    async def process_new_remote_transactions(self, remote_transactions: List[Dict[str, Any]],
-                                              transaction_repository: TransactionRepository) -> None:
-
-        # Получаем список продуктов / услуг
-        self._outer_goods_list = await transaction_repository.get_outer_goods_list(system_id=self.system.id)
-
-        # Получаем историю принадлежности карт
-        card_repository = CardRepository(session=self.session, user=None)
-        self._card_history = copy.deepcopy(await card_repository.get_card_history())
-
-        # Получаем список АЗС
-        azs_repository = AzsRepository(session=self.session)
-        self._terminals = copy.deepcopy(await azs_repository.get_terminals(self.system.id))
-
-        # Получаем тарифы
-        tariff_repository = TariffRepository(session=self.session)
-        self._tariffs = copy.deepcopy(await tariff_repository.get_tariffs(system_id=self.system.id))
-
+    async def process_new_remote_transactions(self, remote_transactions: List[Dict[str, Any]]) -> None:
         # Получаем карты
         card_numbers = [transaction['cardNumber'] for transaction in remote_transactions]
-        self._local_cards = await get_local_cards(
-            session=self.session,
-            system_id=self.system.id,
-            card_numbers=card_numbers
-        )
+        self._local_cards = await self.helper.get_local_cards(card_numbers=card_numbers)
 
         # Подготавливаем список транзакций для сохранения в БД
         transactions_to_save = []
@@ -412,20 +391,20 @@ class OpsController(BaseRepository):
         comments = ''
 
         # Получаем карту
-        card = await get_local_card(remote_transaction["cardNumber"], self._local_cards)
+        card = self.helper.get_local_card(remote_transaction["cardNumber"], self._local_cards)
 
         # Получаем баланс
-        company = self.get_card_company(card=card)
+        company = await self.helper.get_card_company(card=card)
         balance = company.overbought_balance()
 
         # Получаем продукт
-        outer_goods = await self.get_outer_goods(remote_transaction)
+        outer_goods = await self.get_outer_goods(goods_external_id=remote_transaction["goodsID"])
 
         # Получаем АЗС
         azs = await self.get_azs(terminal_external_id=remote_transaction["terminalID"])
 
         # Получаем тариф
-        tariff = self.get_company_tariff_on_transaction_time(
+        tariff = await self.helper.get_company_tariff_on_transaction_time(
             company=company,
             transaction_time=remote_transaction["transactionDateTime"],
             inner_group=outer_goods.outer_group.inner_group if outer_goods.outer_group else None,
@@ -480,62 +459,46 @@ class OpsController(BaseRepository):
 
         return transaction_data
 
-    def get_card_company(self, card: CardOrm) -> CompanyOrm:
-        for record in self._card_history:
-            if record.card_id == card.id:
-                return record.company
+    async def get_outer_goods(self, goods_external_id: str) -> OuterGoodsOrm:
+        outer_goods = self.helper.get_outer_goods_item(goods_external_id=goods_external_id)
+        if not outer_goods:
+            # Если продукт не найден, то запрашиваем о нем сведения у API
+            goods = self.api.get_goods(goods_external_id)
+            outer_goods_data = dict(
+                external_id=goods[0]["goodsID"],
+                name=goods[0]["goodsName"],
+                system_id=self.system.id,
+                inner_goods_id=None,
+            )
+            outer_goods = await self.insert(OuterGoodsOrm, **outer_goods_data)
+            self.helper.add_outer_goods(outer_goods)
 
-        return card.company
-
-    async def get_outer_goods(self, remote_transaction: Dict[str, Any]) -> OuterGoodsOrm:
-        product_id = remote_transaction['goodsID']
-        # Выполняем поиск продукта в локальной БД
-        for goods in self._outer_goods_list:
-            if goods.external_id == product_id:
-                return goods
-
-        # Если продукт не найден, то запрашиваем о нем сведения у API
-        goods = self.api.get_goods(product_id)
-        fields = dict(
-            external_id=product_id,
-            system_id=self.system.id,
-            inner_goods_id=None,
-        )
-        fields["name"] = goods[0]["goodsName"] if goods else product_id
-        goods = await self.insert(OuterGoodsOrm, **fields)
-        self._outer_goods_list.append(goods)
-        return goods
+        return outer_goods
 
     async def get_azs(self, terminal_external_id: str) -> AzsOrm:
-        # Выполняем поиск АЗС
-        for terminal in self._terminals:
-            if terminal.external_id == terminal_external_id:
-                return terminal.azs
+        azs = await self.helper.get_azs(terminal_external_id=terminal_external_id)
+        if azs:
+            return azs
 
         # Если АЗС не найдена, то запрашиваем о ней сведения у API
         terminals = self.api.get_terminals(terminal_external_id)
         if not terminals:
             raise CeleryError(f"Не удалось определить АЗС по идентификатору терминала {terminal_external_id}")
 
-        # Выполняем поиск АЗС
-        azs = None
+        # Выполняем поиск АЗС в БД
         azs_external_id = terminals[0]["servicePointID"]
-        for terminal in self._terminals:
-            if terminal.azs.external_id == azs_external_id:
-                azs = terminal.azs
-
-        # Сохраняем запись об АЗС
+        azs = self.helper.get_azs(azs_external_id=azs_external_id)
         if not azs:
+            # Сохраняем в БД запись об АЗС
             azs_fields = dict(
                 system_id=self.system.id,
                 external_id=azs_external_id,
                 name=terminals[0]["servicePointName"],
-                code=terminals[0]["servicePointName"],
                 address=terminals[0]["servicePointAddress"],
             )
             azs = await self.insert(AzsOrm, **azs_fields)
 
-        # Сохраняем запись о терминале
+        # Сохраняем в БД запись о терминале
         terminal_fields = dict(
             external_id=terminals[0]["terminalID"],
             name=terminals[0]["terminalName"],
@@ -543,67 +506,8 @@ class OpsController(BaseRepository):
         )
         terminal: TerminalOrm = await self.insert(TerminalOrm, **terminal_fields)
 
-        terminal.annotate({"azs": azs})
-        self._terminals.append(terminal)
+        self.helper.add_terminal(terminal)
         return azs
-
-    def get_company_tariff_on_transaction_time(self, company: CompanyOrm, transaction_time: datetime,
-                                               inner_group: InnerGoodsGroupOrm | None, azs: AzsOrm | None) \
-            -> TariffNewOrm:
-        # Получаем список тарифов, действовавших для компании на момент совершения транзакции
-        tariffs = []
-        # print('111111111111111111111111')
-        # print(len(self._tariffs))
-        for tariff in self._tariffs:
-            # print('222222222222222222222222')
-            # print(f"policy_id: {tariff.policy_id} | {company.tariff_policy_id} | {tariff.policy_id == company.tariff_policy_id}")
-            # print(f"policy_id: {tariff.begin_time} | {transaction_time} | {tariff.begin_time <= transaction_time}")
-            # print(f"end_time: {tariff.end_time} | {transaction_time} | {(tariff.end_time and tariff.end_time > transaction_time) or not tariff.end_time}")
-            if tariff.policy_id == company.tariff_policy_id and tariff.begin_time <= transaction_time:
-                if (tariff.end_time and tariff.end_time > transaction_time) or not tariff.end_time:
-                    tariffs.append(tariff)
-
-        # print('33333333333333333333333333')
-        # print(f"tariffs length: {len(tariffs)}")
-        # Перебираем тарифы и применяем первый подошедший
-        for tariff in tariffs:
-            # АЗС
-            # print(f"azs_id: {tariff.azs_id} | {azs.id} | {tariff.azs_id and tariff.azs_id != azs.id}")
-            if tariff.azs_id and tariff.azs_id != azs.id:
-                # print('continue')
-                continue
-
-            # Тип АЗС
-            # print(f"azs_own_type: {tariff.azs_own_type} | {azs.own_type} | "
-            #       f"{tariff.azs_own_type and tariff.azs_own_type != azs.own_type}")
-            if tariff.azs_own_type and tariff.azs_own_type != azs.own_type:
-                # print('continue')
-                continue
-
-            # Регион
-            # print(f"region_id: {tariff.region_id} | {azs.region_id} | "
-            #       f"{tariff.region_id and tariff.region_id != azs.region_id}")
-            if tariff.region_id and tariff.region_id != azs.region_id:
-                # print('continue')
-                continue
-
-            # Группа продуктов
-            # print(f"inner_goods_group_id: {tariff.inner_goods_group_id} | {inner_group.id if inner_group else None} | "
-            #       f"{tariff.inner_goods_group_id and inner_group and tariff.inner_goods_group_id != inner_group.id}")
-            if tariff.inner_goods_group_id and inner_group and tariff.inner_goods_group_id != inner_group.id:
-                # print('continue')
-                continue
-
-            # Категория продуктов
-            # print(f"inner_goods_category: {tariff.inner_goods_category} | "
-            #       f"{inner_group.inner_category if inner_group else None}")
-            if tariff.inner_goods_category and inner_group and \
-                    tariff.inner_goods_category != inner_group.inner_category:
-                # print('continue')
-                continue
-
-            # Тариф удовлетворяет критериям - возвращаем его
-            return tariff
 
     async def load_goods(self) -> None:
         self.api.show_wsdl_methods("Goods")
@@ -647,3 +551,235 @@ class OpsController(BaseRepository):
         end_time = datetime.now()
         self.logger.info('Прогрузка продуктов завершена. Время выполнения: '
                          f'{str(end_time - start_time).split(".")[0]}.')
+
+    async def import_ops_stations_from_excel(self) -> None:
+        filepath = "d:\\temp\\OPS_TERMINALS_IMPORT.xlsx"
+        imported_data = pd.read_excel(filepath)
+        imported_data = imported_data.replace({np.nan: None})
+        length = len(imported_data)
+        self.logger.info(f"Файл прочитан успешно. Количество записей: {length}")
+
+        # Получаем из БД АЗС ОПС
+        azs_repository = AzsRepository(session=self.session)
+        stations = await azs_repository.get_stations(self.system.id)
+        stations = {station.external_id: station for station in stations}
+
+        # Получаем из БД регионы
+        regions = await azs_repository.get_regions()
+        regions = {region.name.strip().lower(): region for region in regions}
+
+        async def get_region(name) -> RegionOrm | None:
+            if not name:
+                return None
+
+            region = regions.get(name.lower(), None)
+            if not region:
+                # Записываем новый регион в БД и добавляем в список
+                region = RegionOrm(name=name, country="Россия")
+                await self.save_object(region)
+                regions[name.lower()] = region
+                self.logger.info(f"В БД записан новый регион: {name}, Россия")
+
+            return region
+
+        # Получаем из БД сети АЗС
+        azs_owners = await azs_repository.get_azs_owners()
+        azs_owners = {azs_owner.name.strip().lower(): azs_owner for azs_owner in azs_owners}
+
+        async def get_azs_owner(name) -> AzsOwnerOrm | None:
+            if not name:
+                return None
+
+            azs_owner = azs_owners.get(name.lower(), None)
+            if not azs_owner:
+                # Записываем новый регион в БД и добавляем в список
+                azs_owner = AzsOwnerOrm(name=name)
+                await self.save_object(azs_owner)
+                azs_owners[name.lower()] = azs_owner
+                self.logger.info(f"В БД записаны сведения о новой сети АЗС: {name}")
+
+            return azs_owner
+
+        # Получаем из БД тарифы
+        tariff_repository = TariffRepository(session=self.session)
+        tariffs_dataset = await tariff_repository.get_tariffs(system_id=self.system.id)
+        tariffs = {}
+        for tariff in tariffs_dataset:
+            if tariff.azs.external_id in tariffs:
+                tariffs[tariff.azs.external_id].append(tariff)
+            else:
+                tariffs[tariff.azs.external_id] = [tariff]
+
+        polices = await tariff_repository.get_tariff_polices_without_tariffs()
+        base_policy = None
+        for policy in polices:
+            if policy.name.lower() == "основной":
+                base_policy = policy
+                break
+
+        if not base_policy:
+            raise CeleryError('В БД не обнаружена тарифная политика')
+
+        def tariff_exists(azs_ext_id: str, goods_category: GoodsCategory = None, group_id: str = None) -> bool:
+            azs_tariffs = tariffs.get(azs_ext_id, None)
+            if azs_tariffs:
+                for t in azs_tariffs:
+                    if t.inner_goods_category == goods_category and t.inner_goods_group_id == group_id:
+                        return True
+
+            return False
+
+        def create_tariff(azs_id: str, discount_fee: float, goods_category: GoodsCategory = None,
+                          group_id: str = None) -> None:
+            new_tariff = TariffNewOrm(
+                policy_id=base_policy.id,
+                system_id=self.system.id,
+                inner_goods_group_id=group_id,
+                inner_goods_category=goods_category,
+                azs_own_type=None,
+                region_id=None,
+                azs_id=azs_id,
+                discount_fee=discount_fee,
+                begin_time=datetime(2024, 8, 31, 0, 0, 0)
+            )
+            self.session.add(new_tariff)
+
+        def logging_create_tariff(discount_fee_: float, group_name: str | None = None,
+                                  goods_category: GoodsCategory | None = None, azs_name: str | None = None):
+            self.logger.info(
+                f"{os.linesep}В БД записан новый тариф: "
+                f"{os.linesep}Политика:            {base_policy.name}"
+                f"{os.linesep}Система:             {self.system.short_name}"
+                f"{os.linesep}Группа продуктов:    {group_name}"
+                f"{os.linesep}Категория продуктов: {goods_category.value}"
+                f"{os.linesep}АЗС:                 {azs_name}"
+                f"{os.linesep}Скидка/наценка:      {discount_fee_}"
+            )
+
+        # Получаем из БД группы продуктов
+        goods_repository = GoodsRepository(session=self.session)
+        inner_groups = await goods_repository.get_inner_groups()
+        petrol_group = None
+        diesel_group = None
+        sug_group = None
+        for inner_group in inner_groups:
+            if inner_group.name == 'Бензины':
+                petrol_group = inner_group
+            elif inner_group.name == 'ДТ':
+                diesel_group = inner_group
+            elif inner_group.name == 'СУГ':
+                sug_group = inner_group
+
+        if not petrol_group:
+            raise CeleryError('В БД не обнаружена группа "Топливо"')
+        if not diesel_group:
+            raise CeleryError('В БД не обнаружена группа "ДТ"')
+        if not sug_group:
+            raise CeleryError('В БД не обнаружена группа "СУГ"')
+
+        for index, row in imported_data.iterrows():
+            """Назначаем регион, если не соответствует"""
+            azs_external_id = str(row.iloc[1]).strip()
+            station = stations[azs_external_id]
+
+            region_name = row.iloc[2].strip() if row.iloc[2] else None
+            region = await get_region(region_name)
+            if region and station.region_id != region.id:
+                station.region_id = region.id
+
+            """Назначаем сеть АЗС"""
+            azs_owner_name = row.iloc[3].strip() if row.iloc[3] else None
+            azs_owner = await get_azs_owner(azs_owner_name)
+            if azs_owner and station.owner_id != azs_owner.id:
+                station.owner_id = azs_owner.id
+
+            """Назначаем тарифы"""
+            # Выясняем достаточно ли создать один тариф на все позиции или нужно разбить на несколько тарифов
+            discount_fee_cells = [row.iloc[i] for i in range(5, 13) if row.iloc[i] is not None]
+            if discount_fee_cells:
+
+                if len(discount_fee_cells) == 8 and len({item for item in discount_fee_cells}) == 1:
+                    # Все тарифы в строке одинаковые - можно создать один в БД
+                    if not tariff_exists(azs_ext_id=azs_external_id, goods_category=None, group_id=None):
+                        discount_fee = float(row.iloc[5])
+                        create_tariff(
+                            azs_id=station.id,
+                            discount_fee=discount_fee,
+                            goods_category=None,
+                            group_id=None
+                        )
+                        logging_create_tariff(discount_fee_=discount_fee, azs_name=station.name)
+
+                else:
+                    # Тарифы в строке разные - создаем индивидуальные тарифы.
+                    print("Тарифы в строке разные - создаем индивидуальные тарифы")
+                    # Назначаем тарифы на категории
+                    for category in GoodsCategory:
+                        if category != GoodsCategory.FUEL:
+                            if row[category.name]:
+                                _tariff_exists = tariff_exists(
+                                    azs_ext_id=azs_external_id,
+                                    goods_category=category,
+                                    group_id=None
+                                )
+                                if not _tariff_exists:
+                                    discount_fee = float(row[category.name])
+                                    create_tariff(
+                                        azs_id=station.id,
+                                        discount_fee=discount_fee,
+                                        goods_category=category,
+                                        group_id=None
+                                    )
+                                    logging_create_tariff(
+                                        discount_fee_=discount_fee,
+                                        goods_category=category,
+                                        azs_name=station.name
+                                    )
+
+                    # Назначаем тарифы на группы
+                    if row.iloc[10]:
+                        if not tariff_exists(azs_ext_id=azs_external_id, goods_category=None, group_id=petrol_group.id):
+                            discount_fee = float(row.iloc[10])
+                            create_tariff(
+                                azs_id=station.id,
+                                discount_fee=discount_fee,
+                                goods_category=None,
+                                group_id=petrol_group.id
+                            )
+                            logging_create_tariff(
+                                discount_fee_=discount_fee,
+                                group_name=petrol_group.name,
+                                azs_name=station.name
+                            )
+
+                    if row.iloc[11]:
+                        if not tariff_exists(azs_ext_id=azs_external_id, goods_category=None, group_id=diesel_group.id):
+                            discount_fee = float(row.iloc[11])
+                            create_tariff(
+                                azs_id=station.id,
+                                discount_fee=discount_fee,
+                                goods_category=None,
+                                group_id=diesel_group.id
+                            )
+                            logging_create_tariff(
+                                discount_fee_=discount_fee,
+                                group_name=diesel_group.name,
+                                azs_name=station.name
+                            )
+
+                    if row.iloc[12]:
+                        if not tariff_exists(azs_ext_id=azs_external_id, goods_category=None, group_id=sug_group.id):
+                            discount_fee = float(row.iloc[12])
+                            create_tariff(
+                                azs_id=station.id,
+                                discount_fee=discount_fee,
+                                goods_category=None,
+                                group_id=sug_group.id
+                            )
+                            logging_create_tariff(
+                                discount_fee_=discount_fee,
+                                group_name=sug_group.name,
+                                azs_name=station.name
+                            )
+
+        await self.session.commit()

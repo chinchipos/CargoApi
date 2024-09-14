@@ -1,16 +1,22 @@
+import os
 from datetime import datetime
-from typing import List, Dict
+from typing import List, Dict, Any
 
 from sqlalchemy import select as sa_select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
+from src.celery_app.exceptions import CeleryError
 from src.celery_app.irrelevant_balances import IrrelevantBalances
-from src.database.models import CompanyOrm
-from src.database.models.transaction import TransactionOrm
+from src.celery_app.transaction_helper import TransactionHelper
+from src.config import TZ
 from src.database.models.balance import BalanceOrm
+from src.database.models.transaction import TransactionOrm
 from src.repositories.base import BaseRepository
-from src.utils.enums import ContractScheme
+from src.repositories.system import SystemRepository
+from src.repositories.transaction import TransactionRepository
+from src.utils.common import banking_round
+from src.utils.enums import ContractScheme, System
 from src.utils.loggers import get_logger
 
 
@@ -19,6 +25,7 @@ class CalcBalances(BaseRepository):
     def __init__(self, session: AsyncSession):
         super().__init__(session=session, user=None)
         self.logger = get_logger(name="CALC_BALANCES", filename="celery.log")
+        self.helper = TransactionHelper(session=session, logger=self.logger)
 
     async def calculate(self, irrelevant_balances: IrrelevantBalances) -> Dict[str, List[str]]:
         balances_dataset = []
@@ -127,35 +134,107 @@ class CalcBalances(BaseRepository):
         )
         return balance_ids_to_change_card_states
 
-    async def recalculate_transactions(self, from_date_time: datetime, perconal_accounts: List[str] | None) \
-            -> IrrelevantBalances:
-        # Получаем список балансов
-        stmt = (
-            sa_select(BalanceOrm)
-            .where(BalanceOrm.scheme == ContractScheme.OVERBOUGHT)
+    async def recalculate_transactions(self, from_date_time: datetime, personal_accounts: List[str] | None) \
+            -> Dict[str, Any]:
+        # Получаем транзакции с указанного времени
+        transaction_repository = TransactionRepository(session=self.session)
+        transactions = await transaction_repository.get_transactions_from_date_time(
+            from_date_time=from_date_time,
+            personal_accounts=personal_accounts
         )
 
-        if perconal_accounts:
-            # Делаем выборку только по определенным организациям
-            stmt = (
-                stmt
-                .where(CompanyOrm.id == BalanceOrm.company_id)
-                .where(CompanyOrm.personal_account.in_(perconal_accounts))
+        system_repository = SystemRepository(session=self.session)
+        systems = await system_repository.get_systems()
+        balance_ids = {transaction.balance_id for transaction in transactions}
+        systems_dict = {}
+        for system in systems:
+            irrelevant_balances = IrrelevantBalances(system_id=system.id)
+            for balance_id in balance_ids:
+                irrelevant_balances.add(balance_id, from_date_time)
+            systems_dict[system.id] = {
+                "system_name": system.short_name,
+                "irrelevant_balances": irrelevant_balances
+            }
+
+        def process_delta_sum(personal_account_: str, delta_sum_: float, system_id_: str):
+            if personal_account_ in systems_dict[system_id_]["irrelevant_balances"].sum_deltas:
+                systems_dict[system_id_]["irrelevant_balances"].sum_deltas[personal_account_] += delta_sum_
+            else:
+                systems_dict[system_id_]["irrelevant_balances"].sum_deltas[personal_account_] = delta_sum_
+
+        transaction_dataset = []
+        for transaction in transactions:
+            # Пропускаем транзакции, сгенерированные не в системе поставщика
+            if not transaction.system_id:
+                continue
+
+            # irrelevant_balances = systems_dict[transaction.system_id]["irrelevant_balances"]
+
+            # Получаем тариф, действовавший для организации на момент совершения транзакции
+            company = await self.helper.get_card_company(card=transaction.card)
+            azs = await self.helper.get_azs(azs_external_id=transaction.azs_code, system_id=str(transaction.system_id))
+            if not azs:
+                raise CeleryError(f"Не удалось определить АЗС по транзакции от {transaction.date_time}. "
+                                  f"AZS_EXTERNAL_ID: {transaction.azs_code} | "
+                                  f"SYSTEM: {systems_dict[transaction.system_id]['system_name']}")
+
+            inner_group = transaction.outer_goods.outer_group.inner_group \
+                if transaction.outer_goods.outer_group_id else None
+
+            tariff = await self.helper.get_company_tariff_on_transaction_time(
+                company=company,
+                transaction_time=transaction.date_time,
+                inner_group=inner_group,
+                azs=azs,
+                system_id=str(transaction.system_id)
             )
-        else:
-            # Делаем выборку по всем организациям, у которых с указанной даты были транзакции
-            helper_subquery = (
-                sa_select(TransactionOrm.balance_id)
-                .where(TransactionOrm.date_time_load >= from_date_time)
-                .distinct()
-                .subquery()
-            )
-            stmt = stmt.where(helper_subquery.c.balance_id == BalanceOrm.id)
+            if not tariff:
+                raise CeleryError(f"Не удалось определить тариф для транзакции {transaction}")
 
-        balances = await self.select_all(stmt)
+            discount_fee_sum = banking_round(transaction.transaction_sum * tariff.discount_fee / 100)
+            total_sum = banking_round(transaction.transaction_sum + discount_fee_sum)
+            if transaction.total_sum != total_sum:
+                discount_sum = discount_fee_sum if tariff.discount_fee < 0 else 0
+                fee_sum = discount_fee_sum if tariff.discount_fee > 0 else 0
+                transaction_dataset.append(
+                    {
+                        "id": transaction.id,
+                        "tariff_new_id": tariff.id,
+                        "discount_sum": discount_sum,
+                        "fee_sum": fee_sum,
+                        "total_sum": total_sum,
+                        "company_balance": 0,
+                        "comment": f"Пересчитаны транзакции: {datetime.now(tz=TZ).replace(microsecond=0).isoformat()}"
+                    }
+                )
 
-        irrelevant_balances = IrrelevantBalances()
-        for balance in balances:
-            irrelevant_balances.add(balance.id, from_date_time)
+                # Вычисляем дельту изменения суммы баланса - понадобится позже для правильного
+                # выставления лимита на группу карт
+                delta_sum = total_sum - transaction.total_sum
+                process_delta_sum(
+                    personal_account_=company.personal_account,
+                    delta_sum_=delta_sum,
+                    system_id_=str(transaction.system_id)
+                )
+                # if systems_dict[transaction.system_id]['system_name'] != System.OPS.value:
+                self.logger.info(
+                    f"{os.linesep}--------------"
+                    f"{os.linesep}Пересчитана транзакция {company.name} от {transaction.date_time} "
+                    f"на итоговую сумму               {transaction.total_sum}. "
+                    f"{os.linesep}Система:            {systems_dict[transaction.system_id]['system_name']} "
+                    f"{os.linesep}transaction_sum:    {transaction.transaction_sum} "
+                    f"{os.linesep}discount_sum ДО:    {transaction.discount_sum} "
+                    f"{os.linesep}discount_sum ПОСЛЕ: {discount_sum} "
+                    f"{os.linesep}fee_sum ДО:         {transaction.fee_sum} "
+                    f"{os.linesep}fee_sum ПОСЛЕ:      {fee_sum} "
+                    f"{os.linesep}total_sum ДО:       {transaction.total_sum} "
+                    f"{os.linesep}total_sum ПОСЛЕ:    {total_sum} "
+                    f"{os.linesep}Тариф ДО:           {transaction.tariff_new_id} "
+                    f"{os.linesep}Тариф ПОСЛЕ:        {tariff.id} "
+                    f"{os.linesep}Тариф ПОСЛЕ (%):    {tariff.discount_fee} "
+                    f"{os.linesep}"
+                )
 
-        return irrelevant_balances
+        # await self.bulk_update(TransactionOrm, transaction_dataset)
+        self.logger.info("Пересчет транзакций завершен")
+        return systems_dict

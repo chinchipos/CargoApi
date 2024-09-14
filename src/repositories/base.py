@@ -1,3 +1,4 @@
+import os
 from typing import Dict, Any
 
 import sqlalchemy as sa
@@ -28,9 +29,11 @@ class BaseRepository:
             description = '  ' + description + '  '
         title = ('--------------' + description.upper() + '-' * 35)[:50]
         print(title)
-        print('   ')
-        print(sqlparse.format(str(stmt.compile(dialect=postgresql_dialect())), reindent=True))
-        print('   ')
+        print(
+            f"{os.linesep}{os.linesep}"
+            f"{sqlparse.format(str(stmt.compile(dialect=postgresql_dialect())), reindent=True)}"
+            f"{os.linesep}{os.linesep}"
+        )
 
     async def select_helper(self, stmt, scalars=True) -> Any:
         try:

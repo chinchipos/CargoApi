@@ -44,7 +44,7 @@ class GoodsRepository(BaseRepository):
         goods = await self.select_all(stmt)
         return goods
 
-    async def get_all_inner_goods(self) -> List[InnerGoodsOrm]:
+    async def get_inner_goods(self) -> List[InnerGoodsOrm]:
         stmt = sa_select(InnerGoodsOrm).order_by(InnerGoodsOrm.name)
         goods = await self.select_all(stmt)
         return goods

@@ -76,12 +76,6 @@ class TransactionOrm(Base):
         lazy="noload"
     )
 
-    # Организация
-    # company: Mapped[List["BalanceOrm"]] = relationship(
-    #     viewonly=True,
-    #     lazy="noload"
-    # )
-
     # Поставщик услуг
     system_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.system.id"),
@@ -165,14 +159,6 @@ class TransactionOrm(Base):
         lazy="noload"
     )
 
-    fee_percent: Mapped[float] = mapped_column(
-        sa.Numeric(12, 2, asdecimal=False),
-        nullable=False,
-        server_default=sa.text("0"),
-        init=False,
-        comment="Сумма комиссионного вознаграждения по тарифу"
-    )
-
     fee_sum: Mapped[float] = mapped_column(
         sa.Numeric(12, 2, asdecimal=False),
         nullable=False,
@@ -187,14 +173,6 @@ class TransactionOrm(Base):
         server_default=sa.text("0"),
         init=False,
         comment="Итоговая сумма для применения к балансу организации"
-    )
-
-    card_balance: Mapped[float] = mapped_column(
-        sa.Numeric(12, 2, asdecimal=False),
-        nullable=False,
-        server_default=sa.text("0"),
-        init=False,
-        comment="Баланс карты после выполнения транзакции"
     )
 
     company_balance: Mapped[float] = mapped_column(

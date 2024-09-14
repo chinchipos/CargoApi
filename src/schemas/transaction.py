@@ -78,6 +78,5 @@ class TransactionReadSchema(BaseSchema):
     tariff_new: tariff_new_ = None
     fee_sum: fee_sum_
     total_sum: total_sum_
-    card_balance: card_balance_
     company_balance: company_balance_
     comments: comments_

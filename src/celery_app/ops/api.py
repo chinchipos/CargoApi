@@ -251,15 +251,15 @@ class OpsApi:
             terminal["terminalID"] = str(terminal["terminalID"])
             terminal["servicePointID"] = str(terminal["servicePointID"])
 
-        if terminals:
-            export = ExportToExcel()
-            export.make_excel(
-                data=terminals,
-                headers=[k for k, v in terminals[0].items()],
-                filename="OPS_TERMINALS.xlsx",
-                export_dir="D:\\Temp"
-            )
-
+        # if terminals:
+        #     export = ExportToExcel()
+        #     export.make_excel(
+        #         data=terminals,
+        #         headers=[k for k, v in terminals[0].items()],
+        #         filename="OPS_TERMINALS.xlsx",
+        #         export_dir="D:\\Temp"
+        #     )
+#
         return terminals
 
     def get_goods(self, goods_id: str = None) -> List[Dict[str, Any]]:

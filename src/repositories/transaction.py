@@ -221,6 +221,50 @@ class TransactionRepository(BaseRepository):
 
         return transactions
 
+    async def get_transactions_from_date_time(self, from_date_time: datetime,
+                                              personal_accounts: List[str] | None = None, system_id: str = None) \
+            -> List[TransactionOrm]:
+        stmt = (
+            sa_select(TransactionOrm)
+            .options(
+                joinedload(TransactionOrm.card)
+                .joinedload(CardOrm.company)
+            )
+            .options(
+                joinedload(TransactionOrm.balance)
+                .joinedload(BalanceOrm.company)
+            )
+            .options(
+                joinedload(TransactionOrm.outer_goods)
+                .joinedload(OuterGoodsOrm.outer_group)
+                .joinedload(OuterGoodsGroupOrm.inner_group)
+            )
+            .options(
+                joinedload(TransactionOrm.tariff_new)
+            )
+            .options(
+                joinedload(TransactionOrm.system)
+            )
+            .where(TransactionOrm.date_time >= from_date_time)
+            .outerjoin(TransactionOrm.card)
+            .order_by(CardOrm.card_number, TransactionOrm.date_time)
+        )
+
+        if system_id:
+            stmt = stmt.where(TransactionOrm.system_id == system_id)
+
+        if personal_accounts:
+            balance_tbl = aliased(BalanceOrm)
+            company_tbl = aliased(CompanyOrm)
+            stmt = (
+                stmt
+                .where(company_tbl.personal_account.in_(personal_accounts))
+                .where(balance_tbl.company_id == company_tbl.id)
+                .where(TransactionOrm.balance_id == balance_tbl.id)
+            )
+        transactions = await self.select_all(stmt)
+        return transactions
+
     async def renew_cards_date_last_use(self) -> None:
         date_last_use_subquery = (
             sa_select(func.max(TransactionOrm.date_time))
@@ -230,35 +274,6 @@ class TransactionRepository(BaseRepository):
         stmt = sa_update(CardOrm).values(date_last_use=date_last_use_subquery)
         await self.session.execute(stmt)
         await self.session.commit()
-
-    """
-    async def get_balance_system_tariff_list(self, system_id: str) -> List[BalanceSystemOrm]:
-        bst = aliased(BalanceSystemOrm, name="bst")
-        stmt = (
-            sa_select(bst)
-            .options(
-                joinedload(bst.tariff)
-                .load_only(TariffOrm.id, TariffOrm.fee_percent)
-            )
-            .where(bst.system_id == system_id)
-        )
-        balance_system_tariff_list = await self.select_all(stmt)
-        return balance_system_tariff_list
-    """
-    """
-    async def get_tariffs_history(self, system_id: str) -> List[BalanceTariffHistoryOrm]:
-        bth = aliased(BalanceTariffHistoryOrm, name="bth")
-        stmt = (
-            sa_select(bth)
-            .options(
-                joinedload(bth.tariff)
-                .load_only(TariffOrm.id, TariffOrm.fee_percent)
-            )
-            .where(bth.system_id == system_id)
-        )
-        tariffs_history = await self.select_all(stmt)
-        return tariffs_history
-    """
 
     async def get_balance_card_relations(self, card_numbers: List[str], system_id: str) -> Dict[str, str]:
         stmt = (

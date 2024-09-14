@@ -52,13 +52,6 @@ class AzsOrm(Base):
         comment="Название АЗС"
     )
 
-    code: Mapped[str] = mapped_column(
-        sa.String(50),
-        nullable=False,
-        init=True,
-        comment="Код АЗС"
-    )
-
     address: Mapped[Dict[str, Any]] = mapped_column(
         JSON,
         nullable=False,
@@ -71,6 +64,21 @@ class AzsOrm(Base):
         init=True,
         default=None,
         comment="Тип собственности по отношению к системе"
+    )
+
+    # Владелец сети АЗС
+    owner_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("cargonomica.azs_owner.id"),
+        nullable=True,
+        init=False,
+        comment="Владелец сети АЗС"
+    )
+
+    # Владелец сети АЗС
+    owner: Mapped["AzsOwnerOrm"] = relationship(
+        back_populates="stations",
+        init=False,
+        lazy="noload"
     )
 
     is_active: Mapped[bool] = mapped_column(

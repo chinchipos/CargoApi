@@ -5,7 +5,7 @@ from typing import List, Dict, Any
 from sqlalchemy import select as sa_select, and_, or_, cast, String
 from sqlalchemy.orm import joinedload, contains_eager
 
-from src.database.models import SystemOrm
+from src.database.models import SystemOrm, RegionOrm, AzsOwnerOrm
 from src.database.models.azs import AzsOrm, AzsOwnType, TerminalOrm
 from src.repositories.base import BaseRepository
 from src.utils.enums import System
@@ -38,17 +38,23 @@ class AzsRepository(BaseRepository):
 
         return azs_types
 
-    async def get_terminals(self, system_id: str) -> List[TerminalOrm]:
+    async def get_terminals(self, system_id: str = None) -> List[TerminalOrm]:
         stmt = (
             sa_select(TerminalOrm)
-            .join(AzsOrm, and_(
-                AzsOrm.id == TerminalOrm.azs_id,
-                AzsOrm.system_id == system_id
-            ))
             .options(
                 contains_eager(TerminalOrm.azs)
             )
         )
+
+        if system_id:
+            stmt = (
+                stmt
+                .join(AzsOrm, and_(
+                    AzsOrm.id == TerminalOrm.azs_id,
+                    AzsOrm.system_id == system_id
+                ))
+            )
+
         terminals = await self.select_all(stmt)
         return terminals
 
@@ -153,3 +159,13 @@ class AzsRepository(BaseRepository):
         )
         station.annotate({"pretty_address": pretty_address})
         return station
+
+    async def get_regions(self) -> List[RegionOrm]:
+        stmt = sa_select(RegionOrm).order_by(RegionOrm.name)
+        regions = await self.select_all(stmt)
+        return regions
+
+    async def get_azs_owners(self) -> List[AzsOwnerOrm]:
+        stmt = sa_select(AzsOwnerOrm).order_by(AzsOwnerOrm.name)
+        azs_owners = await self.select_all(stmt)
+        return azs_owners

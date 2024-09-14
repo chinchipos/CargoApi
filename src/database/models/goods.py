@@ -30,7 +30,7 @@ class OuterGoodsOrm(Base):
     external_id: Mapped[str] = mapped_column(
         sa.String(36),
         nullable=True,
-        init=False,
+        init=True,
         unique=True,
         comment="ID продукта в системе поставщика"
     )
@@ -38,6 +38,7 @@ class OuterGoodsOrm(Base):
     # Наименование продукта в системе поставщика
     name: Mapped[str] = mapped_column(
         sa.String(255),
+        init=True,
         nullable=False,
         comment="Наименование продукта в системе поставщика"
     )
@@ -45,6 +46,7 @@ class OuterGoodsOrm(Base):
     # Наименование продукта в нашей системе
     inner_name: Mapped[str] = mapped_column(
         sa.String(255),
+        init=False,
         nullable=True,
         comment="Наименование продукта в нашей системе"
     )
@@ -52,6 +54,7 @@ class OuterGoodsOrm(Base):
     # Система
     system_id: Mapped[str] = mapped_column(
         sa.ForeignKey("cargonomica.system.id"),
+        init=True,
         nullable=False,
         comment="Система"
     )
@@ -59,6 +62,7 @@ class OuterGoodsOrm(Base):
     # Система
     system: Mapped["SystemOrm"] = relationship(
         back_populates="outer_goods",
+        init=False,
         lazy="noload"
     )
 

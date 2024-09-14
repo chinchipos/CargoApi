@@ -40,7 +40,7 @@ class ColoredLogger:
 logger = ColoredLogger(logfile_name='api.log', logger_name='CARGONOMICA-API')
 
 
-def get_logger(name: str, filename: str = "celery.log"):
+def get_logger(name: str, filename: str = "celery.log") -> logging.Logger:
     logfile_path = os.path.join(LOG_DIR, filename)
     if not os.path.exists(LOG_DIR):
         os.makedirs(LOG_DIR)

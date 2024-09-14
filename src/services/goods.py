@@ -37,7 +37,7 @@ class GoodsService:
         return data
 
     async def get_all_inner_goods(self) -> List[InnerGoodsOrm]:
-        goods = await self.repository.get_all_inner_goods()
+        goods = await self.repository.get_inner_goods()
         return goods
 
     async def get_single_goods(self, outer_goods_id: str) -> OuterGoodsOrm:

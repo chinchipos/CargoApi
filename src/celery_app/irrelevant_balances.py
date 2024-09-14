@@ -1,8 +1,6 @@
 from datetime import datetime
 from typing import Dict
 
-from src.utils.enums import System
-
 
 class IrrelevantBalances(dict):
 
