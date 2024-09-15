@@ -27,6 +27,8 @@ class TransactionHelper(BaseRepository):
         self._terminals: List[TerminalOrm] | None = None
         self._stations: List[AzsOrm] | None = None
 
+        self._azs_repository: AzsRepository | None = None
+
     async def get_local_cards(self, card_numbers: List[str] | None = None) -> List[CardOrm]:
         card_repository = CardRepository(session=self.session, user=None)
         local_cards = await card_repository.get_cards_by_filters(
@@ -87,20 +89,32 @@ class TransactionHelper(BaseRepository):
 
     async def get_azs(self, azs_external_id: str = None, terminal_external_id: str = None,
                       system_id: str = None) -> AzsOrm:
+        if not self._azs_repository:
+            self._azs_repository = AzsRepository(session=self.session)
 
         if azs_external_id:
+            azs = await self._azs_repository.get_station(azs_externel_id=azs_external_id)
+            return azs
+
+            """
             if self._stations is None:
                 self.logger.info("Запрашиваю из БД список АЗС")
                 azs_repository = AzsRepository(session=self.session)
                 self._stations = copy.deepcopy(await azs_repository.get_stations())
-
+    
             # Выполняем поиск АЗС
             stations = [azs for azs in self._stations if azs.system_id == system_id]
             for azs in stations:
                 if azs.external_id == azs_external_id:
                     return azs
+            """
 
         elif terminal_external_id:
+            terminal = await self._azs_repository.get_terminal(terminal_external_id=terminal_external_id)
+            if terminal and terminal.azs_id:
+                return terminal.azs
+
+            """
             if self._terminals is None:
                 self.logger.info("Запрашиваю из БД список терминалов")
                 azs_repository = AzsRepository(session=self.session)
@@ -112,6 +126,7 @@ class TransactionHelper(BaseRepository):
             for terminal in terminals:
                 if terminal.external_id == terminal_external_id:
                     return terminal.azs
+            """
 
     def add_azs(self, azs: AzsOrm) -> None:
         self._stations.append(azs)

@@ -58,10 +58,12 @@ class AzsRepository(BaseRepository):
         terminals = await self.select_all(stmt)
         return terminals
 
+    """
     async def get_station_by_external_id(self, external_id: str) -> AzsOrm:
         stmt = sa_select(AzsOrm).where(AzsOrm.external_id == external_id)
         station = await self.select_first(stmt)
         return station
+    """
 
     @staticmethod
     def pretty_address(addr_json: Dict[str, Any] | str | None, system_short_name: str | None) -> str | None:
@@ -144,14 +146,18 @@ class AzsRepository(BaseRepository):
 
         return stations
 
-    async def get_station(self, azs_id: str) -> AzsOrm:
+    async def get_station(self, azs_id: str | None = None, azs_external_id: str | None = None) -> AzsOrm:
         stmt = (
             sa_select(AzsOrm)
             .options(
                 joinedload(AzsOrm.system)
             )
-            .where(AzsOrm.id == azs_id)
         )
+        if azs_id:
+            stmt = stmt.where(AzsOrm.id == azs_id)
+        elif azs_external_id:
+            stmt = stmt.where(AzsOrm.external_id == azs_external_id)
+
         station = await self.select_first(stmt)
         pretty_address = self.pretty_address(
             addr_json=station.address,
@@ -169,3 +175,18 @@ class AzsRepository(BaseRepository):
         stmt = sa_select(AzsOwnerOrm).order_by(AzsOwnerOrm.name)
         azs_owners = await self.select_all(stmt)
         return azs_owners
+
+    async def get_terminal(self, terminal_id: str | None = str, terminal_external_id: str | None = str) -> TerminalOrm:
+        stmt = (
+            sa_select(TerminalOrm)
+            .options(
+                joinedload(TerminalOrm.azs)
+            )
+        )
+        if terminal_id:
+            stmt = stmt.where(TerminalOrm.id == terminal_id)
+        elif terminal_external_id:
+            stmt = stmt.where(TerminalOrm.external_id == terminal_external_id)
+
+        terminal = await self.select_first(stmt)
+        return terminal

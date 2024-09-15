@@ -231,8 +231,8 @@ class OpsController(BaseRepository):
                     found = True
                     if local_terminal.azs.external_id != remote_terminal["servicePointID"]:
                         # Терминал ранее принадлежал другой АЗС. Перемещаем его.
-                        local_azs = await azs_repository.get_station_by_external_id(
-                            external_id=remote_terminal["servicePointID"]
+                        local_azs = await azs_repository.get_station(
+                            azs_external_id=remote_terminal["servicePointID"]
                         )
                         local_terminal.azs_id = local_azs.id
                         await self.save_object(local_terminal)
