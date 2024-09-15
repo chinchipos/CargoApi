@@ -73,7 +73,7 @@ class KHNPParser:
         options.add_experimental_option("prefs", image_preferences)
 
         # Задаем стратегию загрузки страниц
-        options.page_load_strategy = 'normal'
+        options.page_load_strategy = 'eager'
 
         # Указываем путь к chromedriver
         if sys.platform == 'win32':
