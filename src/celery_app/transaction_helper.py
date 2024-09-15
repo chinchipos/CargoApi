@@ -7,12 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.celery_app.exceptions import CeleryError
 from src.database.models import CardOrm, CompanyOrm, InnerGoodsGroupOrm, AzsOrm, TariffNewOrm, CardHistoryOrm, \
-    OuterGoodsOrm, TerminalOrm
+    OuterGoodsOrm
 from src.repositories.azs import AzsRepository
 from src.repositories.base import BaseRepository
 from src.repositories.card import CardRepository
+from src.repositories.goods import GoodsRepository
 from src.repositories.tariff import TariffRepository
-from src.repositories.transaction import TransactionRepository
 
 
 class TransactionHelper(BaseRepository):
@@ -22,12 +22,10 @@ class TransactionHelper(BaseRepository):
         self.logger = logger
         self._tariffs: List[TariffNewOrm] | None = None
         self._card_history: List[CardHistoryOrm] | None = None
-        self._outer_goods: List[OuterGoodsOrm] | None = None
         self.system_id = system_id
-        self._terminals: List[TerminalOrm] | None = None
-        self._stations: List[AzsOrm] | None = None
 
         self._azs_repository: AzsRepository | None = None
+        self._goods_repository: GoodsRepository | None = None
 
     async def get_local_cards(self, card_numbers: List[str] | None = None) -> List[CardOrm]:
         card_repository = CardRepository(session=self.session, user=None)
@@ -74,18 +72,12 @@ class TransactionHelper(BaseRepository):
         raise CeleryError(f"Не удалось определить организацию для карты {card.card_number}")
 
     async def get_outer_goods_item(self, goods_external_id: str) -> OuterGoodsOrm | None:
-        if self._outer_goods is None:
-            self.logger.info("Запрашиваю из БД продукты")
-            transaction_repository = TransactionRepository(session=self.session)
-            self._outer_goods = await transaction_repository.get_outer_goods_list(system_id=self.system_id)
+        self.logger.info("Запрашиваю продукт из БД")
+        if not self._goods_repository:
+            self._goods_repository = GoodsRepository(session=self.session)
 
-        # Выполняем поиск продукта
-        for goods in self._outer_goods:
-            if goods.external_id == goods_external_id:
-                return goods
-
-    def add_outer_goods(self, outer_goods: OuterGoodsOrm) -> None:
-        self._outer_goods.append(outer_goods)
+        outer_goods = await self._goods_repository.get_outer_goods_item(outer_goods_external_id=goods_external_id)
+        return outer_goods
 
     async def get_azs(self, azs_external_id: str = None, terminal_external_id: str = None) -> AzsOrm:
         self.logger.info("Запрашиваю АЗС из БД")
@@ -96,43 +88,10 @@ class TransactionHelper(BaseRepository):
             azs = await self._azs_repository.get_station(azs_external_id=azs_external_id)
             return azs
 
-            """
-            if self._stations is None:
-                self.logger.info("Запрашиваю из БД список АЗС")
-                azs_repository = AzsRepository(session=self.session)
-                self._stations = copy.deepcopy(await azs_repository.get_stations())
-    
-            # Выполняем поиск АЗС
-            stations = [azs for azs in self._stations if azs.system_id == system_id]
-            for azs in stations:
-                if azs.external_id == azs_external_id:
-                    return azs
-            """
-
         elif terminal_external_id:
             terminal = await self._azs_repository.get_terminal(terminal_external_id=terminal_external_id)
             if terminal and terminal.azs_id:
                 return terminal.azs
-
-            """
-            if self._terminals is None:
-                self.logger.info("Запрашиваю из БД список терминалов")
-                azs_repository = AzsRepository(session=self.session)
-                self._terminals = copy.deepcopy(await azs_repository.get_terminals())
-
-            terminals = [terminal for terminal in self._terminals
-                         if terminal.azs and terminal.azs.system_id == system_id]
-            # Выполняем поиск АЗС
-            for terminal in terminals:
-                if terminal.external_id == terminal_external_id:
-                    return terminal.azs
-            """
-
-    def add_azs(self, azs: AzsOrm) -> None:
-        self._stations.append(azs)
-
-    def add_terminal(self, terminal: TerminalOrm) -> None:
-        self._terminals.append(terminal)
 
     async def get_company_tariff_on_transaction_time(self, company: CompanyOrm, transaction_time: datetime,
                                                      inner_group: InnerGoodsGroupOrm | None,

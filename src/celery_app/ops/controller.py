@@ -472,7 +472,6 @@ class OpsController(BaseRepository):
                 inner_goods_id=None,
             )
             outer_goods = await self.insert(OuterGoodsOrm, **outer_goods_data)
-            self.helper.add_outer_goods(outer_goods)
 
         return outer_goods
 
@@ -505,9 +504,8 @@ class OpsController(BaseRepository):
             name=terminals[0]["terminalName"],
             azs_id=azs.id,
         )
-        terminal: TerminalOrm = await self.insert(TerminalOrm, **terminal_fields)
+        await self.insert(TerminalOrm, **terminal_fields)
 
-        self.helper.add_terminal(terminal)
         return azs
 
     async def load_goods(self) -> None:

@@ -152,7 +152,6 @@ class KHNPController(BaseRepository):
                 inner_goods_id=None,
             )
             outer_goods = await self.insert(OuterGoodsOrm, **outer_goods_data)
-            self.helper.add_outer_goods(outer_goods)
 
         return outer_goods
 
@@ -531,5 +530,4 @@ class KHNPController(BaseRepository):
             address={}
         )
         azs = await self.insert(AzsOrm, **azs_fields)
-        self.helper.add_azs(azs)
         return azs

@@ -49,7 +49,8 @@ class GoodsRepository(BaseRepository):
         goods = await self.select_all(stmt)
         return goods
 
-    async def get_outer_goods_item(self, outer_goods_id: str) -> OuterGoodsOrm:
+    async def get_outer_goods_item(self, outer_goods_id: str | None = None,
+                                   outer_goods_external_id: str | None = None) -> OuterGoodsOrm:
         stmt = (
             sa_select(OuterGoodsOrm)
             .options(
@@ -58,9 +59,13 @@ class GoodsRepository(BaseRepository):
             .options(
                 joinedload(OuterGoodsOrm.outer_group)
             )
-            .where(OuterGoodsOrm.id == outer_goods_id)
             .order_by(OuterGoodsOrm.name)
         )
+        if outer_goods_id:
+            stmt = stmt.where(OuterGoodsOrm.id == outer_goods_id)
+        elif outer_goods_external_id:
+            stmt = stmt.where(OuterGoodsOrm.external_id == outer_goods_external_id)
+
         goods = await self.select_first(stmt)
         return goods
 

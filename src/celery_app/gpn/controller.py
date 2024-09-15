@@ -844,7 +844,6 @@ class GPNController(BaseRepository):
                 inner_goods_id=None,
             )
             outer_goods = await self.insert(OuterGoodsOrm, **outer_goods_data)
-            self.helper.add_outer_goods(outer_goods)
 
         return outer_goods
 
@@ -1083,7 +1082,6 @@ class GPNController(BaseRepository):
             address={}
         )
         azs = await self.insert(AzsOrm, **azs_fields)
-        self.helper.add_azs(azs)
         return azs
 
     def remote_card_groups(self) -> List[Dict[str, Any]]:
