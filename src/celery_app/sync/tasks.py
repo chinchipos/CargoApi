@@ -28,8 +28,8 @@ def after_sync(irrelevant_balances_list: List[IrrelevantBalances]):
     irrelevant_balances = IrrelevantBalances()
     messages = []
     gpn_sum_deltas = {}
-    systems = [(0, System.KHNP), (1, System.GPN), (2, System.OPS)]
-    for i, system in systems:
+    systems = [System.KHNP, System.GPN]
+    for i, system in enumerate(systems):
         if irrelevant_balances_list[i]:
             irrelevant_balances.extend(irrelevant_balances_list[i])
 
@@ -72,7 +72,7 @@ sync = chord(
     header=[
         khnp_sync.si(),
         gpn_sync.si(),
-        ops_sync.si(),
+        # ops_sync.si(),
     ],
     body=after_sync.s()
 )
