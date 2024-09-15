@@ -21,6 +21,8 @@ from src.config import KHNP_URL, KHNP_USERNAME, KHNP_PASSWORD
 from src.config import ROOT_DIR, PRODUCTION
 from src.utils.loggers import get_logger
 
+from fake_useragent import UserAgent
+
 
 class CardStatus(Enum):
     # cardBlockRequest = block              : карта активна
@@ -56,6 +58,10 @@ class KHNPParser:
 
         # Запуск без основного окна
         options.add_argument('--headless=new')
+
+        ua = UserAgent()
+        user_agent = ua.random
+        options.add_argument(f'--user-agent={user_agent}')
 
         options.add_argument("--allow-running-insecure-content")
         options.add_argument(f"--unsafely-treat-insecure-origin-as-secure={KHNP_URL}")
