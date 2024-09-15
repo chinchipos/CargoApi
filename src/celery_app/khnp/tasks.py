@@ -54,8 +54,8 @@ def khnp_set_card_states(balance_ids_to_change_card_states: Dict[str, List[str]]
     if balance_ids_to_change_card_states["to_block"] or balance_ids_to_change_card_states["to_activate"]:
         _logger.info('Запускаю задачу блокировки / разблокировки карт ХНП')
 
-        if sys.platform == 'win32':
-            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        # if sys.platform == 'win32':
+        #     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
         # asyncio.run(khnp_set_card_states_fn(balance_ids_to_change_card_states))
 
