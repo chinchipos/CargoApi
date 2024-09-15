@@ -151,7 +151,7 @@ class TariffNewOrm(Base):
 
     # Категория продуктов
     inner_goods_category: Mapped[GoodsCategory] = mapped_column(
-        ENUM(*[item.name for item in GoodsCategory], name="goodscategory"),
+        ENUM(GoodsCategory, name="goodscategory"),
         nullable=True,
         init=True,
         comment="Категория продуктов в нашей системе"
@@ -159,7 +159,7 @@ class TariffNewOrm(Base):
 
     # Тип АЗС
     azs_own_type: Mapped[AzsOwnType] = mapped_column(
-        ENUM(*[item.name for item in AzsOwnType], name="azsowntype"),
+        ENUM(AzsOwnType, name="azsowntype"),
         nullable=True,
         init=True,
         comment="Тип АЗС"

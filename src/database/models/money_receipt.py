@@ -21,7 +21,7 @@ class MoneyReceiptOrm(Base):
     )
 
     bank: Mapped[Bank] = mapped_column(
-        ENUM(*[item.name for item in Bank], name="bank"),
+        ENUM(Bank, name="bank"),
         comment="Банк",
         init=True,
     )

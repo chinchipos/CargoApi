@@ -71,13 +71,13 @@ class CardLimitOrm(Base):
     )
 
     unit: Mapped[Unit] = mapped_column(
-        ENUM(*[item.name for item in Unit], name="unit"),
+        ENUM(Unit, name="unit"),
         nullable=False,
         comment="Единицы измерения"
     )
 
     period: Mapped[LimitPeriod] = mapped_column(
-        ENUM(*[item.name for item in LimitPeriod], name="limitperiod"),
+        ENUM(LimitPeriod, name="limitperiod"),
         nullable=False,
         comment="Период обнуления лимита"
     )
@@ -97,7 +97,7 @@ class CardLimitOrm(Base):
 
     # Категория продуктов
     inner_goods_category: Mapped[GoodsCategory] = mapped_column(
-        ENUM(*[item.name for item in GoodsCategory], name="goodscategory"),
+        ENUM(GoodsCategory, name="goodscategory"),
         nullable=True,
         init=False,
         comment="Категория продуктов в нашей системе"
@@ -158,7 +158,7 @@ class GroupLimitOrm(Base):
 
     # Категория продуктов
     inner_goods_category: Mapped[GoodsCategory] = mapped_column(
-        ENUM(*[item.name for item in GoodsCategory], name="goodscategory"),
+        ENUM(GoodsCategory, name="goodscategory"),
         nullable=True,
         init=False,
         comment="Категория продуктов в нашей системе"

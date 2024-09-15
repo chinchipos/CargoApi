@@ -61,7 +61,7 @@ class AzsOrm(Base):
     )
 
     own_type: Mapped[AzsOwnType] = mapped_column(
-        ENUM(*[item.name for item in AzsOwnType], name="azsowntype"),
+        ENUM(AzsOwnType, name="azsowntype"),
         nullable=True,
         init=True,
         default=None,

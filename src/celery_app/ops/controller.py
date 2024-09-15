@@ -650,9 +650,9 @@ class OpsController(BaseRepository):
                 f"{os.linesep}В БД записан новый тариф: "
                 f"{os.linesep}Политика:            {base_policy.name}"
                 f"{os.linesep}Система:             {self.system.short_name}"
-                f"{os.linesep}Группа продуктов:    {group_name}"
-                f"{os.linesep}Категория продуктов: {goods_category.value}"
-                f"{os.linesep}АЗС:                 {azs_name}"
+                f"{os.linesep}Группа продуктов:    {group_name if group_name else None}"
+                f"{os.linesep}Категория продуктов: {goods_category.value if goods_category else None}"
+                f"{os.linesep}АЗС:                 {azs_name if azs_name else None}"
                 f"{os.linesep}Скидка/наценка:      {discount_fee_}"
             )
 

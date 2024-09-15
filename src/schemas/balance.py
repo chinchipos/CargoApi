@@ -5,7 +5,7 @@ from pydantic import Field
 
 from src.schemas.base import BaseSchema
 from src.schemas.system import SystemReadMinimumSchema
-from src.utils import enums
+from src.utils.enums import ContractScheme
 
 system_id_ = Annotated[
     str,
@@ -15,7 +15,7 @@ system_id_ = Annotated[
 id_ = Annotated[str, Field(description="UUID договора", examples=["75325199-ac93-4733-becb-de2e89e85202"])]
 
 scheme_ = Annotated[
-    enums.ContractScheme,
+    ContractScheme,
     Field(description="Договорная схема [Агентская, Перекупная]", examples=["Агентская"])
 ]
 

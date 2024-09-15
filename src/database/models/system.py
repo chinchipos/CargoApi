@@ -56,7 +56,7 @@ class SystemOrm(Base):
     )
 
     scheme: Mapped[ContractScheme] = mapped_column(
-        ENUM(*[item.name for item in ContractScheme], name="contractscheme"),
+        ENUM(ContractScheme, name="contractscheme"),
         comment="Схема работы (агентская, перекупная, ...). См. соответствующий public -> Types.",
         init=True,
         server_default=ContractScheme.OVERBOUGHT.name

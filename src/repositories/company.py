@@ -7,50 +7,19 @@ from sqlalchemy.orm import joinedload, selectinload, aliased, load_only
 from src.config import TZ
 from src.database.models import NotificationMailingOrm, CardGroupOrm, GroupLimitOrm
 from src.database.models.balance import BalanceOrm
+from src.database.models.balance_system import BalanceSystemOrm
+from src.database.models.car import CarOrm
 from src.database.models.card import CardOrm
 from src.database.models.company import CompanyOrm
-from src.database.models.user import AdminCompanyOrm, UserOrm
-from src.database.models.role import RoleOrm
-from src.database.models.balance_system import BalanceSystemOrm
-from src.database.models.system import SystemOrm
-from src.database.models.car import CarOrm
 from src.database.models.overdrafts_history import OverdraftsHistoryOrm
+from src.database.models.role import RoleOrm
+from src.database.models.system import SystemOrm
+from src.database.models.user import AdminCompanyOrm, UserOrm
 from src.repositories.base import BaseRepository
-from src.repositories.system import SystemRepository
-from src.utils import enums
-
-from src.utils.enums import ContractScheme, System
+from src.utils.enums import ContractScheme, Role
 
 
 class CompanyRepository(BaseRepository):
-
-    async def get_khnp_system(self) -> SystemOrm:
-        system_repository = SystemRepository(self.session)
-        khnp_system = await system_repository.get_system_by_short_name(
-            short_name=System.KHNP.value,
-            scheme=ContractScheme.OVERBOUGHT
-        )
-        return khnp_system
-
-    async def get_gpn_system(self) -> SystemOrm:
-        system_repository = SystemRepository(self.session)
-        khnp_system = await system_repository.get_system_by_short_name(
-            short_name=System.GPN.value,
-            scheme=ContractScheme.OVERBOUGHT
-        )
-        return khnp_system
-
-    async def set_tariff(self, balance_id: str, system_id: str, tariff_id: str) -> None:
-        stmt = (
-            sa_select(BalanceSystemOrm)
-            .where(BalanceSystemOrm.balance_id == balance_id)
-            .where(BalanceSystemOrm.system_id == system_id)
-        )
-        self.statement(stmt)
-        bst = await self.select_first(stmt)
-        if bst.tariff_id != tariff_id:
-            bst.tariff_id = tariff_id
-            await self.save_object(bst)
 
     async def get_company(self, company_id: str) -> CompanyOrm:
         # Получаем сведения об организации
@@ -148,7 +117,7 @@ class CompanyRepository(BaseRepository):
         # company.annotate({'cards_amount': amount})
 
         # Добавляем непрочитанные рассылки
-        if self.user and self.user.role.name == enums.Role.COMPANY_ADMIN.name:
+        if self.user and self.user.role.name == Role.COMPANY_ADMIN.name:
             mailings = await self.get_notification_mailings(company_id=company.id, unread_only=True)
             company.notification_mailings = mailings
 
@@ -236,8 +205,8 @@ class CompanyRepository(BaseRepository):
         if filters.get("tariff_policy_id", None):
             stmt = stmt.where(CompanyOrm.tariff_policy_id == filters["tariff_policy_id"])
 
-        company_roles = [enums.Role.COMPANY_ADMIN.name, enums.Role.COMPANY_LOGIST.name, enums.Role.COMPANY_DRIVER]
-        if self.user.role.name == enums.Role.CARGO_MANAGER.name:
+        company_roles = [Role.COMPANY_ADMIN.name, Role.COMPANY_LOGIST.name, Role.COMPANY_DRIVER.name]
+        if self.user.role.name == Role.CARGO_MANAGER.name:
             company_ids_subquery = self.user.company_ids_subquery()
             stmt = stmt.join(company_ids_subquery, company_ids_subquery.c.id == CompanyOrm.id)
 
@@ -266,7 +235,7 @@ class CompanyRepository(BaseRepository):
                 joinedload(UserOrm.role),
             )
             .join(UserOrm.company)
-            .where(RoleOrm.name == enums.Role.COMPANY_DRIVER.name)
+            .where(RoleOrm.name == Role.COMPANY_DRIVER.name)
             # .where(UserOrm.role_id == RoleOrm.id)
             .order_by(CompanyOrm.name, UserOrm.last_name, UserOrm.first_name)
         )

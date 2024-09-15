@@ -48,7 +48,7 @@ class TransactionOrm(Base):
     )
 
     transaction_type: Mapped[TransactionType] = mapped_column(
-        ENUM(*[item.name for item in TransactionType], name="transactiontype"),
+        ENUM(TransactionType, name="transactiontype"),
         comment="Тип транзакции"
     )
 

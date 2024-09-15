@@ -56,7 +56,7 @@ class CardOrm(Base):
     )
 
     reason_for_blocking: Mapped[BlockingCardReason] = mapped_column(
-        ENUM(*[item.name for item in BlockingCardReason], name="blockingcardreason"),
+        ENUM(BlockingCardReason, name="blockingcardreason"),
         comment="Причина блокировки карты",
         nullable=True,
         init=False

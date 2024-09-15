@@ -23,14 +23,14 @@ class InnerGoodsGroupOrm(Base):
     )
 
     inner_category: Mapped[GoodsCategory] = mapped_column(
-        ENUM(*[item.name for item in GoodsCategory], name="goodscategory"),
+        ENUM(GoodsCategory, name="goodscategory"),
         nullable=True,
         init=False,
         comment="Категория продуктов в нашей системе"
     )
 
     base_unit: Mapped[Unit] = mapped_column(
-        ENUM(*[item.name for item in Unit], name="unit"),
+        ENUM(Unit, name="unit"),
         nullable=True,
         init=False,
         comment="Базовая единица измерения (кроме рублей)"

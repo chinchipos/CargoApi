@@ -91,8 +91,8 @@ def recalculate_transactions(from_date_time: datetime, perconal_accounts: List[s
         break
 
     tasks = [
-        # gpn_update_group_limits.si(gpn_limit_orders),
+        gpn_update_group_limits.si(gpn_limit_orders),
         calc_balances.si(ib),
-        # khnp_set_card_states.s()
+        khnp_set_card_states.s()
     ]
     chain(*tasks)()
