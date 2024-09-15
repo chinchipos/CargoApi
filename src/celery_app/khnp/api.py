@@ -60,7 +60,8 @@ class KHNPParser:
         options.add_argument('--headless=new')
 
         ua = UserAgent()
-        user_agent = ua.random
+        # user_agent = ua.random
+        user_agent = ua.chrome
         options.add_argument(f'--user-agent={user_agent}')
 
         options.add_argument("--allow-running-insecure-content")
