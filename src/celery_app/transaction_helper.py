@@ -90,6 +90,7 @@ class TransactionHelper(BaseRepository):
 
         if azs_external_id:
             if self._stations is None:
+                self.logger.info("Запрашиваю из БД список АЗС")
                 azs_repository = AzsRepository(session=self.session)
                 self._stations = copy.deepcopy(await azs_repository.get_stations())
 
@@ -101,6 +102,7 @@ class TransactionHelper(BaseRepository):
 
         elif terminal_external_id:
             if self._terminals is None:
+                self.logger.info("Запрашиваю из БД список терминалов")
                 azs_repository = AzsRepository(session=self.session)
                 self._terminals = copy.deepcopy(await azs_repository.get_terminals())
 
