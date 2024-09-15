@@ -45,6 +45,7 @@ class TransactionHelper(BaseRepository):
 
     async def get_tariffs(self, system_id: str) -> List[TariffNewOrm]:
         if self._tariffs is None:
+            self.logger.info("Запрашиваю из БД тарифы")
             tariff_repository = TariffRepository(session=self.session)
             self._tariffs = copy.deepcopy(await tariff_repository.get_tariffs())
 
@@ -53,8 +54,9 @@ class TransactionHelper(BaseRepository):
 
     async def get_card_history(self) -> List[CardHistoryOrm]:
         if self._card_history is None:
+            self.logger.info("Запрашиваю из БД историю владения картами")
             card_repository = CardRepository(session=self.session)
-            self._card_history = copy.deepcopy(await card_repository.get_card_history())
+            self._card_history = await card_repository.get_card_history()
 
         return self._card_history
 
@@ -71,6 +73,7 @@ class TransactionHelper(BaseRepository):
 
     async def get_outer_goods_item(self, goods_external_id: str) -> OuterGoodsOrm | None:
         if self._outer_goods is None:
+            self.logger.info("Запрашиваю из БД продукты")
             transaction_repository = TransactionRepository(session=self.session)
             self._outer_goods = await transaction_repository.get_outer_goods_list(system_id=self.system_id)
 
