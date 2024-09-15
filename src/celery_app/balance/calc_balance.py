@@ -172,7 +172,7 @@ class CalcBalances(BaseRepository):
 
             # Получаем тариф, действовавший для организации на момент совершения транзакции
             company = await self.helper.get_card_company(card=transaction.card)
-            azs = await self.helper.get_azs(azs_external_id=transaction.azs_code, system_id=str(transaction.system_id))
+            azs = await self.helper.get_azs(azs_external_id=transaction.azs_code)
             if not azs:
                 raise CeleryError(f"Не удалось определить АЗС по транзакции от {transaction.date_time}. "
                                   f"AZS_EXTERNAL_ID: {transaction.azs_code} | "

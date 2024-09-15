@@ -87,8 +87,8 @@ class TransactionHelper(BaseRepository):
     def add_outer_goods(self, outer_goods: OuterGoodsOrm) -> None:
         self._outer_goods.append(outer_goods)
 
-    async def get_azs(self, azs_external_id: str = None, terminal_external_id: str = None,
-                      system_id: str = None) -> AzsOrm:
+    async def get_azs(self, azs_external_id: str = None, terminal_external_id: str = None) -> AzsOrm:
+        self.logger.info("Запрашиваю АЗС из БД")
         if not self._azs_repository:
             self._azs_repository = AzsRepository(session=self.session)
 
