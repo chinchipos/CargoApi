@@ -553,7 +553,7 @@ class OpsController(BaseRepository):
                          f'{str(end_time - start_time).split(".")[0]}.')
 
     async def import_ops_stations_from_excel(self) -> None:
-        filepath = "d:\\temp\\OPS_TERMINALS_IMPORT.xlsx"
+        filepath = "/tmp/OPS_TERMINALS_IMPORT.xlsx"
         imported_data = pd.read_excel(filepath)
         imported_data = imported_data.replace({np.nan: None})
         length = len(imported_data)
