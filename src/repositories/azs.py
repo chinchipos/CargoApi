@@ -176,7 +176,7 @@ class AzsRepository(BaseRepository):
         azs_owners = await self.select_all(stmt)
         return azs_owners
 
-    async def get_terminal(self, terminal_id: str | None = str, terminal_external_id: str | None = str) -> TerminalOrm:
+    async def get_terminal(self, terminal_id: str | None = None, terminal_external_id: str | None = None) -> TerminalOrm:
         stmt = (
             sa_select(TerminalOrm)
             .options(

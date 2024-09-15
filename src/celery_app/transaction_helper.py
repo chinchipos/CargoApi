@@ -93,7 +93,7 @@ class TransactionHelper(BaseRepository):
             self._azs_repository = AzsRepository(session=self.session)
 
         if azs_external_id:
-            azs = await self._azs_repository.get_station(azs_externel_id=azs_external_id)
+            azs = await self._azs_repository.get_station(azs_external_id=azs_external_id)
             return azs
 
             """
