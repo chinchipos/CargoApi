@@ -235,6 +235,6 @@ class CalcBalances(BaseRepository):
                     f"{os.linesep}"
                 )
 
-        # await self.bulk_update(TransactionOrm, transaction_dataset)
+        await self.bulk_update(TransactionOrm, transaction_dataset)
         self.logger.info("Пересчет транзакций завершен")
         return systems_dict
