@@ -10,6 +10,7 @@ from src.database.models.base import Base
 
 
 class DatabaseSessionManager:
+
     def __init__(self):
         self._engine: AsyncEngine | None = None
         self._sessionmaker: async_sessionmaker | None = None

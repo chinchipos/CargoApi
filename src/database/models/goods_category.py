@@ -2,6 +2,7 @@ from enum import Enum
 from typing import List
 
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database.models.base import Base
@@ -52,6 +53,7 @@ class OuterGoodsCategoryOrm(Base):
     )
 
     inner_category: Mapped[GoodsCategory] = mapped_column(
+        ENUM(*[item.name for item in GoodsCategory], name="goodscategory"),
         nullable=True,
         init=False,
         comment="Категория продуктов в нашей системе"

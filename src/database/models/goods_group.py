@@ -2,6 +2,7 @@ from typing import List
 
 import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import ENUM
 
 from src.database.models.base import Base
 from src.database.models.limit import Unit
@@ -22,12 +23,14 @@ class InnerGoodsGroupOrm(Base):
     )
 
     inner_category: Mapped[GoodsCategory] = mapped_column(
+        ENUM(*[item.name for item in GoodsCategory], name="goodscategory"),
         nullable=True,
         init=False,
         comment="Категория продуктов в нашей системе"
     )
 
     base_unit: Mapped[Unit] = mapped_column(
+        ENUM(*[item.name for item in Unit], name="unit"),
         nullable=True,
         init=False,
         comment="Базовая единица измерения (кроме рублей)"

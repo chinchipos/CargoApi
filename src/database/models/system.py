@@ -3,6 +3,7 @@ from typing import List
 
 import sqlalchemy as sa
 from sqlalchemy import UniqueConstraint
+from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database.models.base import Base
@@ -55,6 +56,7 @@ class SystemOrm(Base):
     )
 
     scheme: Mapped[ContractScheme] = mapped_column(
+        ENUM(*[item.name for item in ContractScheme], name="contractscheme"),
         comment="Схема работы (агентская, перекупная, ...). См. соответствующий public -> Types.",
         init=True,
         server_default=ContractScheme.OVERBOUGHT.name

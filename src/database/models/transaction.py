@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import List
 
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database.models.base import Base
@@ -47,6 +48,7 @@ class TransactionOrm(Base):
     )
 
     transaction_type: Mapped[TransactionType] = mapped_column(
+        ENUM(*[item.name for item in TransactionType], name="transactiontype"),
         comment="Тип транзакции"
     )
 

@@ -2,6 +2,7 @@ from datetime import datetime
 
 import sqlalchemy as sa
 from sqlalchemy import UniqueConstraint
+from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database.models.base import Base
@@ -20,6 +21,7 @@ class MoneyReceiptOrm(Base):
     )
 
     bank: Mapped[Bank] = mapped_column(
+        ENUM(*[item.name for item in Bank], name="bank"),
         comment="Банк",
         init=True,
     )

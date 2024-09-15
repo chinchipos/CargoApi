@@ -3,6 +3,7 @@ from enum import Enum
 from typing import List
 
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database.models import Base
@@ -55,6 +56,7 @@ class CardOrm(Base):
     )
 
     reason_for_blocking: Mapped[BlockingCardReason] = mapped_column(
+        ENUM(*[item.name for item in BlockingCardReason], name="blockingcardreason"),
         comment="Причина блокировки карты",
         nullable=True,
         init=False

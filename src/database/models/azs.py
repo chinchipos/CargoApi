@@ -2,6 +2,7 @@ from enum import Enum
 from typing import Any, List, Dict
 
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
 
@@ -60,6 +61,7 @@ class AzsOrm(Base):
     )
 
     own_type: Mapped[AzsOwnType] = mapped_column(
+        ENUM(*[item.name for item in AzsOwnType], name="azsowntype"),
         nullable=True,
         init=True,
         default=None,

@@ -3,11 +3,13 @@ import sys
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import pool
+from sqlalchemy import pool, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
+from sqlalchemy.sql.ddl import CreateSchema
 
-from src.config import PROD_URI, PRODUCTION
+from src.config import PROD_URI, PRODUCTION, SCHEMA
+from src.database.db import DatabaseSessionManager
 from src.database.models.base import Base
 
 config = context.config
@@ -21,6 +23,28 @@ else:
     config.set_main_option("sqlalchemy.url", PROD_URI + "?target_session_attrs=read-write")
 
 target_metadata = Base.metadata
+
+
+# Создаем схему, если она не существует
+async def create_schema_if_not_exists() -> None:
+    sessionmanager = DatabaseSessionManager()
+    sessionmanager.init(PROD_URI)
+    async with sessionmanager.get_engine().begin() as connection:
+        await connection.execute(CreateSchema(SCHEMA, if_not_exists=True))
+
+
+async def add_ossp_extansion_if_not_exists() -> None:
+    sessionmanager = DatabaseSessionManager()
+    sessionmanager.init(PROD_URI)
+    async with sessionmanager.get_engine().begin() as connection:
+        await connection.execute(text('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"'))
+        await connection.commit()
+
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+asyncio.run(create_schema_if_not_exists())
+asyncio.run(add_ossp_extansion_if_not_exists())
 
 
 def run_migrations_offline() -> None:

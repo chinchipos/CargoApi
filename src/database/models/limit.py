@@ -3,6 +3,7 @@ from enum import Enum
 
 import sqlalchemy as sa
 from sqlalchemy import UniqueConstraint
+from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database.models.base import Base
@@ -70,11 +71,13 @@ class CardLimitOrm(Base):
     )
 
     unit: Mapped[Unit] = mapped_column(
+        ENUM(*[item.name for item in Unit], name="unit"),
         nullable=False,
         comment="Единицы измерения"
     )
 
     period: Mapped[LimitPeriod] = mapped_column(
+        ENUM(*[item.name for item in LimitPeriod], name="limitperiod"),
         nullable=False,
         comment="Период обнуления лимита"
     )
@@ -94,6 +97,7 @@ class CardLimitOrm(Base):
 
     # Категория продуктов
     inner_goods_category: Mapped[GoodsCategory] = mapped_column(
+        ENUM(*[item.name for item in GoodsCategory], name="goodscategory"),
         nullable=True,
         init=False,
         comment="Категория продуктов в нашей системе"
@@ -154,6 +158,7 @@ class GroupLimitOrm(Base):
 
     # Категория продуктов
     inner_goods_category: Mapped[GoodsCategory] = mapped_column(
+        ENUM(*[item.name for item in GoodsCategory], name="goodscategory"),
         nullable=True,
         init=False,
         comment="Категория продуктов в нашей системе"

@@ -3,6 +3,7 @@ from typing import List
 
 import sqlalchemy as sa
 from sqlalchemy import Index, and_
+from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database.models.azs import AzsOwnType
@@ -150,6 +151,7 @@ class TariffNewOrm(Base):
 
     # Категория продуктов
     inner_goods_category: Mapped[GoodsCategory] = mapped_column(
+        ENUM(*[item.name for item in GoodsCategory], name="goodscategory"),
         nullable=True,
         init=True,
         comment="Категория продуктов в нашей системе"
@@ -157,6 +159,7 @@ class TariffNewOrm(Base):
 
     # Тип АЗС
     azs_own_type: Mapped[AzsOwnType] = mapped_column(
+        ENUM(*[item.name for item in AzsOwnType], name="azsowntype"),
         nullable=True,
         init=True,
         comment="Тип АЗС"
