@@ -80,12 +80,10 @@ class TransactionHelper(BaseRepository):
         raise CeleryError(f"Не удалось определить организацию для карты {card.card_number}")
 
     async def get_outer_goods_item(self, goods_external_id: str) -> OuterGoodsOrm | None:
-        self.logger.info("Запрашиваю продукт из БД")
         outer_goods = await self._goods_repository.get_outer_goods_item(outer_goods_external_id=goods_external_id)
         return outer_goods
 
     async def get_azs(self, azs_external_id: str = None, terminal_external_id: str = None) -> AzsOrm:
-        self.logger.info("Запрашиваю АЗС из БД")
         if azs_external_id:
             azs = await self._azs_repository.get_station(azs_external_id=azs_external_id)
             return azs
