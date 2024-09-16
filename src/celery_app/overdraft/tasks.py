@@ -37,7 +37,9 @@ def calc_overdrafts() -> IrrelevantBalances:
     if sys.platform == 'win32':
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-    return asyncio.run(calc_overdrafts_fn())
+    irrelevant_balances = asyncio.run(calc_overdrafts_fn())
+    _logger.info('Раcчет овердрафтов выполнен')
+    return irrelevant_balances
 
 
 async def send_overdrafts_report_fn() -> None:
@@ -54,8 +56,9 @@ async def send_overdrafts_report_fn() -> None:
 
 @celery.task(name="OVERDRAFTS_REPORT")
 def overdrafts_report() -> str:
-    _logger.info('Запускаю задачу рассылки отчетов по открытым овердрафтам')
+    _logger.info('Запускаю задачу рассылки отчетов по овердрафтам')
     asyncio.run(send_overdrafts_report_fn())
+    _logger.info('Рассылка отчетов по овердрафтам выполнена')
     return "COMPLETE"
 
 

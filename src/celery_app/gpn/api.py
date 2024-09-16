@@ -311,7 +311,7 @@ class GPNApi:
             # print(url)
             # print(response.text)
             if not res["data"]["total_count"]:
-                self.logger.info(f"В системе ГПН отсутствуют транзакции за за указанный период {_transaction_days} дн")
+                self.logger.info(f"В системе ГПН отсутствуют транзакции за указанный период {_transaction_days} дн")
                 break
 
             transactions.extend(res["data"]["result"])
