@@ -4,13 +4,12 @@ from celery import chain, chord
 
 from src.celery_app.balance.tasks import calc_balances
 from src.celery_app.exceptions import CeleryError
-from src.celery_app.group_limit_order import GroupLimitOrder
-from src.celery_app.khnp.tasks import khnp_sync, khnp_set_card_states
 from src.celery_app.gpn.tasks import gpn_sync, gpn_update_group_limits
-from src.celery_app.ops.tasks import ops_sync
+from src.celery_app.group_limit_order import GroupLimitOrder
 from src.celery_app.irrelevant_balances import IrrelevantBalances
-from src.celery_app.limits.tasks import gpn_set_card_group_limit
+from src.celery_app.khnp.tasks import khnp_sync, khnp_set_card_states
 from src.celery_app.main import celery
+from src.celery_app.ops.tasks import ops_sync
 from src.utils.enums import System
 from src.utils.loggers import get_logger
 
@@ -44,8 +43,6 @@ def after_sync(irrelevant_balances_list: List[IrrelevantBalances]):
         else:
             messages.append(f"Ошибка синхронизации с {system.value}")
 
-    # changed_balances = [balance_id for balance_id in irrelevant_balances.data().keys()]
-
     # Создаем ордера на изменение лимитов ГПН
     gpn_limit_orders = []
     for personal_account, delta_sum in gpn_sum_deltas.items():
@@ -60,7 +57,6 @@ def after_sync(irrelevant_balances_list: List[IrrelevantBalances]):
         gpn_update_group_limits.si(gpn_limit_orders),
         calc_balances.si(irrelevant_balances),
         khnp_set_card_states.s(),
-        # gpn_set_card_group_limit.si(changed_balances)
     ]
     if messages:
         tasks.append(fail.si(messages))

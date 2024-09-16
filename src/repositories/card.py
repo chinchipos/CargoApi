@@ -2,7 +2,8 @@ import traceback
 from datetime import datetime
 from typing import List
 
-from sqlalchemy import select as sa_select, update as sa_update, delete as sa_delete, func as sa_func, or_, null, and_
+from sqlalchemy import select as sa_select, update as sa_update, delete as sa_delete, func as sa_func, or_, null, and_, \
+    desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload, aliased
 
@@ -350,7 +351,7 @@ class CardRepository(BaseRepository):
         await self.session.execute(stmt)
         await self.session.commit()
 
-    async def get_card_history(self) -> List[CardHistoryOrm]:
+    async def get_card_history(self, card_numbers: List[str] | None = None) -> List[CardHistoryOrm]:
         stmt = (
             sa_select(CardHistoryOrm)
             .options(
@@ -369,7 +370,15 @@ class CardRepository(BaseRepository):
                     CardHistoryOrm.end_time > datetime.now(tz=TZ)
                 )
             ))
-            .order_by(CardHistoryOrm.card_id)
+            .order_by(CardHistoryOrm.card_id, desc(CardHistoryOrm.begin_time))
         )
+        if card_numbers:
+            card_tbl = aliased(CardOrm, name="card_tbl")
+            stmt = (
+                stmt
+                .where(card_tbl.card_number.in_(card_numbers))
+                .where(CardHistoryOrm.card_id == card_tbl.id)
+            )
+
         card_history = await self.select_all(stmt)
         return card_history

@@ -16,7 +16,7 @@ from src.repositories.base import BaseRepository
 from src.repositories.system import SystemRepository
 from src.repositories.transaction import TransactionRepository
 from src.utils.common import banking_round
-from src.utils.enums import ContractScheme, System
+from src.utils.enums import ContractScheme
 from src.utils.loggers import get_logger
 
 
@@ -142,6 +142,9 @@ class CalcBalances(BaseRepository):
             from_date_time=from_date_time,
             personal_accounts=personal_accounts
         )
+
+        # Получаем историю карт
+        await self.helper.get_cards_history(card_numbers=[transaction.card.card_number for transaction in transactions])
 
         system_repository = SystemRepository(session=self.session)
         systems = await system_repository.get_systems()

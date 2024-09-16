@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Dict
 
-from sqlalchemy import select as sa_select, null, nullslast
+from sqlalchemy import select as sa_select, null, nullslast, and_, or_
 from sqlalchemy.orm import joinedload, contains_eager
 
 from src.database.models import SystemOrm, RegionOrm
@@ -51,6 +51,37 @@ class TariffRepository(BaseRepository):
         if system_id:
             stmt = stmt.where(TariffNewOrm.system_id == system_id)
 
+        tariffs = await self.select_all(stmt)
+        return tariffs
+
+    async def get_probable_tariffs_for_transaction(self, tariff_policy_id: str, system_id: str,
+                                                   transaction_time: datetime) -> List[TariffNewOrm]:
+        stmt = (
+            sa_select(TariffNewOrm)
+            .options(
+                joinedload(TariffNewOrm.azs)
+            )
+            .where(
+                and_(
+                    TariffNewOrm.system_id == system_id,
+                    TariffNewOrm.policy_id == tariff_policy_id,
+                    TariffNewOrm.begin_time <= transaction_time,
+                    or_(
+                        TariffNewOrm.end_time.is_(null()),
+                        TariffNewOrm.end_time > transaction_time
+                    )
+                )
+            )
+            .order_by(
+                TariffNewOrm.policy_id,
+                TariffNewOrm.system_id,
+                nullslast(TariffNewOrm.azs_own_type),
+                nullslast(TariffNewOrm.region_id),
+                nullslast(TariffNewOrm.azs_id),
+                nullslast(TariffNewOrm.inner_goods_category),
+                nullslast(TariffNewOrm.inner_goods_group_id)
+            )
+        )
         tariffs = await self.select_all(stmt)
         return tariffs
 

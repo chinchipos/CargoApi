@@ -737,6 +737,9 @@ class GPNController(BaseRepository):
         card_numbers = [transaction['card_number'] for transaction in remote_transactions]
         self._local_cards = await self.helper.get_local_cards(card_numbers=card_numbers)
 
+        # Получаем историю карт
+        await self.helper.get_cards_history(card_numbers=card_numbers)
+
         # Подготавливаем список транзакций для сохранения в БД
         transactions_to_save = []
         for remote_transaction in remote_transactions:

@@ -1,4 +1,3 @@
-import copy
 from datetime import datetime
 from logging import Logger
 from typing import List
@@ -20,12 +19,13 @@ class TransactionHelper(BaseRepository):
     def __init__(self, session: AsyncSession, logger: Logger, system_id: str = None):
         super().__init__(session, None)
         self.logger = logger
-        self._tariffs: List[TariffNewOrm] | None = None
-        self._card_history: List[CardHistoryOrm] | None = None
+        self._cards_history: List[CardHistoryOrm] | None = None
         self.system_id = system_id
 
-        self._azs_repository: AzsRepository | None = None
-        self._goods_repository: GoodsRepository | None = None
+        self._azs_repository: AzsRepository = AzsRepository(session=session)
+        self._goods_repository: GoodsRepository = GoodsRepository(session=session)
+        self._card_repository: CardRepository = CardRepository(session=session)
+        self._tariff_repository: TariffRepository = TariffRepository(session=session)
 
     async def get_local_cards(self, card_numbers: List[str] | None = None) -> List[CardOrm]:
         card_repository = CardRepository(session=self.session, user=None)
@@ -43,27 +43,35 @@ class TransactionHelper(BaseRepository):
 
         raise CeleryError(trace=True, message=f'Карта с номером {card_number} не найдена в БД')
 
-    async def get_tariffs(self, system_id: str) -> List[TariffNewOrm]:
-        if self._tariffs is None:
-            self.logger.info("Запрашиваю из БД тарифы")
-            tariff_repository = TariffRepository(session=self.session)
-            self._tariffs = copy.deepcopy(await tariff_repository.get_tariffs())
-
-        tariffs = [tariff for tariff in self._tariffs if tariff.system_id == system_id]
+    async def get_probable_tariffs(self, tariff_policy_id: str, system_id: str, transaction_time: datetime) \
+            -> List[TariffNewOrm]:
+        tariffs = await self._tariff_repository.get_probable_tariffs_for_transaction(
+            tariff_policy_id=tariff_policy_id,
+            system_id=system_id,
+            transaction_time=transaction_time
+        )
         return tariffs
 
-    async def get_card_history(self) -> List[CardHistoryOrm]:
-        if self._card_history is None:
-            self.logger.info("Запрашиваю из БД историю владения картами")
-            card_repository = CardRepository(session=self.session)
-            self._card_history = await card_repository.get_card_history()
+    async def get_cards_history(self, card_numbers: List[str]) -> List[CardHistoryOrm]:
+        if self._cards_history is None:
+            # Запрашиваем данные из БД
+            history_records = await self._card_repository.get_card_history(card_numbers=card_numbers)
+            self._cards_history = {record.card.card_number: record.card for record in history_records}
 
-        return self._card_history
+        return self._cards_history
+
+    def get_card_history(self, card_number: str) -> CardHistoryOrm | None:
+        if self._cards_history is None:
+            raise CeleryError("Список _cards_history не проиницивлизирован")
+
+        for card_history in self._cards_history:
+            if card_history.card.card_number == card_number:
+                return card_history
 
     async def get_card_company(self, card: CardOrm) -> CompanyOrm:
-        for card_history_record in await self.get_card_history():
-            if card_history_record.card_id == card.id:
-                return card_history_record.company
+        card_history = self.get_card_history(card.card_number)
+        if card_history:
+            return card_history.company
 
         # Если запись не найдена в истории, то возвращаем текущую организацию
         if card.company_id and card.company:
@@ -73,17 +81,11 @@ class TransactionHelper(BaseRepository):
 
     async def get_outer_goods_item(self, goods_external_id: str) -> OuterGoodsOrm | None:
         self.logger.info("Запрашиваю продукт из БД")
-        if not self._goods_repository:
-            self._goods_repository = GoodsRepository(session=self.session)
-
         outer_goods = await self._goods_repository.get_outer_goods_item(outer_goods_external_id=goods_external_id)
         return outer_goods
 
     async def get_azs(self, azs_external_id: str = None, terminal_external_id: str = None) -> AzsOrm:
         self.logger.info("Запрашиваю АЗС из БД")
-        if not self._azs_repository:
-            self._azs_repository = AzsRepository(session=self.session)
-
         if azs_external_id:
             azs = await self._azs_repository.get_station(azs_external_id=azs_external_id)
             return azs
@@ -99,7 +101,11 @@ class TransactionHelper(BaseRepository):
 
         # Получаем список тарифов, действовавших для компании на момент совершения транзакции
         tariffs = []
-        system_tariffs = await self.get_tariffs(system_id)
+        system_tariffs = await self.get_probable_tariffs(
+            tariff_policy_id=company.tariff_policy_id,
+            system_id=system_id,
+            transaction_time=transaction_time
+        )
         for tariff in system_tariffs:
             if tariff.policy_id == company.tariff_policy_id and tariff.begin_time <= transaction_time:
                 if (tariff.end_time and tariff.begin_time <= transaction_time < tariff.end_time) \
