@@ -97,11 +97,11 @@ class TransactionHelper(BaseRepository):
                                                      inner_group: InnerGoodsGroupOrm | None,
                                                      azs: AzsOrm | None, system_id: str = None) -> TariffNewOrm:
         self.logger.info(
-            f"{os.linesep}company: {company}"
-            f"{os.linesep}transaction_time: {transaction_time}"
-            f"{os.linesep}inner_group: {inner_group}"
-            f"{os.linesep}azs: {azs}"
-            f"{os.linesep}system_id: {system_id}"
+            f"{os.linesep}-> company: {company}"
+            f"{os.linesep}-> transaction_time: {transaction_time}"
+            f"{os.linesep}-> inner_group: {inner_group}"
+            f"{os.linesep}-> azs: {azs}"
+            f"{os.linesep}-> system_id: {system_id}"
         )
         # Получаем список тарифов, действовавших для компании на момент совершения транзакции
         probable_tariffs = await self.get_probable_tariffs(
@@ -109,7 +109,7 @@ class TransactionHelper(BaseRepository):
             system_id=system_id,
             transaction_time=transaction_time
         )
-        self.logger.info(f"probable_tariffs: {probable_tariffs}")
+        self.logger.info(f"-> probable_tariffs: {probable_tariffs}")
         # for tariff in probable_tariffs:
         #     if tariff.policy_id == company.tariff_policy_id and tariff.begin_time <= transaction_time:
         #         if (tariff.end_time and tariff.begin_time <= transaction_time < tariff.end_time) \
