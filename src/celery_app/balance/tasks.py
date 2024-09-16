@@ -41,7 +41,9 @@ def calc_balances(irrelevant_balances: IrrelevantBalances) -> Dict[str, List[str
 
     else:
         _logger.info("Пересчитываю балансы")
-        return asyncio.run(calc_balances_fn(irrelevant_balances))
+        balance_ids_to_change_card_states = asyncio.run(calc_balances_fn(irrelevant_balances))
+        _logger.info("Пересчет балансов выполнен")
+        return balance_ids_to_change_card_states
 
 
 async def recalculate_transactions_fn(from_date_time: datetime, perconal_accounts: List[str] | None) \
