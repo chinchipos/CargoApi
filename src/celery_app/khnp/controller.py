@@ -140,8 +140,8 @@ class KHNPController(BaseRepository):
 
                         return transaction
 
-    async def get_outer_goods_item(self, goods_external_id: str) -> OuterGoodsOrm:
-        outer_goods = self.helper.get_outer_goods_item(goods_external_id=goods_external_id)
+    async def get_outer_goods(self, goods_external_id: str) -> OuterGoodsOrm:
+        outer_goods = await self.helper.get_outer_goods_item(goods_external_id=goods_external_id)
 
         if not outer_goods:
             # Если продукт не найден, то создаем его
@@ -182,7 +182,7 @@ class KHNPController(BaseRepository):
         balance = company.overbought_balance()
 
         # Получаем продукт
-        outer_goods = await self.get_outer_goods_item(goods_external_id=remote_transaction['product_type'])
+        outer_goods = await self.get_outer_goods(goods_external_id=remote_transaction['product_type'])
 
         # Получаем АЗС
         azs = await self.get_azs(azs_external_id=remote_transaction['azs'])

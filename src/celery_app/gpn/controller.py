@@ -837,7 +837,7 @@ class GPNController(BaseRepository):
         return transaction_data
 
     async def get_outer_goods(self, goods_external_id: str) -> OuterGoodsOrm:
-        outer_goods = self.helper.get_outer_goods_item(goods_external_id=goods_external_id)
+        outer_goods = await self.helper.get_outer_goods_item(goods_external_id=goods_external_id)
         if not outer_goods:
             # Если продукт не найден, то создаем его
             outer_goods_data = dict(
