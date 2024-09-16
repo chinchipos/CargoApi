@@ -185,10 +185,13 @@ class OpsApi:
             "dateTo": date_to,
         }
 
+        self.logger.info("В ОПС отправлен запрос на получение транзакций")
         result = serialize_object(self.request(endpoint_tag, method, params))
         transactions = result["transactionReceipts"]["item"]
         session_id = result.get("idSession", None)
         while session_id:
+            self.logger.info(f"От ОПС получены транзакции: {len(result['transactionReceipts']['item'])} шт. "
+                             "Запрашиваю следующую порцию данных.")
             params = {
                 "dateFrom": date_from,
                 "dateTo": date_to,
