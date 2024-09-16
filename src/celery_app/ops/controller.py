@@ -411,7 +411,8 @@ class OpsController(BaseRepository):
             company=company,
             transaction_time=remote_transaction["transactionDateTime"],
             inner_group=outer_goods.outer_group.inner_group if outer_goods.outer_group else None,
-            azs=azs
+            azs=azs,
+            system_id=self.system.id
         )
         if not tariff:
             self.logger.error(f"Не удалось определить тариф для транзакции {remote_transaction}")
@@ -630,7 +631,7 @@ class OpsController(BaseRepository):
 
             return False
 
-        def create_tariff(azs_id: str, discount_fee: float, goods_category: GoodsCategory = None,
+        def create_tariff(azs_id: str, discount_fee_: float, goods_category: GoodsCategory = None,
                           group_id: str = None) -> None:
             new_tariff = TariffNewOrm(
                 policy_id=base_policy.id,
@@ -640,7 +641,7 @@ class OpsController(BaseRepository):
                 azs_own_type=None,
                 region_id=None,
                 azs_id=azs_id,
-                discount_fee=discount_fee,
+                discount_fee=discount_fee_,
                 begin_time=datetime(2024, 8, 31, 0, 0, 0)
             )
             self.session.add(new_tariff)
@@ -705,7 +706,7 @@ class OpsController(BaseRepository):
                         discount_fee = float(row.iloc[5])
                         create_tariff(
                             azs_id=station.id,
-                            discount_fee=discount_fee,
+                            discount_fee_=discount_fee,
                             goods_category=None,
                             group_id=None
                         )
@@ -727,7 +728,7 @@ class OpsController(BaseRepository):
                                     discount_fee = float(row[category.name])
                                     create_tariff(
                                         azs_id=station.id,
-                                        discount_fee=discount_fee,
+                                        discount_fee_=discount_fee,
                                         goods_category=category,
                                         group_id=None
                                     )
@@ -743,7 +744,7 @@ class OpsController(BaseRepository):
                             discount_fee = float(row.iloc[10])
                             create_tariff(
                                 azs_id=station.id,
-                                discount_fee=discount_fee,
+                                discount_fee_=discount_fee,
                                 goods_category=None,
                                 group_id=petrol_group.id
                             )
@@ -758,7 +759,7 @@ class OpsController(BaseRepository):
                             discount_fee = float(row.iloc[11])
                             create_tariff(
                                 azs_id=station.id,
-                                discount_fee=discount_fee,
+                                discount_fee_=discount_fee,
                                 goods_category=None,
                                 group_id=diesel_group.id
                             )
@@ -773,7 +774,7 @@ class OpsController(BaseRepository):
                             discount_fee = float(row.iloc[12])
                             create_tariff(
                                 azs_id=station.id,
-                                discount_fee=discount_fee,
+                                discount_fee_=discount_fee,
                                 goods_category=None,
                                 group_id=sug_group.id
                             )

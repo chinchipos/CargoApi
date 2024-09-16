@@ -785,7 +785,8 @@ class GPNController(BaseRepository):
             company=company,
             transaction_time=remote_transaction['timestamp'],
             inner_group=outer_goods.outer_group.inner_group if outer_goods.outer_group else None,
-            azs=azs
+            azs=azs,
+            system_id=self.system.id
         )
         if not tariff:
             self.logger.error(f"Не удалось определить тариф для транзакции {remote_transaction}")

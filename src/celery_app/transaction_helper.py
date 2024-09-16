@@ -95,7 +95,7 @@ class TransactionHelper(BaseRepository):
 
     async def get_company_tariff_on_transaction_time(self, company: CompanyOrm, transaction_time: datetime,
                                                      inner_group: InnerGoodsGroupOrm | None,
-                                                     azs: AzsOrm | None, system_id: str = None) -> TariffNewOrm:
+                                                     azs: AzsOrm | None, system_id: str) -> TariffNewOrm:
         self.logger.info(
             f"{os.linesep}-> company: {company}"
             f"{os.linesep}-> transaction_time: {transaction_time}"
