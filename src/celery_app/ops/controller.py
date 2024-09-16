@@ -340,7 +340,6 @@ class OpsController(BaseRepository):
         # Подготавливаем список транзакций для сохранения в БД
         transactions_to_save = []
         for remote_transaction in remote_transactions:
-            self.logger.info('0000000000')
             transaction_data = await self.process_new_remote_transaction(
                 remote_transaction=remote_transaction
             )
