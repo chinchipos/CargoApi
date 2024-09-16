@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 from logging import Logger
 from typing import List
@@ -97,22 +98,28 @@ class TransactionHelper(BaseRepository):
     async def get_company_tariff_on_transaction_time(self, company: CompanyOrm, transaction_time: datetime,
                                                      inner_group: InnerGoodsGroupOrm | None,
                                                      azs: AzsOrm | None, system_id: str = None) -> TariffNewOrm:
-
+        self.logger.info(
+            f"{os.linesep}company: {company}"
+            f"{os.linesep}transaction_time: {transaction_time}"
+            f"{os.linesep}inner_group: {inner_group}"
+            f"{os.linesep}azs: {azs}"
+            f"{os.linesep}system_id: {system_id}"
+        )
         # Получаем список тарифов, действовавших для компании на момент совершения транзакции
-        tariffs = []
-        system_tariffs = await self.get_probable_tariffs(
+        probable_tariffs = await self.get_probable_tariffs(
             tariff_policy_id=company.tariff_policy_id,
             system_id=system_id,
             transaction_time=transaction_time
         )
-        for tariff in system_tariffs:
-            if tariff.policy_id == company.tariff_policy_id and tariff.begin_time <= transaction_time:
-                if (tariff.end_time and tariff.begin_time <= transaction_time < tariff.end_time) \
-                        or not tariff.end_time:
-                    tariffs.append(tariff)
+        self.logger.info(f"probable_tariffs: {probable_tariffs}")
+        # for tariff in probable_tariffs:
+        #     if tariff.policy_id == company.tariff_policy_id and tariff.begin_time <= transaction_time:
+        #         if (tariff.end_time and tariff.begin_time <= transaction_time < tariff.end_time) \
+        #                 or not tariff.end_time:
+        #             tariffs.append(tariff)
 
         # Перебираем тарифы и применяем первый подошедший
-        for tariff in tariffs:
+        for tariff in probable_tariffs:
             # АЗС
             if tariff.azs_id and azs and tariff.azs_id != azs.id:
                 continue
