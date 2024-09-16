@@ -65,7 +65,7 @@ class TransactionHelper(BaseRepository):
 
         for card_history_record in self._cards_history:
             if card_history_record.card.card_number == card_number:
-                return card_history
+                return card_history_record
 
     async def get_card_company(self, card: CardOrm) -> CompanyOrm:
         card_history = self.get_card_history(card.card_number)
