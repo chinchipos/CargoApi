@@ -55,8 +55,7 @@ class TransactionHelper(BaseRepository):
     async def get_cards_history(self, card_numbers: List[str]) -> List[CardHistoryOrm]:
         if self._cards_history is None:
             # Запрашиваем данные из БД
-            history_records = await self._card_repository.get_card_history(card_numbers=card_numbers)
-            self._cards_history = {record.card.card_number: record.card for record in history_records}
+            self._cards_history = await self._card_repository.get_card_history(card_numbers=card_numbers)
 
         return self._cards_history
 
@@ -64,8 +63,8 @@ class TransactionHelper(BaseRepository):
         if self._cards_history is None:
             raise CeleryError("Список _cards_history не проиницивлизирован")
 
-        for card_history in self._cards_history:
-            if card_history.card.card_number == card_number:
+        for card_history_record in self._cards_history:
+            if card_history_record.card.card_number == card_number:
                 return card_history
 
     async def get_card_company(self, card: CardOrm) -> CompanyOrm:
