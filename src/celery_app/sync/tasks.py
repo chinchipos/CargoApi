@@ -7,7 +7,6 @@ from src.celery_app.exceptions import CeleryError
 from src.celery_app.gpn.tasks import gpn_sync, gpn_update_group_limits
 from src.celery_app.group_limit_order import GroupLimitOrder
 from src.celery_app.irrelevant_balances import IrrelevantBalances
-from src.celery_app.khnp.tasks import khnp_sync, khnp_set_card_states
 from src.celery_app.main import celery
 from src.celery_app.ops.tasks import ops_sync
 from src.utils.enums import System
@@ -27,7 +26,11 @@ def after_sync(irrelevant_balances_list: List[IrrelevantBalances]):
     irrelevant_balances = IrrelevantBalances()
     messages = []
     gpn_sum_deltas = {}
-    systems = [System.KHNP, System.GPN, System.OPS]
+    systems = [
+        # System.KHNP,
+        System.GPN,
+        System.OPS
+    ]
     for i, system in enumerate(systems):
         if irrelevant_balances_list[i]:
             irrelevant_balances.extend(irrelevant_balances_list[i])
@@ -56,7 +59,7 @@ def after_sync(irrelevant_balances_list: List[IrrelevantBalances]):
     tasks = [
         gpn_update_group_limits.si(gpn_limit_orders),
         calc_balances.si(irrelevant_balances),
-        khnp_set_card_states.s(),
+        # khnp_set_card_states.s(),
     ]
     if messages:
         tasks.append(fail.si(messages))
@@ -66,7 +69,7 @@ def after_sync(irrelevant_balances_list: List[IrrelevantBalances]):
 
 sync = chord(
     header=[
-        khnp_sync.si(),
+        # khnp_sync.si(),
         gpn_sync.si(),
         ops_sync.si(),
     ],
