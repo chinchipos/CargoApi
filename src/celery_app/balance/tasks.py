@@ -46,7 +46,7 @@ def calc_balances(irrelevant_balances: IrrelevantBalances) -> Dict[str, List[str
         return balance_ids_to_change_card_states
 
 
-async def recalculate_transactions_fn(from_date_time: datetime, perconal_accounts: List[str] | None) \
+async def recalculate_transactions_fn(from_date_time: datetime, personal_accounts: List[str] | None) \
         -> Dict[str, Any]:
 
     sessionmanager = DatabaseSessionManager()
@@ -54,7 +54,7 @@ async def recalculate_transactions_fn(from_date_time: datetime, perconal_account
 
     async with sessionmanager.session() as session:
         cb = CalcBalances(session)
-        systems_dict = await cb.recalculate_transactions(from_date_time, perconal_accounts)
+        systems_dict = await cb.recalculate_transactions(from_date_time, personal_accounts)
 
     # Закрываем соединение с БД
     await sessionmanager.close()
@@ -62,11 +62,11 @@ async def recalculate_transactions_fn(from_date_time: datetime, perconal_account
 
 
 @celery.task(name="RECALCULATE_TRANSACTIONS")
-def recalculate_transactions(from_date_time: datetime, perconal_accounts: List[str] | None = None) -> None:
+def recalculate_transactions(from_date_time: datetime, personal_accounts: List[str] | None = None) -> None:
     if sys.platform == 'win32':
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-    systems_dict = asyncio.run(recalculate_transactions_fn(from_date_time, perconal_accounts))
+    systems_dict = asyncio.run(recalculate_transactions_fn(from_date_time, personal_accounts))
 
     gpn_sum_deltas = {}
     for system_id, data in systems_dict.items():
@@ -93,8 +93,7 @@ def recalculate_transactions(from_date_time: datetime, perconal_accounts: List[s
         break
 
     tasks = [
-        gpn_update_group_limits.si(gpn_limit_orders),
-        calc_balances.si(ib),
-        # khnp_set_card_states.s()
+        # gpn_update_group_limits.si(gpn_limit_orders),
+        calc_balances.si(ib)
     ]
     chain(*tasks)()
