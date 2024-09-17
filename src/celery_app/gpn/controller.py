@@ -296,17 +296,36 @@ class GPNController(BaseRepository):
                 selectinload(CompanyOrm.balances)
             )
             .select_from(CompanyOrm, CardOrm, CardSystemOrm)
+            .where(CompanyOrm.personal_account == "5850627")
             .where(CompanyOrm.id == CardOrm.company_id)
             .where(CardOrm.id == CardSystemOrm.card_id)
             .where(CardSystemOrm.system_id == self.system.id)
         )
         companies = await self.select_all(stmt)
 
+        def remote_limit_exists(limit_external_id: str, _remote_group_limits: List[Dict[str, Any]]) -> bool:
+            for _remote_limit in _remote_group_limits:
+                if _remote_limit["id"] == limit_external_id:
+                    return True
+
+            return False
+
+        def count_remote_limits_by_category(_gpn_category: GpnGoodsCategory,
+                                            _remote_group_limits: List[Dict[str, Any]]) -> int:
+            i = 0
+            for _remote_limit in _remote_group_limits:
+                if _remote_limit["productType"] == _gpn_category.value["id"]:
+                    i += 1
+
+            return i
+
         def delete_remote_limits_by_category(group_external_id: str, _gpn_category: GpnGoodsCategory,
-                                             _remote_group_limits: List[Dict[str, Any]]) -> None:
-            for remote_limit in remote_group_limits:
-                if remote_limit["productType"] == _gpn_category.value["id"]:
-                    self.api.delete_group_limit(limit_id=remote_limit["id"], group_id=group_external_id)
+                                             _remote_group_limits: List[Dict[str, Any]],
+                                             excluded_limit_external_id: str | None = None) -> None:
+            for _remote_limit in _remote_group_limits:
+                if _remote_limit["productType"] == _gpn_category.value["id"] \
+                        and _remote_limit["id"] != excluded_limit_external_id:
+                    self.api.delete_group_limit(limit_id=_remote_limit["id"], group_id=group_external_id)
 
         async def create_limit_locally_and_remotely(_gpn_category: GpnGoodsCategory, _company: CompanyOrm):
 
@@ -357,10 +376,12 @@ class GPNController(BaseRepository):
                 found_locally = False
                 limits_count = 0
                 found_limit_ids = []
+                founded_local_limit = None
                 for local_limit in company.group_limits:
                     if local_limit.system_id == self.system.id \
                             and local_limit.inner_goods_category == gpn_category.value["local_category"]:
                         found_locally = True
+                        founded_local_limit = local_limit
                         found_limit_ids.append(local_limit.id)
                         limits_count += 1
 
@@ -383,8 +404,29 @@ class GPNController(BaseRepository):
                     )
 
                 else:
-                    # Локально лимит присутствует в единственном количестве
-                    pass
+                    # Локально лимит присутствует в единственном количестве, как и должно быть.
+                    # Если в ГПН не найден, то удаляем локально и создаем заново
+                    if not remote_limit_exists(founded_local_limit.external_id, remote_group_limits):
+                        # Удаляем локально
+                        await self.delete_object(GroupLimitOrm, founded_local_limit.id)
+
+                        # Создаем лимит в обеих локациях
+                        await create_limit_locally_and_remotely(
+                            _gpn_category=gpn_category,
+                            _company=company
+                        )
+                    else:
+                        remote_limits_amount = count_remote_limits_by_category(
+                            _gpn_category=gpn_category,
+                            _remote_group_limits=remote_group_limits
+                        )
+                        if remote_limits_amount > 1:
+                            delete_remote_limits_by_category(
+                                group_external_id=group.external_id,
+                                _gpn_category=gpn_category,
+                                _remote_group_limits=remote_group_limits,
+                                excluded_limit_external_id=founded_local_limit.external_id
+                            )
 
     async def bind_or_create_card(self, card_number: str, card_type_name: str, is_active: bool) -> None:
         stmt = sa_select(CardOrm).where(CardOrm.card_number == card_number)

@@ -93,7 +93,7 @@ def recalculate_transactions(from_date_time: datetime, personal_accounts: List[s
         break
 
     tasks = [
-        # gpn_update_group_limits.si(gpn_limit_orders),
+        gpn_update_group_limits.si(gpn_limit_orders),
         calc_balances.si(ib)
     ]
     chain(*tasks)()

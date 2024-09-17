@@ -35,14 +35,12 @@ class TransactionOrm(Base):
     date_time: Mapped[datetime] = mapped_column(
         sa.DateTime,
         nullable=False,
-        server_default=sa.text("NOW()"),
         comment="Время совершения транзакции"
     )
 
     date_time_load: Mapped[datetime] = mapped_column(
         sa.DateTime,
         nullable=False,
-        server_default=sa.text("NOW()"),
         init=False,
         comment="Время прогрузки в БД"
     )
