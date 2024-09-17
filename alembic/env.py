@@ -8,7 +8,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 from sqlalchemy.sql.ddl import CreateSchema
 
-from src.config import PROD_URI, PRODUCTION, SCHEMA
+from src.config import PROD_URI, SCHEMA, SSL_REQUIRED
 from src.database.db import DatabaseSessionManager
 from src.database.models.base import Base
 
@@ -17,7 +17,7 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-if PRODUCTION:
+if SSL_REQUIRED:
     config.set_main_option("sqlalchemy.url", PROD_URI + "?sslmode=verify-full&target_session_attrs=read-write")
 else:
     config.set_main_option("sqlalchemy.url", PROD_URI + "?target_session_attrs=read-write")

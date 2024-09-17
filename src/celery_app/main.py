@@ -1,13 +1,13 @@
 from celery import Celery
 
-from src.config import PROD_URI, REDIS_HOST, REDIS_PORT, PRODUCTION, REDIS_DB, REDIS_USER, REDIS_PASSWORD
+from src.config import PROD_URI, REDIS_HOST, REDIS_PORT, REDIS_DB, REDIS_USER, REDIS_PASSWORD, SSL_REQUIRED
 
 if REDIS_USER or REDIS_PASSWORD:
     redis_server = f'redis://{REDIS_USER}:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}'
 else:
     redis_server = f'redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}'
 
-if PRODUCTION:
+if SSL_REQUIRED:
     sa_result_backend = (
         PROD_URI.replace("postgresql+psycopg", "db+postgresql") + "?sslmode=verify-full&target_session_attrs=read-write"
     )

@@ -310,12 +310,15 @@ class KHNPController(BaseRepository):
                         self._irrelevant_balances.total_sum_deltas[personal_account] = local_transaction.total_sum
 
         # Удаляем помеченные транзакции из БД
-        self.logger.info(f'Удалить тразакции из локальной БД: {len(to_delete)} шт')
-        if len(to_delete):
-            self.logger.info('Удаляю помеченные локальные транзакции из БД')
+        # self.logger.info(f'Удалить тразакции из локальной БД: {len(to_delete)} шт')
+        # if len(to_delete):
+        #     self.logger.info('Удаляю помеченные локальные транзакции из БД')
+        #     for transaction in to_delete:
+        #         await self.delete_object(TransactionOrm, transaction.id)
 
-            for transaction in to_delete:
-                await self.delete_object(TransactionOrm, transaction.id)
+        # Сообщаем о транзакциях, которые есть в БД, но нет в системе поставщика
+        self.logger.error("В локальной БД присутствуют транзакции, "
+                          f"которых нет в {self.system.short_name}: {to_delete_local}")
 
         # Транзакции от поставщика услуг, оставшиеся необработанными,
         # записываем в локальную БД.

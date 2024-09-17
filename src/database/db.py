@@ -5,7 +5,7 @@ from psycopg import AsyncConnection
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession, AsyncEngine
 from sqlalchemy.sql.ddl import CreateSchema
 
-from src.config import SQLALCHEMY_ECHO, SCHEMA, PRODUCTION
+from src.config import SQLALCHEMY_ECHO, SCHEMA, SSL_REQUIRED
 from src.database.models.base import Base
 
 
@@ -21,7 +21,7 @@ class DatabaseSessionManager:
         else:
             echo = SQLALCHEMY_ECHO
 
-        if PRODUCTION:
+        if SSL_REQUIRED:
             connect_args = {'sslmode': "verify-full", 'target_session_attrs': 'read-write'}
         else:
             connect_args = {'target_session_attrs': 'read-write'}

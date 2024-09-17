@@ -309,10 +309,14 @@ class OpsController(BaseRepository):
                     self._irrelevant_balances.discount_fee_sum_deltas[personal_account] = discount_fee_sum
 
         # Удаляем помеченные транзакции из БД
-        self.logger.info(f'Удалить транзакции ОПС из локальной БД: {len(to_delete_local)} шт')
-        if to_delete_local:
-            for transaction in to_delete_local:
-                await self.delete_object(TransactionOrm, transaction.id)
+        # self.logger.info(f'Удалить транзакции ОПС из локальной БД: {len(to_delete_local)} шт')
+        # if to_delete_local:
+        #     for transaction in to_delete_local:
+        #         await self.delete_object(TransactionOrm, transaction.id)
+
+        # Сообщаем о транзакциях, которые есть в БД, но нет в системе поставщика
+        self.logger.error("В локальной БД присутствуют транзакции, "
+                          f"которых нет в {self.system.short_name}: {to_delete_local}")
 
         # Транзакции от системы, оставшиеся необработанными, записываем в локальную БД.
         self.logger.info(f'Новые транзакции от ОПС: {len(remote_transactions)} шт')

@@ -39,6 +39,7 @@ DB_PORT = int(os.environ.get('DB_PORT'))
 DB_NAME = os.environ.get('DB_NAME')
 DB_USER = os.environ.get('DB_USER')
 DB_PASSWORD = os.environ.get('DB_PASSWORD')
+SSL_REQUIRED = True if os.environ.get('SSL_REQUIRED').lower() == 'true' else False
 SCHEMA = 'cargonomica'
 PROD_URI = "postgresql+psycopg://{}:{}@{}:{}/{}".format(
     DB_USER,
