@@ -5,7 +5,7 @@ from typing import Dict, Any, List
 
 from sqlalchemy import select as sa_select, delete as sa_delete, and_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload, aliased, contains_eager, selectinload
+from sqlalchemy.orm import contains_eager, selectinload
 
 from src.celery_app.exceptions import CeleryError
 from src.celery_app.gpn.api import GPNApi, GpnGoodsCategory
@@ -15,7 +15,6 @@ from src.celery_app.transaction_helper import TransactionHelper
 from src.config import TZ, PRODUCTION
 from src.database.models import CompanyOrm, CardLimitOrm, AzsOrm, RegionOrm, GroupLimitOrm, CardGroupOrm
 from src.database.models.azs import AzsOwnType
-from src.database.models.balance import BalanceOrm as BalanceOrm
 from src.database.models.balance_system import BalanceSystemOrm
 from src.database.models.card import CardOrm, BlockingCardReason
 from src.database.models.card_type import CardTypeOrm
