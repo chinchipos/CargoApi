@@ -48,6 +48,13 @@ class CompanyOrm(Base):
         comment="Лицевой счет"
     )
 
+    contract_number: Mapped[int] = mapped_column(
+        sa.String(150),
+        unique=False,
+        nullable=True,
+        comment="Номер договора"
+    )
+
     date_add: Mapped[date] = mapped_column(
         sa.Date,
         nullable=False,

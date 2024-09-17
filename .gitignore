@@ -5,3 +5,7 @@
 /chromedriver.exe
 /chromedriver
 *.pyc
+/.gitlab-ci.yml
+/.env_prod
+/entrypoint.sh
+/dockerfile
