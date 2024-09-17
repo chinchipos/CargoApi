@@ -310,6 +310,11 @@ class GPNController(BaseRepository):
 
             return False
 
+        def get_remote_limit(limit_external_id: str, _remote_group_limits: List[Dict[str, Any]]) -> Dict[str, Any]:
+            for _remote_limit in _remote_group_limits:
+                if _remote_limit["id"] == limit_external_id:
+                    return _remote_limit
+
         def count_remote_limits_by_category(_gpn_category: GpnGoodsCategory,
                                             _remote_group_limits: List[Dict[str, Any]]) -> int:
             i = 0
@@ -362,7 +367,7 @@ class GPNController(BaseRepository):
             self.logger.info(f"Создан и записан в БД групповой лимит {_company.name} {limit_sum} р. на "
                              f"категорию {_gpn_category.value['local_category']}")
 
-        # Сверяем групповые лимиты
+        # Сверяем наличие групповых лимитов локально и в ГПН. Суммы лимитов будут сверяться на следующем этапе.
         for company in companies:
             # Из ГПН получаем лимиты по группе карт
             group: CardGroupOrm = company.get_card_group(System.GPN)
@@ -427,6 +432,48 @@ class GPNController(BaseRepository):
                                 _remote_group_limits=remote_group_limits,
                                 excluded_limit_external_id=founded_local_limit.external_id
                             )
+
+        # Сверяем суммы лимитов.
+        # На данном этапе мы знаем, что шести лимитам локальным соответствует шесть лимитов в ГПН.
+
+        # Получаем из БД информацию у каких организаций какие карточные лимиты установлены
+        stmt = (
+            sa_select(CompanyOrm.personal_account, CardLimitOrm.inner_goods_category)
+            .select_from(CompanyOrm, CardOrm, CardLimitOrm)
+            .where(CardOrm.id == CardLimitOrm.card_id)
+            .where(CardLimitOrm.system_id == self.system.id)
+            .where(CompanyOrm.id == CardOrm.company_id)
+            .order_by(CompanyOrm.personal_account)
+            .distinct()
+        )
+        company_limit_dataset = await self.select_all(stmt, scalars=False)
+        company_limit_dict = {}
+        for data in company_limit_dataset:
+            if data[0] in company_limit_dict:
+                company_limit_dict[data[0]].append(data[1])
+            else:
+                company_limit_dict[data[0]] = [data[1]]
+
+        companies = await self.select_all(stmt)
+        for company in companies:
+            group: CardGroupOrm = company.get_card_group(System.GPN)
+            remote_group_limits = self.api.get_card_group_limits(group.external_id)
+
+            # Получаем доступный баланс организации
+            available_balance = calc_available_balance(
+                current_balance=company.overbought_balance().balance,
+                min_balance=company.min_balance,
+                overdraft_on=company.overdraft_on,
+                overdraft_sum=company.overdraft_sum
+            )
+            limit_sum = max(math.floor(available_balance), 0)
+
+            for local_group_limit in company.group_limits:
+                remote_group_limit = get_remote_limit(
+                    limit_external_id=local_group_limit.external_id,
+                    _remote_group_limits=remote_group_limits
+                )
+                local_group_limit.limit_sum
 
     async def bind_or_create_card(self, card_number: str, card_type_name: str, is_active: bool) -> None:
         stmt = sa_select(CardOrm).where(CardOrm.card_number == card_number)
