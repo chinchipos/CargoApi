@@ -10,6 +10,7 @@ from src.repositories.system import SystemRepository
 from src.utils.enums import ContractScheme, System
 
 
+"""
 async def set_card_group_limit_fn(balance_ids: List[str]) -> None:
     sessionmanager = DatabaseSessionManager()
     sessionmanager.init(PROD_URI)
@@ -36,3 +37,4 @@ async def set_card_group_limit_fn(balance_ids: List[str]) -> None:
 @celery.task(name="GPN_SET_CARD_GROUP_LIMIT")
 def gpn_set_card_group_limit(balance_ids: List[str]) -> None:
     asyncio.run(set_card_group_limit_fn(balance_ids))
+"""

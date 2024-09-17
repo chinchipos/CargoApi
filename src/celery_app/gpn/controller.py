@@ -353,25 +353,27 @@ class GPNController(BaseRepository):
 
                         group = company.get_card_group(System.GPN)
 
-                        if PRODUCTION:
-                            # Создаем лимит в ГПН
-                            remote_limit_id = self.api.set_group_limit(
-                                limit_id=None,
-                                group_id=group.external_id,
-                                product_category=gpn_category,
-                                limit_sum=limit_sum
-                            )
-                            # Записываем лимит в локальную БД
-                            limit_dataset = {
-                                "system_id": self.system.id,
-                                "external_id": remote_limit_id,
-                                "company_id": company.id,
-                                "limit_sum": limit_sum,
-                                "inner_goods_category": gpn_category.value["local_category"]
-                            }
-                            await self.insert(GroupLimitOrm, **limit_dataset)
-                            self.logger.info(f"Создан и записан в БД групповой лимит {company.name} {limit_sum} р. на "
-                                             f"категорию {gpn_category.value['local_category']}")
+                        # Создаем лимит в ГПН
+                        remote_limit_id = self.api.set_group_limit(
+                            limit_id=None,
+                            group_id=group.external_id,
+                            product_category=gpn_category,
+                            limit_sum=limit_sum
+                        )
+                        if not remote_limit_id:
+                            raise CeleryError("Не удалось создать групповой лимит ГПН")
+
+                        # Записываем лимит в локальную БД
+                        limit_dataset = {
+                            "system_id": self.system.id,
+                            "external_id": remote_limit_id,
+                            "company_id": company.id,
+                            "limit_sum": limit_sum,
+                            "inner_goods_category": gpn_category.value["local_category"]
+                        }
+                        await self.insert(GroupLimitOrm, **limit_dataset)
+                        self.logger.info(f"Создан и записан в БД групповой лимит {company.name} {limit_sum} р. на "
+                                         f"категорию {gpn_category.value['local_category']}")
 
     async def bind_or_create_card(self, card_number: str, card_type_name: str, is_active: bool) -> None:
         stmt = sa_select(CardOrm).where(CardOrm.card_number == card_number)
@@ -502,6 +504,7 @@ class GPNController(BaseRepository):
             ext_card_ids = [card.external_id for card in local_cards_to_block]
             self.api.block_cards(ext_card_ids)
 
+    """
     async def set_group_limits_by_balance_ids(self, balance_ids: List[str] | None, force: bool = False) -> None:
         if not force and not balance_ids:
             # Если force установлен в False, то выполняется алгоритм для установки лимитов после пересчета балансов.
@@ -573,7 +576,8 @@ class GPNController(BaseRepository):
                 current_company_limits=current_company_limits,
                 limit_sum=limit_sum
             )
-
+    """
+    """
     @staticmethod
     def calc_limit_sum(company_available_balance: int | float, current_company_limits) -> int:
         # Суммируем все произведенные расходы по каждой категории товаров
@@ -584,9 +588,9 @@ class GPNController(BaseRepository):
         # Вычисляем новый доступный лимит на категорию "Топливо"
         limit_sum = max(int(math.floor(company_available_balance + spent_sum)), 1)
         return limit_sum
-
+    """
     """Удалить"""
-
+    """
     def set_company_limits(self, group_id: str, current_company_limits, limit_sum: int | float):
         if isinstance(limit_sum, float):
             limit_sum = max(int(math.floor(limit_sum)), 1)
@@ -617,20 +621,24 @@ class GPNController(BaseRepository):
                                      f"local_limit: {limit_sum}")
                 break
 
-        # if group_id == "1-170U7J6K":
-        #     print(f"Идентификатор нового лимита на категорию Топливо: {group_id}")
-
         if not limit_id or need_to_update:
-            if PRODUCTION:
-                self.api.set_group_limit(
-                    limit_id=limit_id,
+            group_limit_external_id = self.api.set_group_limit(
+                limit_id=limit_id,
+                group_id=group_id,
+                product_category=GpnGoodsCategory.FUEL,
+                limit_sum=limit_sum
+            )
+            if not group_limit_external_id:
+                # Пробуем создать новый лимит в ГПН
+                group_limit_external_id = self.api.set_group_limit(
+                    limit_id=None,
                     group_id=group_id,
                     product_category=GpnGoodsCategory.FUEL,
                     limit_sum=limit_sum
                 )
-            else:
-                print(f"Псевдо установлен/обновлен лимит на категорию Топливо | LIMIT_ID: {limit_id} | "
-                      f"GROUP_ID: {group_id} | LIMIT_SUM: {limit_sum}")
+                if group_limit_external_id:
+                    # Обновляем внешний идентификатор лимита в локальной БД
+                    
 
         # Устанавливаем/изменяем лимит на остальные категории
         for not_fuel_category in GpnGoodsCategory.not_fuel_categories():
@@ -656,6 +664,7 @@ class GPNController(BaseRepository):
                 else:
                     print(f"Псевдо установлен/обновлен лимит на категорию {not_fuel_category} | LIMIT_ID: {limit_id} | "
                           f"GROUP_ID: {group_id} | LIMIT_SUM: 1")
+    """
 
     async def load_transactions(self) -> None:
         await self.init_system()
@@ -1177,25 +1186,24 @@ class GPNController(BaseRepository):
         for gpn_category in GpnGoodsCategory:
             limit_sum = max(int(math.floor(available_balance)), 1) if gpn_category == GpnGoodsCategory.FUEL else 1
 
-            if PRODUCTION:
-                # Создаем лимит в ГПН
-                remote_limit_id = self.api.set_group_limit(
-                    limit_id=None,
-                    group_id=card_group_external_id,
-                    product_category=gpn_category,
-                    limit_sum=limit_sum
-                )
-                # Запоминаем параметры лимита для последующей записи в локальную БД
-                local_limits_dataset.append({
-                    "system_id": self.system.id,
-                    "external_id": remote_limit_id,
-                    "company_id": company_id,
-                    "limit_sum": limit_sum,
-                    "inner_goods_category": gpn_category.value["local_category"]
-                })
-            else:
-                print(f"Псевдо создан лимит на категорию {gpn_category.name} | "
-                      f"GROUP_ID: {card_group_external_id} | LIMIT_SUM: {limit_sum}")
+            # Создаем лимит в ГПН
+            remote_limit_id = self.api.set_group_limit(
+                limit_id=None,
+                group_id=card_group_external_id,
+                product_category=gpn_category,
+                limit_sum=limit_sum
+            )
+            if not remote_limit_id:
+                raise CeleryError("Не удалось создать групповой лимит ГПН")
+
+            # Запоминаем параметры лимита для последующей записи в локальную БД
+            local_limits_dataset.append({
+                "system_id": self.system.id,
+                "external_id": remote_limit_id,
+                "company_id": company_id,
+                "limit_sum": limit_sum,
+                "inner_goods_category": gpn_category.value["local_category"]
+            })
 
         # Записываем созданные лимиты в локальную БД
         if local_limits_dataset:
@@ -1221,19 +1229,30 @@ class GPNController(BaseRepository):
         limit_sum = max(int(math.floor(fuel_limit_sum + order.delta_sum)), 1)
 
         for limit in limits_to_update:
-            if PRODUCTION:
-                # Обновляем лимит в ГПН
-                self.api.set_group_limit(
-                    limit_id=limit.external_id,
+            limit.limit_sum = limit_sum
+
+            # Обновляем лимит в ГПН
+            limit_external_id = self.api.set_group_limit(
+                limit_id=limit.external_id,
+                group_id=group_external_id,
+                product_category=GpnGoodsCategory.get_equal_by_local(limit.inner_goods_category),
+                limit_sum=limit_sum
+            )
+            if not limit_external_id:
+                # Пробуем пересоздать лимит
+                limit_external_id = self.api.set_group_limit(
+                    limit_id=None,
                     group_id=group_external_id,
                     product_category=GpnGoodsCategory.get_equal_by_local(limit.inner_goods_category),
                     limit_sum=limit_sum
                 )
-                limit.limit_sum = limit_sum
-                await self.save_object(limit)
-            else:
-                print(f"Псевдо обновлен лимит на категорию {limit.inner_goods_category} | "
-                      f"GROUP_ID: {group_external_id} | LIMIT_SUM: {limit_sum}")
+                if not limit_external_id:
+                    await self.save_object(limit)
+                    raise CeleryError("Не удалось установить лимит ГПН")
+
+                limit.external_id = limit_external_id
+
+            await self.save_object(limit)
 
     async def update_group_limit_by_card_limit(self, company_id: str, card_limit_goods_category: GoodsCategory) \
             -> None:
@@ -1261,14 +1280,30 @@ class GPNController(BaseRepository):
         for limit in company.group_limits:
             if limit.inner_goods_category == card_limit_goods_category \
                     and limit.limit_sum != group_fuel_limit.limit_sum:
+
+                limit.limit_sum = group_fuel_limit.limit_sum
+
                 # Обновляем лимит в ГПН
-                self.api.set_group_limit(
+                limit_external_id = self.api.set_group_limit(
                     limit_id=limit.external_id,
                     group_id=group.external_id,
                     product_category=GpnGoodsCategory.get_equal_by_local(limit.inner_goods_category),
                     limit_sum=group_fuel_limit.limit_sum
                 )
-                limit.limit_sum = group_fuel_limit.limit_sum
+                if not limit_external_id:
+                    # Пробуем пересоздать лимит
+                    limit_external_id = self.api.set_group_limit(
+                        limit_id=None,
+                        group_id=group.external_id,
+                        product_category=GpnGoodsCategory.get_equal_by_local(limit.inner_goods_category),
+                        limit_sum=group_fuel_limit.limit_sum
+                    )
+                    if not limit_external_id:
+                        await self.save_object(limit)
+                        raise CeleryError("Не удалось установить лимит ГПН")
+
+                    limit.external_id = limit_external_id
+
                 await self.save_object(limit)
                 self.logger.info(f"В БД по организации {company.name} {company.personal_account} установлен "
                                  f"лимит {limit.limit_sum} р. на категорию {limit.inner_goods_category.name}")
