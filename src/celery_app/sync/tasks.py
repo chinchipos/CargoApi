@@ -37,7 +37,14 @@ def after_sync(irrelevant_balances_list: List[IrrelevantBalances]):
 
             # Собираем воедино информацию о балансовых дельтах по транзакциям для выставления групповых лимитов ГПН
             if system != System.GPN:
-                for personal_account, delta_sum in irrelevant_balances_list[i]["sum_deltas"].items():
+                for personal_account, delta_sum in irrelevant_balances_list[i]["total_sum_deltas"].items():
+                    if personal_account in gpn_sum_deltas:
+                        gpn_sum_deltas[personal_account] += delta_sum
+                    else:
+                        gpn_sum_deltas[personal_account] = delta_sum
+
+            else:
+                for personal_account, delta_sum in irrelevant_balances_list[i]["discount_fee_sum_deltas"].items():
                     if personal_account in gpn_sum_deltas:
                         gpn_sum_deltas[personal_account] += delta_sum
                     else:

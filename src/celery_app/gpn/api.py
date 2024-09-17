@@ -2,7 +2,7 @@ import hashlib
 import json
 import math
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from enum import Enum
 from typing import Dict, Any, List
 
@@ -47,7 +47,7 @@ class GPNApi:
 
     def __init__(self):
         self.logger = get_logger(name="GPNApi", filename="celery.log")
-        self.today = datetime.now(tz=TZ).date()
+        self.today: date = datetime.now(tz=TZ).date()
 
         self.api_url = GPN_URL
         self.api_v1 = '/vip/v1'
@@ -282,46 +282,57 @@ class GPNApi:
         # Цитата из документации на API:
         # Разница между значениями параметров «date_from» и «date_to» должна быть не больше месяца
         # (рассчитывается от количества дней в месяце, указанном в параметре «date_from»)
-        _transaction_days = transaction_days if 0 < transaction_days <= 28 else 28
-        date_from = self.today - timedelta(days=_transaction_days)
 
-        # Цитата из документации на API:
-        # Количество транзакций на странице. 500, если не указано.
-        page_offset = 0
+        # Если переданное в функцию количество дней превышает значение 28 (минимальное кол-во дней в месяце),
+        # то забираем транзакции из ГПН внесколько итераций, пока не заберем данные за весь период
         transactions = []
-        i = 0
-        while True:
-            params = {
-                "date_from": date_from.isoformat(),
-                "date_to": self.today.isoformat(),
-                "page_limit": 500,
-                "page_offset": page_offset
-            }
-            url = self.endpoint(self.api_v2, "transactions", params)
-            response = requests.get(
-                url=url,
-                headers=self.headers | {"session_id": self.api_session_id}
-            )
+        def request_transactions(_date_from: date, _date_to: date):
+            page_offset = 0
+            i = 0
+            while True:
+                # Цитата из документации на API:
+                # Количество транзакций на странице. 500, если не указано.
+                params = {
+                    "date_from": _date_from.isoformat(),
+                    "date_to": _date_to.isoformat(),
+                    "page_limit": 500,
+                    "page_offset": page_offset
+                }
+                url = self.endpoint(self.api_v2, "transactions", params)
+                response = requests.get(
+                    url=url,
+                    headers=self.headers | {"session_id": self.api_session_id}
+                )
 
-            res = response.json()
+                res = response.json()
 
-            if res["status"]["code"] != 200:
-                raise CeleryError(message=f"Ошибка при получении транзакций. Ответ сервера API: "
-                                          f"{res['status']['errors']}. Наш запрос: {params}")
-            # print(url)
-            # print(response.text)
-            if not res["data"]["total_count"]:
-                self.logger.info(f"В системе ГПН отсутствуют транзакции за указанный период {_transaction_days} дн")
-                break
+                if res["status"]["code"] != 200:
+                    raise CeleryError(message=f"Ошибка при получении транзакций. Ответ сервера API: "
+                                              f"{res['status']['errors']}. Наш запрос: {params}")
+                # print(url)
+                # print(response.text)
+                if not res["data"]["total_count"]:
+                    self.logger.info("В системе ГПН отсутствуют транзакции за период "
+                                     f"c {_date_from.isoformat()} по {_date_to.isoformat()}")
+                    break
 
-            transactions.extend(res["data"]["result"])
-            # ('----------------------')
-            # print(f'OFFSET: {page_offset}')
-            # print(res["data"]["result"])
-            page_offset += 500
-            i += 1
-            if i == 3:
-                break
+                transactions.extend(res["data"]["result"])
+                # ('----------------------')
+                # print(f'OFFSET: {page_offset}')
+                # print(res["data"]["result"])
+                page_offset += 500
+                i += 1
+                if i == 3:
+                    break
+        period = transaction_days
+        date_from = self.today - timedelta(days=period)
+        date_to = date_from + timedelta(days=min(period, 28))
+        request_transactions(date_from, date_to)
+        while date_to < self.today:
+            date_from = date_to + timedelta(days=1)
+            period = (self.today - date_from).days
+            date_to = date_from + timedelta(days=min(period, 28))
+            request_transactions(date_from, date_to)
 
         for transaction in transactions:
             transaction['timestamp'] = datetime.fromisoformat(transaction['timestamp'][:19])

@@ -705,13 +705,13 @@ class GPNController(BaseRepository):
                     self._irrelevant_balances.discount_fee_sum_deltas[personal_account] = discount_fee_sum
 
         # Удаляем помеченные транзакции из БД
-        self.logger.info(f'Удалить тразакции из локальной БД: {len(to_delete_local)} шт')
+        self.logger.info(f'Удалить транзакции из локальной БД: {len(to_delete_local)} шт')
         if to_delete_local:
             for transaction in to_delete_local:
                 await self.delete_object(TransactionOrm, transaction.id)
 
         # Транзакции от системы, оставшиеся необработанными, записываем в локальную БД.
-        self.logger.info(f'Новые тразакции от системы ГПН: {len(remote_transactions)} шт')
+        self.logger.info(f'Новые транзакции от системы ГПН: {len(remote_transactions)} шт')
         if remote_transactions:
             await self.process_new_remote_transactions(remote_transactions)
 
