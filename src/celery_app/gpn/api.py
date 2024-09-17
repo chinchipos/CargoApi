@@ -286,6 +286,7 @@ class GPNApi:
         # Если переданное в функцию количество дней превышает значение 28 (минимальное кол-во дней в месяце),
         # то забираем транзакции из ГПН внесколько итераций, пока не заберем данные за весь период
         transactions = []
+
         def request_transactions(_date_from: date, _date_to: date):
             page_offset = 0
             i = 0
@@ -338,40 +339,60 @@ class GPNApi:
         return transactions
 
     def set_group_limit(self, limit_id: str | None, group_id: str, product_category: GpnGoodsCategory,
-                        limit_sum: float | int) -> str:
-        new_limit = {
-            "contract_id": self.contract_id,
-            "group_id": group_id,
-            "productType": product_category.value["id"],
-            "sum": {
-                "currency": "810",
-                "value": max(int(math.floor(limit_sum)), 1)
-            },
-            "term": {"type": 1},
-            "time": {"number": 1, "type": 2}
-        }
-        # Если задан параметр limit_id, то будет изменен существующий лимит.
-        # Если не задан, то будет создан новый.
-        if limit_id:
-            new_limit['id'] = limit_id
+                        limit_sum: float | int) -> str | None:
 
-        data = {"limit": json.dumps([new_limit])}
-        response = requests.post(
-            url=self.endpoint(self.api_v1, "setLimit"),
-            headers=self.headers | {"session_id": self.api_session_id},
-            data=data
+        def set_group_limit_request(_limit_id: str | None, _group_id: str, _product_category: GpnGoodsCategory,
+                                    _limit_sum: float | int) -> Any:
+            new_limit = {
+                "contract_id": self.contract_id,
+                "group_id": _group_id,
+                "productType": _product_category.value["id"],
+                "sum": {
+                    "currency": "810",
+                    "value": max(int(math.floor(_limit_sum)), 1)
+                },
+                "term": {"type": 1},
+                "time": {"number": 1, "type": 2}
+            }
+            # Если задан параметр limit_id, то будет изменен существующий лимит.
+            # Если не задан, то будет создан новый.
+            if _limit_id:
+                new_limit['id'] = _limit_id
+
+            data = {"limit": json.dumps([new_limit])}
+            response = requests.post(
+                url=self.endpoint(self.api_v1, "setLimit"),
+                headers=self.headers | {"session_id": self.api_session_id},
+                data=data
+            )
+            res = response.json()
+            if res["status"]["code"] == 200:
+                self.logger.info(f"Установлен групповой лимит {new_limit}")
+                time.sleep(0.4)
+            else:
+                self.logger.error(f"Ошибка при установке группового лимита. Ответ сервера API: "
+                                  f"{res['status']['errors']}. Наш запрос: {data}")
+
+            return res
+
+        result = set_group_limit_request(
+            _limit_id=limit_id,
+            _group_id=group_id,
+            _product_category=product_category,
+            _limit_sum=limit_sum
         )
-        res = response.json()
+        if result["status"]["code"] != 200 and limit_id:
+            # Пробуем создать новый лимит вместо обновления существующего
+            result = set_group_limit_request(
+                _limit_id=None,
+                _group_id=group_id,
+                _product_category=product_category,
+                _limit_sum=limit_sum
+            )
 
-        if res["status"]["code"] != 200:
-            raise CeleryError(message=f"Ошибка при установке группового лимита. Ответ сервера API: "
-                                      f"{res['status']['errors']}. Наш запрос: {data}")
-
-        self.logger.info(f"Установлен групповой лимит {new_limit}")
-        time.sleep(0.4)
-
-        # Возвращаем идентификатор созданного лимита
-        return res["data"][0]
+        if result["status"]["code"] == 200:
+            # Возвращаем идентификатор созданного лимита
+            return result["data"][0]
 
     def delete_group_limit(self, limit_id: str, group_id: str) -> None:
         data = {
