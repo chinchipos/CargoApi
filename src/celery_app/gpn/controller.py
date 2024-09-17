@@ -599,8 +599,9 @@ class GPNController(BaseRepository):
         #         await self.delete_object(TransactionOrm, transaction.id)
 
         # Сообщаем о транзакциях, которые есть в БД, но нет в системе поставщика
-        self.logger.error("В локальной БД присутствуют транзакции, "
-                          f"которых нет в {self.system.short_name}: {to_delete_local}")
+        if to_delete_local:
+            self.logger.error("В локальной БД присутствуют транзакции, "
+                              f"которых нет в {self.system.short_name}: {to_delete_local}")
 
         # Транзакции от системы, оставшиеся необработанными, записываем в локальную БД.
         self.logger.info(f'Новые транзакции ГПН: {len(remote_transactions)} шт')
@@ -1028,7 +1029,7 @@ class GPNController(BaseRepository):
             .where(CardSystemOrm.system_id == self.system.id)
             .order_by(CompanyOrm.personal_account)
         )
-        # self.statement(stmt)
+        self.statement(stmt)
         companies: List[CompanyOrm] = copy.deepcopy(await self.select_all(stmt))
         if not companies:
             self.logger.warning("Пустой список организаций, работающих с системой ГПН. "
@@ -1045,6 +1046,9 @@ class GPNController(BaseRepository):
                     order.company = company
                     companies.remove(company)
                     break
+
+            if not order.company:
+                raise CeleryError(f"Не удалось определить организацию по лицевому счету {order.personal_account}")
 
         # Обрабатываем полученные задания на установку / изменение групповых лимитов
         for order in orders:

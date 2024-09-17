@@ -287,14 +287,14 @@ class KHNPController(BaseRepository):
         # Удаляем локальные транзакции из БД, которые не были найдены в списке,
         # полученном от системы.
         self.logger.info('Приступаю к процедуре сравнения локальных транзакций с полученными от системы ХНП')
-        to_delete = []
+        to_delete_local = []
         for local_transaction in local_transactions:
             if local_transaction.card:
                 remote_transaction = self.get_equal_remote_transaction(local_transaction, remote_transactions)
                 if not remote_transaction:
                     # Транзакция присутствует локально, но у поставщика услуг её нет.
                     # Помечаем на удаление локальную транзакцию.
-                    to_delete.append(local_transaction)
+                    to_delete_local.append(local_transaction)
                     # if local_transaction.balance_id:
                     self._irrelevant_balances.add(
                         balance_id=str(local_transaction.balance_id),
@@ -310,15 +310,16 @@ class KHNPController(BaseRepository):
                         self._irrelevant_balances.total_sum_deltas[personal_account] = local_transaction.total_sum
 
         # Удаляем помеченные транзакции из БД
-        # self.logger.info(f'Удалить тразакции из локальной БД: {len(to_delete)} шт')
-        # if len(to_delete):
+        # self.logger.info(f'Удалить тразакции из локальной БД: {len(to_delete_local)} шт')
+        # if len(to_delete_local):
         #     self.logger.info('Удаляю помеченные локальные транзакции из БД')
-        #     for transaction in to_delete:
+        #     for transaction in to_delete_local:
         #         await self.delete_object(TransactionOrm, transaction.id)
 
         # Сообщаем о транзакциях, которые есть в БД, но нет в системе поставщика
-        self.logger.error("В локальной БД присутствуют транзакции, "
-                          f"которых нет в {self.system.short_name}: {to_delete_local}")
+        if to_delete_local:
+            self.logger.error("В локальной БД присутствуют транзакции, "
+                              f"которых нет в {self.system.short_name}: {to_delete_local}")
 
         # Транзакции от поставщика услуг, оставшиеся необработанными,
         # записываем в локальную БД.
