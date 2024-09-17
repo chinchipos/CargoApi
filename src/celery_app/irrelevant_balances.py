@@ -13,7 +13,7 @@ class IrrelevantBalances(dict):
             self,
             irrelevant_balances=self.irrelevant_balances,
             system_id=self.system_id,
-            sum_deltas=self.total_sum_deltas,
+            total_sum_deltas=self.total_sum_deltas,
             discount_fee_sum_deltas=self.discount_fee_sum_deltas
         )
 

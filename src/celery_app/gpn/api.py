@@ -309,11 +309,8 @@ class GPNApi:
                 if res["status"]["code"] != 200:
                     raise CeleryError(message=f"Ошибка при получении транзакций. Ответ сервера API: "
                                               f"{res['status']['errors']}. Наш запрос: {params}")
-                # print(url)
-                # print(response.text)
+
                 if not res["data"]["total_count"]:
-                    self.logger.info("В системе ГПН отсутствуют транзакции за период "
-                                     f"c {_date_from.isoformat()} по {_date_to.isoformat()}")
                     break
 
                 transactions.extend(res["data"]["result"])
@@ -324,6 +321,7 @@ class GPNApi:
                 i += 1
                 if i == 3:
                     break
+
         period = transaction_days
         date_from = self.today - timedelta(days=period)
         date_to = date_from + timedelta(days=min(period, 28))
