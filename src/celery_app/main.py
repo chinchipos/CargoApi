@@ -6,7 +6,7 @@ if REDIS_USER or REDIS_PASSWORD:
     redis_server = f'redis://{REDIS_USER}:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}'
 else:
     redis_server = f'redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}'
-
+# rer
 if SSL_REQUIRED:
     sa_result_backend = (
         PROD_URI.replace("postgresql+psycopg", "db+postgresql") + "?sslmode=verify-full&target_session_attrs=read-write"
