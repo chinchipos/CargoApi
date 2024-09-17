@@ -1047,11 +1047,12 @@ class GPNController(BaseRepository):
                     companies.remove(company)
                     break
 
-            if not order.company:
-                raise CeleryError(f"Не удалось определить организацию по лицевому счету {order.personal_account}")
-
         # Обрабатываем полученные задания на установку / изменение групповых лимитов
         for order in orders:
+            # Обрабатываем только те организации, у которых есть карты ГПН
+            if not order.company:
+                continue
+
             if order.delta_sum:
                 """
                 Такая комбинация имеет место в следующих случаях:
