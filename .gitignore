@@ -9,3 +9,4 @@
 /.env_prod
 /entrypoint.sh
 /dockerfile
+*__pycache__
