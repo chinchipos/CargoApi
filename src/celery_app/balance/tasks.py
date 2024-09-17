@@ -71,7 +71,7 @@ def recalculate_transactions(from_date_time: datetime, perconal_accounts: List[s
     gpn_sum_deltas = {}
     for system_id, data in systems_dict.items():
         if data["system_name"] != System.GPN:
-            for personal_account, delta_sum in data["irrelevant_balances"]["sum_deltas"].items():
+            for personal_account, delta_sum in data["irrelevant_balances"]["total_sum_deltas"].items():
                 if personal_account in gpn_sum_deltas:
                     gpn_sum_deltas[personal_account] += delta_sum
                 else:

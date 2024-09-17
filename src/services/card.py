@@ -23,7 +23,7 @@ class CardService:
         self.logger = repository.logger
 
     async def get_card(self, card_id: str) -> CardOrm:
-        card = await self.repository.get_card(card_id)
+        card = await self.repository.get_card(card_id=card_id)
         if not card:
             raise BadRequestException('Запись не найдена')
         return card
@@ -40,7 +40,7 @@ class CardService:
         )
 
         # Получаем полную информацию о карте
-        card = await self.repository.get_card(new_card_obj.id)
+        card = await self.repository.get_card(card_id=new_card_obj.id)
 
         if card.company_id:
             # Создаем запись в истории карт
@@ -131,7 +131,7 @@ class CardService:
         )
 
         # Получаем карту из БД
-        card = await self.repository.get_card(card_id)
+        card = await self.repository.get_card(card_id=card_id)
 
         if current_company_id != new_company_id:
             # Завершаем историю принадлежности карты
@@ -372,7 +372,7 @@ class CardService:
 
     async def set_state(self, card_id: str, activate: bool) -> None:
         # Получаем карту
-        card = await self.repository.get_card(card_id)
+        card = await self.repository.get_card(card_id=card_id)
 
         # Если карта заблокирована нами автоматически или вручную, то разблокировать её может либо суперадмин,
         # либо менеджер ПроАВТО

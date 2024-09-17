@@ -144,8 +144,6 @@ class CalcBalances(BaseRepository):
         )
 
         # Получаем историю карт
-        await self.helper.get_cards_history(card_numbers=[transaction.card.card_number for transaction in transactions])
-
         system_repository = SystemRepository(session=self.session)
         systems = await system_repository.get_systems()
         balance_ids = {transaction.balance_id for transaction in transactions}
@@ -160,10 +158,10 @@ class CalcBalances(BaseRepository):
             }
 
         def process_delta_sum(personal_account_: str, delta_sum_: float, system_id_: str):
-            if personal_account_ in systems_dict[system_id_]["irrelevant_balances"].sum_deltas:
-                systems_dict[system_id_]["irrelevant_balances"].sum_deltas[personal_account_] += delta_sum_
+            if personal_account_ in systems_dict[system_id_]["irrelevant_balances"].total_sum_deltas:
+                systems_dict[system_id_]["irrelevant_balances"].total_sum_deltas[personal_account_] += delta_sum_
             else:
-                systems_dict[system_id_]["irrelevant_balances"].sum_deltas[personal_account_] = delta_sum_
+                systems_dict[system_id_]["irrelevant_balances"].total_sum_deltas[personal_account_] = delta_sum_
 
         transaction_dataset = []
         for transaction in transactions:
@@ -171,10 +169,9 @@ class CalcBalances(BaseRepository):
             if not transaction.system_id:
                 continue
 
-            # irrelevant_balances = systems_dict[transaction.system_id]["irrelevant_balances"]
-
-            # Получаем тариф, действовавший для организации на момент совершения транзакции
-            company = await self.helper.get_card_company(card=transaction.card)
+            # Получаем карту
+            card = await self.helper.get_card(card_id=transaction.card_id)
+            company = await self.helper.get_card_company_on_time(card, transaction.date_time)
             azs = await self.helper.get_azs(azs_external_id=transaction.azs_code)
             if not azs:
                 raise CeleryError(f"Не удалось определить АЗС по транзакции от {transaction.date_time}. "

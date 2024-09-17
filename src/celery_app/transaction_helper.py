@@ -1,10 +1,14 @@
+import os
+import time
 from datetime import datetime
 from logging import Logger
-from typing import List
+from typing import List, Dict, Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.celery_app.exceptions import CeleryError
+from src.celery_app.irrelevant_balances import IrrelevantBalances
+from src.config import TZ
 from src.database.models import CardOrm, CompanyOrm, InnerGoodsGroupOrm, AzsOrm, TariffNewOrm, CardHistoryOrm, \
     OuterGoodsOrm
 from src.repositories.azs import AzsRepository
@@ -12,6 +16,7 @@ from src.repositories.base import BaseRepository
 from src.repositories.card import CardRepository
 from src.repositories.goods import GoodsRepository
 from src.repositories.tariff import TariffRepository
+from src.utils.enums import TransactionType
 
 
 class TransactionHelper(BaseRepository):
@@ -26,6 +31,7 @@ class TransactionHelper(BaseRepository):
         self._goods_repository: GoodsRepository = GoodsRepository(session=session)
         self._card_repository: CardRepository = CardRepository(session=session)
         self._tariff_repository: TariffRepository = TariffRepository(session=session)
+        self._card_repository: CardRepository = CardRepository(session=session)
 
     async def get_local_cards(self, card_numbers: List[str] | None = None) -> List[CardOrm]:
         card_repository = CardRepository(session=self.session, user=None)
@@ -52,27 +58,15 @@ class TransactionHelper(BaseRepository):
         )
         return tariffs
 
-    async def get_cards_history(self, card_numbers: List[str]) -> List[CardHistoryOrm]:
-        if self._cards_history is None:
-            # Запрашиваем данные из БД
-            self._cards_history = await self._card_repository.get_card_history(card_numbers=card_numbers)
+    async def get_card_company_on_time(self, card: CardOrm, _time: datetime) -> CompanyOrm:
+        company = await self._card_repository.get_card_company_on_time(card.card_number, _time)
+        if company:
+            return company
 
-        return self._cards_history
+        self.logger.error(f"В истории карт не найдена запись кто владел картой {card.card_number} "
+                          f"на указанное время {_time.isoformat()}")
 
-    def get_card_history(self, card_number: str) -> CardHistoryOrm | None:
-        if self._cards_history is None:
-            raise CeleryError("Список _cards_history не проиницивлизирован")
-
-        for card_history_record in self._cards_history:
-            if card_history_record.card.card_number == card_number:
-                return card_history_record
-
-    async def get_card_company(self, card: CardOrm) -> CompanyOrm:
-        card_history = self.get_card_history(card.card_number)
-        if card_history:
-            return card_history.company
-
-        # Если запись не найдена в истории, то возвращаем текущую организацию
+        # Получаем карту, отдаем текущего владельца карты
         if card.company_id and card.company:
             return card.company
 
@@ -134,3 +128,87 @@ class TransactionHelper(BaseRepository):
 
             # Тариф удовлетворяет критериям - возвращаем его
             return tariff
+
+    async def get_card(self, card_id: str | None = None, card_number: str | None = None) -> CardOrm | None:
+        card = await self._card_repository.get_card(card_id=card_id, card_number=card_number)
+        return card
+
+    async def process_new_remote_transaction(
+            self,
+            card_number: str,
+            outer_goods: OuterGoodsOrm,
+            azs: AzsOrm, purchase: bool,
+            irrelevant_balances: IrrelevantBalances,
+            comments: str,
+            system_id: str,
+            transaction_external_id: str | None,
+            transaction_time: datetime,
+            transaction_sum: float,
+            transaction_fuel_volume: float,
+            transaction_price: float) -> Dict[str, Any] | None:
+
+        card = await self.get_card(card_number=card_number)
+        company = await self.get_card_company_on_time(card, transaction_time)
+        balance = company.overbought_balance()
+
+        # Получаем тариф
+        tariff = await self.get_company_tariff_on_transaction_time(
+            company=company,
+            transaction_time=transaction_time,
+            inner_group=outer_goods.outer_group.inner_group if outer_goods.outer_group else None,
+            azs=azs,
+            system_id=system_id
+        )
+        if not tariff:
+            self.logger.error(
+                f"Не удалось определить тариф для транзакции."
+                f"{os.linesep}time: {transaction_time}"
+                f"{os.linesep}sum:  {transaction_sum}"
+            )
+
+        # Сумма транзакции
+        transaction_type = TransactionType.PURCHASE if purchase else TransactionType.REFUND
+        transaction_sum = -abs(transaction_sum) if purchase else abs(transaction_sum)
+
+        # Сумма скидки/наценки
+        discount_fee_percent = tariff.discount_fee / 100 if tariff else 0
+        discount_fee_sum = transaction_sum * discount_fee_percent
+
+        # Получаем итоговую сумму
+        total_sum = transaction_sum + discount_fee_sum
+
+        transaction_data = dict(
+            external_id=transaction_external_id,
+            date_time=transaction_time,
+            date_time_load=datetime.now(tz=TZ),
+            transaction_type=transaction_type,
+            system_id=system_id,
+            card_id=card.id,
+            balance_id=balance.id,
+            azs_code=azs.external_id,
+            outer_goods_id=outer_goods.id if outer_goods else None,
+            fuel_volume=-transaction_fuel_volume,
+            price=transaction_price,
+            transaction_sum=transaction_sum,
+            tariff_new_id=tariff.id if tariff else None,
+            discount_sum=discount_fee_sum if discount_fee_percent < 0 else 0,
+            fee_sum=discount_fee_sum if discount_fee_percent > 0 else 0,
+            total_sum=total_sum,
+            company_balance_after=0,
+            comments=comments,
+        )
+
+        # Вычисляем дельту изменения суммы баланса - понадобится позже для правильного
+        # выставления лимита на группу карт
+        if company.personal_account in irrelevant_balances.total_sum_deltas:
+            irrelevant_balances.total_sum_deltas[company.personal_account] += transaction_data["total_sum"]
+            irrelevant_balances.discount_fee_sum_deltas[company.personal_account] += discount_fee_sum
+        else:
+            irrelevant_balances.total_sum_deltas[company.personal_account] = transaction_data["total_sum"]
+            irrelevant_balances.discount_fee_sum_deltas[company.personal_account] = discount_fee_sum
+
+        # Это нужно, чтобы в БД у транзакций отличалось время и можно было корректно выбрать транзакцию,
+        # которая предшествовала измененной
+        time.sleep(0.001)
+
+        return transaction_data

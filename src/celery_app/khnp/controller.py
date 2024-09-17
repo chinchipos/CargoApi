@@ -233,10 +233,12 @@ class KHNPController(BaseRepository):
 
         # Вычисляем дельту изменения суммы баланса - понадобится позже для правильного
         # выставления лимита на группу карт
-        if company.personal_account in self._irrelevant_balances.sum_deltas:
-            self._irrelevant_balances.sum_deltas[company.personal_account] += transaction_data["total_sum"]
+        if company.personal_account in self._irrelevant_balances.total_sum_deltas:
+            self._irrelevant_balances.total_sum_deltas[company.personal_account] += transaction_data["total_sum"]
+            self._irrelevant_balances.discount_fee_sum_deltas[company.personal_account] += discount_fee_sum
         else:
-            self._irrelevant_balances.sum_deltas[company.personal_account] = transaction_data["total_sum"]
+            self._irrelevant_balances.total_sum_deltas[company.personal_account] = transaction_data["total_sum"]
+            self._irrelevant_balances.discount_fee_sum_deltas[company.personal_account] = discount_fee_sum
 
         # Это нужно, чтобы в БД у транзакций отличалось время и можно было корректно выбрать транзакцию,
         # которая предшествовала измененной
@@ -245,13 +247,6 @@ class KHNPController(BaseRepository):
         return transaction_data
 
     async def process_new_remote_transactions(self, remote_transactions: Dict[str, Any]) -> None:
-        # Получаем карты
-        card_numbers = [card_number for card_number in remote_transactions.keys()]
-        self._local_cards = await self.helper.get_local_cards(card_numbers=card_numbers)
-
-        # Получаем историю карт
-        await self.helper.get_cards_history(card_numbers=card_numbers)
-
         # Подготавливаем список транзакций для сохранения в БД
         transactions_to_save = []
         for card_number, card_transactions in remote_transactions.items():
@@ -309,10 +304,10 @@ class KHNPController(BaseRepository):
                     # Вычисляем дельту изменения суммы баланса - понадобится позже для правильного
                     # выставления лимита на группу карт
                     personal_account = local_transaction.balance.company.personal_account
-                    if personal_account in self._irrelevant_balances.sum_deltas:
-                        self._irrelevant_balances.sum_deltas[personal_account] -= local_transaction.total_sum
+                    if personal_account in self._irrelevant_balances.total_sum_deltas:
+                        self._irrelevant_balances.total_sum_deltas[personal_account] -= local_transaction.total_sum
                     else:
-                        self._irrelevant_balances.sum_deltas[personal_account] = local_transaction.total_sum
+                        self._irrelevant_balances.total_sum_deltas[personal_account] = local_transaction.total_sum
 
         # Удаляем помеченные транзакции из БД
         self.logger.info(f'Удалить тразакции из локальной БД: {len(to_delete)} шт')

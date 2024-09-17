@@ -1,0 +1,12 @@
+[Unit]
+Description=Celery Service
+After=network.target
+PartOf=CargoApi.service
+
+[Service]
+User=cargo
+WorkingDirectory=/api
+ExecStart=/usr/local/bin/celery -A src.celery_app.main:celery worker --loglevel=ERROR
+
+[Install]
+WantedBy=multi-user.target

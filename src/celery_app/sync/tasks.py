@@ -57,7 +57,7 @@ def after_sync(irrelevant_balances_list: List[IrrelevantBalances]):
         )
 
     tasks = [
-        gpn_update_group_limits.si(gpn_limit_orders),
+        # gpn_update_group_limits.si(gpn_limit_orders),
         calc_balances.si(irrelevant_balances),
         # khnp_set_card_states.s(),
     ]
