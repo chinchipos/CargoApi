@@ -9,6 +9,7 @@ from src.celery_app.group_limit_order import GroupLimitOrder
 from src.celery_app.irrelevant_balances import IrrelevantBalances
 from src.celery_app.main import celery
 from src.celery_app.ops.tasks import ops_sync
+from src.config import PRODUCTION
 from src.utils.enums import System
 from src.utils.loggers import get_logger
 
@@ -62,12 +63,11 @@ def after_sync(irrelevant_balances_list: List[IrrelevantBalances]):
                 delta_sum=delta_sum
             )
         )
-
-    tasks = [
-        # gpn_update_group_limits.si(gpn_limit_orders),
+    tasks = [gpn_update_group_limits.si(gpn_limit_orders)] if PRODUCTION else []
+    tasks.extend([
         calc_balances.si(irrelevant_balances),
         # khnp_set_card_states.s(),
-    ]
+    ])
     if messages:
         tasks.append(fail.si(messages))
 
