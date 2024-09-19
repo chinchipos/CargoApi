@@ -33,6 +33,8 @@ name_ = Annotated[str | None, Field(description="Наименование", exam
 
 inn_ = Annotated[str | None, Field(description="ИНН", examples=["77896534678800"])]
 
+contract_number_ = Annotated[str | None, Field(description="Номер договора", max_length=100)]
+
 min_balance_ = Annotated[
     PositiveToNegative | None,
     Field(description="Минимальный баланс, руб.", examples=[20000.0])]
@@ -98,6 +100,7 @@ tariff_policy_ = Annotated[TariffPolicyReadSchema | None, Field(description="Т�
 class CompanyCreateSchema(BaseSchema):
     name: name_
     inn: inn_
+    contract_number: contract_number_
     min_balance: min_balance_ = 0
     contacts: contacts_ = None
     overdraft_on: overdraft_on_ = False
@@ -110,6 +113,7 @@ class CompanyCreateSchema(BaseSchema):
 class CompanyEditSchema(BaseSchema):
     name: name_ = None
     inn: inn_ = None
+    contract_number: contract_number_
     min_balance: min_balance_ = None
     contacts: contacts_ = None
     overdraft_on: overdraft_on_ = None
@@ -130,6 +134,7 @@ class CompanyReadSchema(BaseSchema):
     id: id_
     name: name_
     inn: inn_
+    contract_number: contract_number_
     min_balance: min_balance_
     personal_account: personal_account_
     date_add: date_add_

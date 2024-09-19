@@ -113,8 +113,8 @@ async def create(
         if not data.overdraft_fee_percent:
             raise BadRequestException("Не указан размер комиссии за овердрафт")
 
-    system = await service.create(data)
-    return system
+    company = await service.create(data)
+    return company
 
 
 @router.get(

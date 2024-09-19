@@ -64,7 +64,7 @@ def after_sync(irrelevant_balances_list: List[IrrelevantBalances]):
         )
 
     tasks = [
-        gpn_update_group_limits.si(gpn_limit_orders),
+        # gpn_update_group_limits.si(gpn_limit_orders),
         calc_balances.si(irrelevant_balances),
         # khnp_set_card_states.s(),
     ]
@@ -74,11 +74,13 @@ def after_sync(irrelevant_balances_list: List[IrrelevantBalances]):
     chain(*tasks)()
 
 
-sync = chord(
-    header=[
-        # khnp_sync.si(),
-        gpn_sync.si(),
-        ops_sync.si(),
-    ],
-    body=after_sync.s()
-)
+@celery.task(name="SYNC_WITH_SYSTEMS")
+def sync_with_systems() -> None:
+    chord(
+        header=[
+            # khnp_sync.si(),
+            gpn_sync.si(),
+            ops_sync.si(),
+        ],
+        body=after_sync.s()
+    )()

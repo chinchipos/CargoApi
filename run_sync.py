@@ -1,3 +1,3 @@
-from src.celery_app.sync.tasks import sync
+from src.celery_app.sync.tasks import sync_with_systems
 
-sync()
+sync_with_systems()

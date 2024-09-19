@@ -1,20 +1,20 @@
 import os
-import urllib3
 from datetime import datetime, timedelta, date
 from typing import Dict, Any, List
 
 import requests
+import urllib3
 from zeep import Client, Settings
 from zeep.helpers import serialize_object
 from zeep.plugins import HistoryPlugin
 from zeep.transports import Transport
 from zeep.xsd import ComplexType, Element, String
 
-from src.config import TZ, PRODUCTION, OPS_SERVER, OPS_PORT, OPS_CONTRACT_ID
+from src.config import TZ, OPS_SERVER, OPS_PORT, OPS_CONTRACT_ID, OPS_SSH_ENABLED
 from src.utils.export_to_excel import ExportToExcel
 from src.utils.loggers import get_logger
 
-if not PRODUCTION:
+if OPS_SSH_ENABLED:
     from src.config import OPS_SSH_HOST, OPS_SSH_PORT, OPS_SSH_USER, OPS_SSH_PRIVATE_KEY_FILE
     import paramiko
     from sshtunnel import SSHTunnelForwarder
@@ -28,7 +28,7 @@ class OpsApi:
         self.today = self.now.date()
         self.history = HistoryPlugin()
 
-        if PRODUCTION:
+        if not OPS_SSH_ENABLED:
             self.host = OPS_SERVER
             self.port = OPS_PORT
         else:
@@ -45,8 +45,9 @@ class OpsApi:
 
     def get_client(self, endpoint_tag: str) -> Client:
         session = requests.Session()
-        if not PRODUCTION:
+        if OPS_SSH_ENABLED:
             session.verify = False
+
         session.headers.update({
             'Content-Type': 'text/xml; charset=utf-8',
             'Accept': 'application/soap+xml'
@@ -72,13 +73,13 @@ class OpsApi:
     def show_wsdl_methods(self, endpoint_tag: str, method: str | None = None) -> None:
         interface = {}
 
-        if not PRODUCTION:
+        if OPS_SSH_ENABLED:
             self.tunnel_forwarder.start()
 
         client = self.get_client(endpoint_tag)
         services = client.wsdl.services.values()
 
-        if not PRODUCTION:
+        if OPS_SSH_ENABLED:
             self.tunnel_forwarder.close()
 
         for service in services:
@@ -142,7 +143,7 @@ class OpsApi:
         return result
 
     def get_cards(self) -> List[Dict[str, Any]]:
-        if not PRODUCTION:
+        if OPS_SSH_ENABLED:
             self.tunnel_forwarder.start()
 
         endpoint_tag = "Cards"
@@ -157,7 +158,7 @@ class OpsApi:
             cards.extend(result["cards"]["item"])
             session_id = result.get("idSession", None)
 
-        if not PRODUCTION:
+        if OPS_SSH_ENABLED:
             self.tunnel_forwarder.close()
 
         for card in cards:
@@ -166,7 +167,7 @@ class OpsApi:
         return cards
 
     def get_transactions(self, transaction_days: int) -> List[Dict[str, Any]]:
-        if not PRODUCTION:
+        if OPS_SSH_ENABLED:
             self.tunnel_forwarder.start()
 
         endpoint_tag = "TransactionReceipts"
@@ -201,7 +202,7 @@ class OpsApi:
             transactions.extend(result["transactionReceipts"]["item"])
             session_id = result.get("idSession", None)
 
-        if not PRODUCTION:
+        if OPS_SSH_ENABLED:
             self.tunnel_forwarder.close()
 
         # В транзакции может быть несколько записей. Разбиваем до атомарных записей.
@@ -230,7 +231,7 @@ class OpsApi:
         return transactions
 
     def get_terminals(self, terminal_external_id: str = None) -> List[Dict[str, Any]]:
-        if not PRODUCTION:
+        if OPS_SSH_ENABLED:
             self.tunnel_forwarder.start()
 
         endpoint_tag = "Terminals"
@@ -247,7 +248,7 @@ class OpsApi:
             terminals.extend(result["terminals"]["item"])
             session_id = result.get("idSession", None)
 
-        if not PRODUCTION:
+        if OPS_SSH_ENABLED:
             self.tunnel_forwarder.close()
 
         for terminal in terminals:
@@ -266,7 +267,7 @@ class OpsApi:
         return terminals
 
     def get_goods(self, goods_id: str = None) -> List[Dict[str, Any]]:
-        if not PRODUCTION:
+        if OPS_SSH_ENABLED:
             self.tunnel_forwarder.start()
 
         endpoint_tag = "Goods"
@@ -283,7 +284,7 @@ class OpsApi:
             goods.extend(result["goods"]["item"])
             session_id = result.get("idSession", None)
 
-        if not PRODUCTION:
+        if OPS_SSH_ENABLED:
             self.tunnel_forwarder.close()
 
         for goods_item in goods:
@@ -292,7 +293,7 @@ class OpsApi:
         return goods
 
     def export_transactions(self):
-        if not PRODUCTION:
+        if OPS_SSH_ENABLED:
             self.tunnel_forwarder.start()
 
         endpoint_tag = "TransactionReceipts"
@@ -324,7 +325,7 @@ class OpsApi:
                 transactions.extend(result["transactionReceipts"]["item"])
                 session_id = result.get("idSession", None)
 
-            if not PRODUCTION:
+            if OPS_SSH_ENABLED:
                 self.tunnel_forwarder.close()
 
             # В транзакции может быть несколько записей. Разбиваем до атомарных записей.

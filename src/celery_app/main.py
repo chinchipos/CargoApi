@@ -1,12 +1,16 @@
 from celery import Celery
+from celery.schedules import crontab
 
 from src.config import PROD_URI, REDIS_HOST, REDIS_PORT, REDIS_DB, REDIS_USER, REDIS_PASSWORD, SSL_REQUIRED
+from src.utils.loggers import get_logger
+
+_logger = get_logger(name="MAIN", filename="celery.log")
 
 if REDIS_USER or REDIS_PASSWORD:
     redis_server = f'redis://{REDIS_USER}:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}'
 else:
     redis_server = f'redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}'
-# rer
+
 if SSL_REQUIRED:
     sa_result_backend = (
         PROD_URI.replace("postgresql+psycopg", "db+postgresql") + "?sslmode=verify-full&target_session_attrs=read-write"
@@ -19,6 +23,30 @@ celery = Celery('cargonomica', backend=sa_result_backend, broker=redis_server)
 celery.conf.broker_connection_retry_on_startup = True
 celery.conf.broker_connection_max_retries = 10
 celery.conf.timezone = 'Europe/Moscow'
+
+celery.conf.beat_schedule = {
+    # Задача синхронизации с системами поставщиков
+    'sync-with-systems': {
+        'task': 'SYNC_WITH_SYSTEMS',
+        'schedule': crontab(minute="10,40"),
+        'args': (),
+    },
+
+    # Задача пересчета овердрафтов
+    'overdrafts-calc': {
+        'task': 'CALC_OVERDRAFTS',
+        'schedule': crontab(hour="1", minute="5"),
+        'args': (),
+    },
+
+    # Задача рассылки отчета об овердрафтах
+    'overdrafts-report': {
+        'task': 'OVERDRAFTS_REPORT',
+        'schedule': crontab(hour="1", minute="10"),
+        'args': (),
+    },
+}
+
 celery.autodiscover_tasks(
     packages=[
         "src.celery_app.sync",

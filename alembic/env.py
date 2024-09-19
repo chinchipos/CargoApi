@@ -12,6 +12,8 @@ from src.config import PROD_URI, SCHEMA, SSL_REQUIRED
 from src.database.db import DatabaseSessionManager
 from src.database.models.base import Base
 
+from celery.backends.database.session import ResultModelBase
+
 config = context.config
 
 if config.config_file_name is not None:
@@ -22,7 +24,7 @@ if SSL_REQUIRED:
 else:
     config.set_main_option("sqlalchemy.url", PROD_URI + "?target_session_attrs=read-write")
 
-target_metadata = Base.metadata
+target_metadata = [Base.metadata, ResultModelBase.metadata]
 
 
 # Создаем схему, если она не существует
@@ -40,11 +42,21 @@ async def add_ossp_extansion_if_not_exists() -> None:
         await connection.execute(text('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"'))
         await connection.commit()
 
+
+async def create_sequence_for_celery_if_not_exists() -> None:
+    sessionmanager = DatabaseSessionManager()
+    sessionmanager.init(PROD_URI)
+    async with sessionmanager.get_engine().begin() as connection:
+        await connection.execute(text('CREATE SEQUENCE IF NOT EXISTS task_id_sequence START WITH 1'))
+        await connection.commit()
+
+
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 asyncio.run(create_schema_if_not_exists())
 asyncio.run(add_ossp_extansion_if_not_exists())
+asyncio.run(create_sequence_for_celery_if_not_exists())
 
 
 def run_migrations_offline() -> None:
@@ -65,6 +77,7 @@ def run_migrations_offline() -> None:
         dialect_name="postgrsql",
         dialect_opts={"paramstyle": "named"},
         target_metadata=target_metadata,
+        version_table_schema=Base.metadata.schema,
         literal_binds=True,
         include_schemas=True,
         compare_server_default=True
