@@ -1,12 +1,10 @@
-/src/connectors/khnp/selenium/
-/src/connectors/log/
-/log/
+/selenium_profiles
+/log/*
 /.env
 /chromedriver.exe
 /chromedriver
-*.pyc
 /.gitlab-ci.yml
-/.env_prod
 /entrypoint.sh
 /dockerfile
-*__pycache__
+*__pycache__*
+*.pyc

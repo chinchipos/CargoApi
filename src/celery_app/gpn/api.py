@@ -257,26 +257,21 @@ class GPNApi:
         self.set_cards_state(external_card_ids, block=False)
 
     def set_cards_state(self, external_card_ids: List[str], block: bool) -> None:
-        if not PRODUCTION:
-            action = "Псевдоблокировка" if block else "Псевдоразблокировка"
-            for external_card_id in external_card_ids:
-                self.logger.info(f"{action} карты в ННК | {external_card_id}")
-        else:
-            data = {
-                "contract_id": self.contract_id,
-                "card_id": json.dumps(external_card_ids),
-                "block": "true" if block else "false"
-            }
-            response = requests.post(
-                url=self.endpoint(self.api_v1, "blockCard"),
-                headers=self.headers | {"session_id": self.api_session_id},
-                data=data
-            )
-            res = response.json()
-            if 'errors' in res['status']:
-                action = "заблокировать" if block else "разблокировать"
-                raise CeleryError(message=f"Не удалось {action} карты в системе ГПН. Ответ API: "
-                                          f"{res['status']['errors']}. Наш запрос: {data}")
+        data = {
+            "contract_id": self.contract_id,
+            "card_id": json.dumps(external_card_ids),
+            "block": "true" if block else "false"
+        }
+        response = requests.post(
+            url=self.endpoint(self.api_v1, "blockCard"),
+            headers=self.headers | {"session_id": self.api_session_id},
+            data=data
+        )
+        res = response.json()
+        if 'errors' in res['status']:
+            action = "заблокировать" if block else "разблокировать"
+            raise CeleryError(message=f"Не удалось {action} карты в системе ГПН. Ответ API: "
+                                      f"{res['status']['errors']}. Наш запрос: {data}")
 
     def get_transactions(self, transaction_days: int) -> List[Dict[str, Any]]:
         # Цитата из документации на API:

@@ -4,6 +4,7 @@ from typing import Dict, List, Any
 
 from src.celery_app.gpn.api import GPNApi
 from src.celery_app.gpn.controller import GPNController
+from src.celery_app.async_helper import perform_controller_actions
 from src.celery_app.irrelevant_balances import IrrelevantBalances
 from src.celery_app.main import celery
 from src.config import PROD_URI
@@ -119,6 +120,8 @@ def gpn_set_card_state(external_card_id: str, activate: bool) -> None:
     else:
         gpn_api.block_cards([external_card_id])
 
+    _logger.info(f'Завершена задача {action} карты ГПН')
+
 
 async def delete_card_limits_fn(limit_ids: List[str]) -> None:
     sessionmanager = DatabaseSessionManager()
@@ -140,24 +143,37 @@ def gpn_delete_card_limits(limit_ids: List[str]) -> None:
     asyncio.run(delete_card_limits_fn(limit_ids))
 
 
-async def create_card_limits_fn(company_id: str, card_external_id: str, limit_ids: List[str]) -> None:
-    sessionmanager = DatabaseSessionManager()
-    sessionmanager.init(PROD_URI)
+# async def create_card_limits_fn(company_id: str, card_external_id: str, limit_ids: List[str]) -> None:
+#     sessionmanager = DatabaseSessionManager()
+#     sessionmanager.init(PROD_URI)
+#
+#     async with sessionmanager.session() as session:
+#         gpn_controller = GPNController(session)
+#         await gpn_controller.set_card_limits(company_id, card_external_id, limit_ids)
+#
+#     # Закрываем соединение с БД
+#     await sessionmanager.close()
 
-    async with sessionmanager.session() as session:
-        gpn_controller = GPNController(session)
-        await gpn_controller.set_card_limits(company_id, card_external_id, limit_ids)
 
-    # Закрываем соединение с БД
-    await sessionmanager.close()
+# @celery.task(name="GPN_CREATE_CARD_LIMITS")
+# def gpn_create_card_limits(company_id: str, card_external_id: str, limit_ids: List[str]) -> None:
+#     if sys.platform == 'win32':
+#         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+#
+#     asyncio.run(create_card_limits_fn(company_id, card_external_id, limit_ids))
 
 
 @celery.task(name="GPN_CREATE_CARD_LIMITS")
 def gpn_create_card_limits(company_id: str, card_external_id: str, limit_ids: List[str]) -> None:
-    if sys.platform == 'win32':
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-
-    asyncio.run(create_card_limits_fn(company_id, card_external_id, limit_ids))
+    _logger.info('Запускаю задачу установки карточного лимита ГПН')
+    perform_controller_actions(
+        controller_name="GPNController",
+        func_name="set_card_limits",
+        company_id=company_id,
+        card_external_id=card_external_id,
+        limit_ids=limit_ids
+    )
+    _logger.info('Завершена задача установки карточного лимита ГПН')
 
 
 async def gpn_import_azs_fn() -> None:
@@ -217,6 +233,16 @@ async def binding_cards_fn(card_numbers: List[str], previous_company_id: str, ne
 @celery.task(name="GPN_BINDING_CARDS")
 def gpn_binding_cards(card_numbers: List[str], previous_company_id: str, new_company_id: str) -> None:
     asyncio.run(binding_cards_fn(card_numbers, previous_company_id, new_company_id))
+
+
+@celery.task(name="GPN_SYNC_CARD_STATES")
+def gpn_sync_card_states() -> None:
+    _logger.info('Начинаю синхронизацию состояний карт с ГПН')
+    perform_controller_actions(
+        controller_name="GPNController",
+        func_name="sync_card_states"
+    )
+    _logger.info('Завершена синхронизация состояний карт с ГПН')
 
 
 @celery.task(name="GPN_TEST")

@@ -40,16 +40,18 @@ class OpsController(BaseRepository):
         self._local_cards: List[CardOrm] = []
         self.helper: TransactionHelper | None = None
 
+    async def init(self) -> None:
+        await self.init_system()
+        self._irrelevant_balances = IrrelevantBalances(system_id=self.system.id)
+        self.helper = TransactionHelper(session=self.session, logger=self.logger, system_id=self.system.id)
+
     async def init_system(self) -> None:
         if not self.system:
             system_repository = SystemRepository(self.session)
-            # Проверяем существование системы, если нет - создаем.
             self.system = await system_repository.get_system_by_short_name(
                 short_name=System.OPS.value,
                 scheme=ContractScheme.OVERBOUGHT
             )
-            self._irrelevant_balances = IrrelevantBalances(system_id=self.system.id)
-            self.helper = TransactionHelper(session=self.session, logger=self.logger, system_id=self.system.id)
 
     async def load_cards(self) -> None:
         # self.api.show_wsdl_methods("Cards")

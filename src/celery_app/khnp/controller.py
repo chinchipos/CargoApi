@@ -36,6 +36,11 @@ class KHNPController(BaseRepository):
         self._irrelevant_balances = None
         self.helper: TransactionHelper | None = None
 
+    async def init(self) -> None:
+        await self.init_system()
+        self._irrelevant_balances = IrrelevantBalances(system_id=self.system.id)
+        self.helper = TransactionHelper(session=self.session, logger=self.logger, system_id=self.system.id)
+
     async def sync(self) -> IrrelevantBalances:
         await self.init_system()
 
@@ -58,8 +63,6 @@ class KHNPController(BaseRepository):
                 short_name=System.KHNP.value,
                 scheme=ContractScheme.OVERBOUGHT
             )
-            self._irrelevant_balances = IrrelevantBalances(system_id=self.system.id)
-            self.helper = TransactionHelper(session=self.session, logger=self.logger, system_id=self.system.id)
 
     async def load_balance(self, need_authorization: bool = True) -> None:
         if need_authorization:

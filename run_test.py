@@ -1,3 +1,3 @@
-from src.celery_app.ops.tasks import ops_set_azs_tariffs
+from src.celery_app.gpn.tasks import gpn_sync_card_states
 
-ops_set_azs_tariffs.delay()
+gpn_sync_card_states.delay()

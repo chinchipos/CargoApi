@@ -48,6 +48,11 @@ class GPNController(BaseRepository):
 
         self.helper: TransactionHelper | None = None
 
+    async def init(self) -> None:
+        await self.init_system()
+        self._irrelevant_balances = IrrelevantBalances(system_id=self.system.id)
+        self.helper = TransactionHelper(session=self.session, logger=self.logger, system_id=self.system.id)
+
     async def init_system(self) -> None:
         if not self.system:
             system_repository = SystemRepository(self.session)
@@ -55,8 +60,6 @@ class GPNController(BaseRepository):
                 short_name=System.GPN.value,
                 scheme=ContractScheme.OVERBOUGHT
             )
-            self._irrelevant_balances = IrrelevantBalances(system_id=self.system.id)
-            self.helper = TransactionHelper(session=self.session, logger=self.logger, system_id=self.system.id)
 
     async def sync(self) -> IrrelevantBalances:
         await self.init_system()
@@ -107,7 +110,7 @@ class GPNController(BaseRepository):
         # Синхронизируем карты
         self.logger.info("Запускаю синхронизацию карт")
         await self.sync_cards(remote_cards)
-        self.logger.info("Синхронизация лимитов завершена")
+        self.logger.info("Синхронизация карт завершена")
 
         # ---- 3 ----
         # Устанавливаем лимиты на группы
@@ -500,7 +503,7 @@ class GPNController(BaseRepository):
             self.logger.info(f"В БД создана новая карта ГПН {card_number}")
 
     async def set_card_states(self, balance_ids_to_change_card_states: Dict[str, List[str]]):
-        # В функцию переданы ID балансов, картам которых нужно сменить состояние (заблокировать или разблокировать).
+        # В функцию переданы ID балансов, по картам которых нужно сменить состояние (заблокировать или разблокировать).
         # Меняем статус в локальной БД, потом устанавливаем новый статус в системе поставщика.
         await self.init_system()
 
@@ -634,7 +637,6 @@ class GPNController(BaseRepository):
             transaction_data = await self.process_new_remote_transaction(remote_transaction=remote_transaction)
             if transaction_data:
                 transactions_to_save.append(transaction_data)
-                # if transaction_data['balance_id']:
                 self._irrelevant_balances.add(
                     balance_id=str(transaction_data['balance_id']),
                     irrelevancy_date_time=transaction_data['date_time_load']
@@ -645,51 +647,13 @@ class GPNController(BaseRepository):
 
     async def process_new_remote_transaction(self, remote_transaction: Dict[str, Any]) \
             -> Dict[str, Any] | None:
-        """
-        Обработка транзакции, сохранение в БД. Примеры транзакций см. в файле transaction_examples.txt
-        """
-        """
-        purchase = True if remote_transaction['type'] == "P" else False
-        comments = ''
-
-        # Получаем карту
-        card = self.helper.get_local_card(card_number, self._local_cards)
-
-        # Получаем баланс
-        company = await self.helper.get_card_company(card=card)
-        balance = company.overbought_balance()
-        """
+        """Обработка транзакции, сохранение в БД. Примеры транзакций см. в файле transaction_examples.txt"""
 
         # Получаем продукт
         outer_goods = await self.get_outer_goods(goods_external_id=remote_transaction['product_id'])
 
         # Получаем АЗС
         azs = await self.get_azs(azs_external_id=remote_transaction['poi_id'])
-
-        """
-        # Получаем тариф
-        ## tariff = await self.helper.get_company_tariff_on_transaction_time(
-        ##     company=company,
-        ##     transaction_time=remote_transaction['timestamp'],
-        ##     inner_group=outer_goods.outer_group.inner_group if outer_goods.outer_group else None,
-        ##     azs=azs,
-        ##     system_id=self.system.id
-        ## )
-        ## if not tariff:
-        ##     self.logger.error(f"Не удалось определить тариф для транзакции {remote_transaction}")
-
-        # Сумма транзакции
-        ## transaction_type = TransactionType.PURCHASE if purchase else TransactionType.REFUND
-        ## transaction_sum = -abs(remote_transaction['sum_no_discount']) if purchase \
-        ##     else abs(remote_transaction['sum_no_discount'])
-
-        # Сумма скидки/наценки
-        ## discount_fee_percent = tariff.discount_fee / 100 if tariff else 0
-        ## discount_fee_sum = transaction_sum * discount_fee_percent
-
-        # Получаем итоговую сумму
-        ## total_sum = transaction_sum + discount_fee_sum
-        """
 
         transaction_data = await self.helper.process_new_remote_transaction(
             card_number=remote_transaction['card_number'],
@@ -705,41 +669,7 @@ class GPNController(BaseRepository):
             transaction_fuel_volume=remote_transaction['qty'],
             transaction_price=remote_transaction['price_no_discount']
         )
-        """
-        ## transaction_data = dict(
-        ##     external_id=str(remote_transaction['id']),
-        ##     date_time=remote_transaction['timestamp'],
-        ##     date_time_load=datetime.now(tz=TZ),
-        ##     transaction_type=transaction_type,
-        ##     system_id=self.system.id,
-        ##     card_id=card.id,
-        ##     balance_id=balance.id,
-        ##     azs_code=remote_transaction['poi_id'],
-        ##     outer_goods_id=outer_goods.id if outer_goods else None,
-        ##     fuel_volume=-remote_transaction['qty'],
-        ##     price=remote_transaction['price_no_discount'],
-        ##     transaction_sum=transaction_sum,
-        ##     tariff_new_id=tariff.id if tariff else None,
-        ##     discount_sum=discount_fee_sum if discount_fee_percent < 0 else 0,
-        ##     fee_sum=discount_fee_sum if discount_fee_percent > 0 else 0,
-        ##     total_sum=total_sum,
-        ##     company_balance_after=0,
-        ##     comments=comments,
-        ## )
 
-        # Вычисляем дельту изменения суммы баланса - понадобится позже для правильного
-        # выставления лимита на группу карт
-        ## if company.personal_account in self._irrelevant_balances.total_sum_deltas:
-        ##     self._irrelevant_balances.total_sum_deltas[company.personal_account] += transaction_data["total_sum"]
-        ##     self._irrelevant_balances.discount_fee_sum_deltas[company.personal_account] += discount_fee_sum
-        ## else:
-        ##     self._irrelevant_balances.total_sum_deltas[company.personal_account] = transaction_data["total_sum"]
-        ##     self._irrelevant_balances.discount_fee_sum_deltas[company.personal_account] = discount_fee_sum
-
-        # Это нужно, чтобы в БД у транзакций отличалось время и можно было корректно выбрать транзакцию,
-        # которая предшествовала измененной
-        ## time.sleep(0.001)
-        """
         return transaction_data
 
     async def get_outer_goods(self, goods_external_id: str) -> OuterGoodsOrm:
@@ -795,75 +725,6 @@ class GPNController(BaseRepository):
             .where(CardLimitOrm.id.in_(limit_ids))
         )
         limits: List[CardLimitOrm] = await self.select_all(stmt)
-
-        # В локальной БД, если не указано поле лимита inner_goods_category, это означает, что лимит
-        # действует в отношении всех категорий. В ГПН так не работает - категория обязательно должна быть указана.
-        # new_limits = []
-        # for limit in limits:
-        #     if limit.inner_goods_category:
-        #         new_limit = {
-        #             "obj": limit,
-        #             "inner_goods_category": limit.inner_goods_category,
-        #             "inner_goods_group_id": limit.inner_goods_group_id,
-        #             "value": limit.value,
-        #             "unit": limit.unit,
-        #             "period": limit.period,
-        #         }
-        #         new_limits.append(new_limit)
-        #     else:
-        #         for category in GoodsCategory:
-        #             new_limit = {
-        #                 "obj": limit,
-        #                 "inner_goods_category": category,
-        #                 "inner_goods_group_id": limit.inner_goods_group_id,
-        #                 "value": limit.value,
-        #                 "unit": limit.unit,
-        #                 "period": limit.period,
-        #             }
-        #             new_limits.append(new_limit)
-
-        # Дополняем записи сведениями об идентификаторах категорий и групп в ГПН
-        # oods_repository = GoodsRepository(session=self.session, user=None)
-        # pn_groups = await goods_repository.get_outer_groups(self.system.id)
-        # ategories = await goods_repository.get_outer_categories(self.system.id)
-        #  = 0
-        # hile i < len(new_limits):
-        #    limit = new_limits[i]
-        #    # Получаем идентификатор категории в ГПН
-        #    found = False
-        #    for category in categories:
-        #        if limit["inner_goods_category"] == category.inner_category:
-        #            found = True
-        #            gpn_goods_category = GpnGoodsCategory.get_equal_by_local(category.inner_category)
-        #            limit["gpn_goods_category_id"] = gpn_goods_category.value["id"]
-        #            break
-
-        #    # Если не найдено совпадение, то удаляем запись из списка
-        #    if not found:
-        #        self.logger.error(f"При создании лимита в ГПН не удалось определить идентификатор категории. "
-        #                          f"Лимит не создан в ГПН: {limit}")
-        #        new_limits.remove(limit)
-        #        continue
-
-        #    if limit["inner_goods_group_id"]:
-        #        found = False
-        #        for gpn_group in gpn_groups:
-        #            if limit["inner_goods_group_id"] == gpn_group.inner_group_id:
-        #                found = True
-        #                limit["gpn_goods_group_id"] = gpn_group.external_id
-
-        #    # Если не найдено совпадение, то удаляем запись из списка
-        #    if not found:
-        #        self.logger.error(f"При создании лимита в ГПН не удалось определить идентификатор категории. "
-        #                          f"Лимит не создан в ГПН: {limit}")
-        #        new_limits.remove(limit)
-        #        continue
-
-        #    # Лимит успешно обработан - увеличиваем счетчик
-        #    i += 1
-
-        # print('YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY')
-        # print(limits)
 
         # В ГПН создаем лимиты по карте
         for limit in limits:
@@ -1270,3 +1131,58 @@ class GPNController(BaseRepository):
                 card_external_ids=[card.external_id for card in cards],
                 group_id=group_id
             )
+
+    async def sync_card_states(self) -> None:
+        # Получаем список карт из БД
+        local_cards = await self.helper.get_local_cards()
+
+        # Получаем карты из ГПН
+        remote_cards = self.api.get_gpn_cards()
+
+        if len(local_cards) != len(remote_cards):
+            self.logger.warning(f"Количество карт в БД ({len(local_cards)} шт) "
+                                f"не соответствует количеству карт в ГПН ({len(remote_cards)} шт).")
+
+        # Сверяем состояния карт. Если отличаются, в ГПН делаем смену состояний.
+        card_external_ids_to_activate = []
+        card_external_ids_to_block = []
+        for local_card in local_cards:
+            found = False
+            for remote_card in remote_cards:
+                if local_card.card_number == remote_card["number"]:
+                    found = True
+                    remote_card_is_active = True if "locked" not in remote_card["status"].lower() else False
+                    if local_card.is_active != remote_card_is_active:
+                        local_state = "активна" if local_card.is_active else "заблокирована"
+                        remote_state = "активна" if remote_card_is_active else "заблокирована"
+                        company_info = f"{local_card.company.name}, {local_card.company.personal_account}" \
+                            if local_card.company_id else "не присвоена"
+                        self.logger.warning(f"Состояние карты {local_card.card_number} в БД не соответствует состоянию "
+                                            f"в ГПН. В БД карта {local_state}, в ГПН {remote_state}. "
+                                            f"Организация {company_info}.")
+
+                        if local_card.is_active:
+                            card_external_ids_to_activate.append(local_card.external_id)
+                        else:
+                            card_external_ids_to_block.append(local_card.external_id)
+
+                    break
+
+            if not found:
+                self.logger.warning(f"Карта {local_card.card_number} присутствует в БД, но не найдена в ГПН.")
+
+        # Устанавливаем состояние карт в ГПН
+        if card_external_ids_to_activate:
+            self.logger.info(f"В ГПН отправлен запрос на активацию карт: {len(card_external_ids_to_activate)} шт")
+            self.api.activate_cards(card_external_ids_to_activate)
+            self.logger.info("Выполнена активация карт в ГПН")
+
+        if card_external_ids_to_block:
+            self.logger.info(f"В ГПН отправлен запрос на блокировку карт: {len(card_external_ids_to_block)} шт")
+            self.api.block_cards(card_external_ids_to_block)
+            self.logger.info("Выполнена блокировка карт в ГПН")
+
+        if not card_external_ids_to_activate and not card_external_ids_to_block:
+            self.logger.info("Состояния карт в БД и ГПН идентичны.")
+
+

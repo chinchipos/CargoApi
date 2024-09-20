@@ -32,6 +32,13 @@ celery.conf.beat_schedule = {
         'args': (),
     },
 
+    # Задача синхронизации состояний карт с ГПН
+    'sync-gpn-card-states': {
+        'task': 'GPN_SYNC_CARD_STATES',
+        'schedule': crontab(day_of_week="5", hour="3", minute="10"),
+        'args': (),
+    },
+
     # Задача пересчета овердрафтов
     'overdrafts-calc': {
         'task': 'CALC_OVERDRAFTS',

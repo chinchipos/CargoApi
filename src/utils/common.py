@@ -1,6 +1,6 @@
 import random
-import ssl
 import socket
+import ssl
 from decimal import Decimal, ROUND_HALF_UP
 
 
@@ -43,6 +43,8 @@ def calc_available_balance(current_balance: float, min_balance: float, overdraft
 
 
 def banking_round(value: float | int) -> float:
+    """Правильное математическое округление. Стандартное округление Python не всегда работает правильно.
+    Подробности можно почитать в официальной документации на функцию round."""
     d = Decimal(str(value))
     rounded = d.quantize(Decimal('.01'), rounding=ROUND_HALF_UP)
     return float(rounded)

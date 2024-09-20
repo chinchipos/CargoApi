@@ -22,6 +22,9 @@ class BaseRepository:
         self.user = user
         self.logger = api_logger
 
+    async def init(self) -> None:
+        pass
+
     @staticmethod
     def statement(stmt, description: str = "") -> None:
         print('   ')
