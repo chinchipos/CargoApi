@@ -39,8 +39,8 @@ _logger = get_logger(name="OPS_TASKS", filename="celery.log")
 #         _logger.info("Ошибка синхронизации с ОПС")
 
 
-@celery.task(name="SYNC_GPN")
-def gpn_sync() -> IrrelevantBalances:
+@celery.task(name="OPS_SYNC")
+def ops_sync() -> IrrelevantBalances:
     _logger.info("Запускаю синхронизацию с ОПС")
     try:
         irrelevant_balances = perform_controller_actions(
