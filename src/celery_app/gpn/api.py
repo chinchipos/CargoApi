@@ -1,6 +1,5 @@
 import hashlib
 import json
-import math
 import time
 from datetime import datetime, timedelta, date
 from enum import Enum
@@ -334,7 +333,7 @@ class GPNApi:
         return transactions
 
     def set_group_limit(self, limit_id: str | None, group_id: str, product_category: GpnGoodsCategory,
-                        limit_sum: float | int) -> str | None:
+                        limit_sum: int) -> str | None:
 
         new_limit = {
             "contract_id": self.contract_id,
@@ -342,7 +341,7 @@ class GPNApi:
             "productType": product_category.value["id"],
             "sum": {
                 "currency": "810",
-                "value": max(int(math.floor(limit_sum)), 1)
+                "value": limit_sum
             },
             "term": {"type": 1},
             "time": {"number": 1, "type": 2}
@@ -360,7 +359,6 @@ class GPNApi:
         )
         res = response.json()
         if res["status"]["code"] == 200:
-            self.logger.info(f"Установлен групповой лимит {new_limit}")
             time.sleep(0.4)
 
             # Возвращаем идентификатор созданного лимита

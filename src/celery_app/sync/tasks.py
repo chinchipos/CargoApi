@@ -18,7 +18,7 @@ _logger = get_logger(name="SYNC_TASKS", filename="celery.log")
 
 @celery.task(name="FAIL")
 def fail(messages: List[str]) -> None:
-    raise CeleryError(message=" ".join(messages), trace=False)
+    raise CeleryError(message=", ".join(messages), trace=False)
 
 
 @celery.task(name="AFTER_SYNC")

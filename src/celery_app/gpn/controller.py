@@ -346,14 +346,16 @@ class GPNController(BaseRepository):
             )
 
             # Устанавливаем размер лимита. На следующем этапе он может быть изменен. Пока пусть будет такой.
-            limit_sum = max(int(math.floor(available_balance)), 1) if _gpn_category == GpnGoodsCategory.FUEL else 1
+            limit_sum_ = max(int(math.floor(available_balance)), 1) if _gpn_category == GpnGoodsCategory.FUEL else 1
 
             # Создаем лимит в ГПН
-            remote_limit_id = self.api.set_group_limit(
+            remote_limit_id = self.set_group_limit(
                 limit_id=None,
                 group_id=group.external_id,
                 product_category=_gpn_category,
-                limit_sum=limit_sum
+                limit_sum=limit_sum_,
+                company_name=_company.name,
+                personal_account=_company.personal_account
             )
             if not remote_limit_id:
                 raise CeleryError("Не удалось создать групповой лимит ГПН")
@@ -890,7 +892,7 @@ class GPNController(BaseRepository):
             .where(CardSystemOrm.system_id == self.system.id)
             .order_by(CompanyOrm.personal_account)
         )
-        self.statement(stmt)
+        # self.statement(stmt)
         companies: List[CompanyOrm] = copy.deepcopy(await self.select_all(stmt))
         if not companies:
             self.logger.warning("Пустой список организаций, работающих с системой ГПН. "
@@ -927,7 +929,8 @@ class GPNController(BaseRepository):
                 """
                 await self.update_group_limits_by_delta_sum(order)
 
-    async def create_group_limits(self, company_id: str, card_group_external_id: str, available_balance: float) -> None:
+    async def create_group_limits(self, company_id: str, company_name: str, personal_account: str,
+                                  card_group_external_id: str, available_balance: float) -> None:
         # Получаем идентификатор карточной группы ГПН, сохраненный в БД
 
         # Создаем лимиты в ГПН на все категории продуктов
@@ -936,11 +939,13 @@ class GPNController(BaseRepository):
             limit_sum = max(int(math.floor(available_balance)), 1) if gpn_category == GpnGoodsCategory.FUEL else 1
 
             # Создаем лимит в ГПН
-            remote_limit_id = self.api.set_group_limit(
+            remote_limit_id = self.set_group_limit(
                 limit_id=None,
                 group_id=card_group_external_id,
                 product_category=gpn_category,
-                limit_sum=limit_sum
+                limit_sum=limit_sum,
+                company_name=company_name,
+                personal_account=personal_account
             )
             if not remote_limit_id:
                 raise CeleryError("Не удалось создать групповой лимит ГПН")
@@ -981,19 +986,23 @@ class GPNController(BaseRepository):
             limit.limit_sum = limit_sum
 
             # Обновляем лимит в ГПН
-            limit_external_id = self.api.set_group_limit(
+            limit_external_id = self.set_group_limit(
                 limit_id=limit.external_id,
                 group_id=group_external_id,
                 product_category=GpnGoodsCategory.get_equal_by_local(limit.inner_goods_category),
-                limit_sum=limit_sum
+                limit_sum=limit_sum,
+                company_name=order.company.name,
+                personal_account=order.company.personal_account
             )
             if not limit_external_id:
                 # Пробуем пересоздать лимит
-                limit_external_id = self.api.set_group_limit(
+                limit_external_id = self.set_group_limit(
                     limit_id=None,
                     group_id=group_external_id,
                     product_category=GpnGoodsCategory.get_equal_by_local(limit.inner_goods_category),
-                    limit_sum=limit_sum
+                    limit_sum=limit_sum,
+                    company_name=order.company.name,
+                    personal_account=order.company.personal_account
                 )
                 if not limit_external_id:
                     await self.save_object(limit)
@@ -1033,19 +1042,23 @@ class GPNController(BaseRepository):
                 limit.limit_sum = group_fuel_limit.limit_sum
 
                 # Обновляем лимит в ГПН
-                limit_external_id = self.api.set_group_limit(
+                limit_external_id = self.set_group_limit(
                     limit_id=limit.external_id,
                     group_id=group.external_id,
                     product_category=GpnGoodsCategory.get_equal_by_local(limit.inner_goods_category),
-                    limit_sum=group_fuel_limit.limit_sum
+                    limit_sum=group_fuel_limit.limit_sum,
+                    company_name=company.name,
+                    personal_account=company.personal_account
                 )
                 if not limit_external_id:
                     # Пробуем пересоздать лимит
-                    limit_external_id = self.api.set_group_limit(
+                    limit_external_id = self.set_group_limit(
                         limit_id=None,
                         group_id=group.external_id,
                         product_category=GpnGoodsCategory.get_equal_by_local(limit.inner_goods_category),
-                        limit_sum=group_fuel_limit.limit_sum
+                        limit_sum=group_fuel_limit.limit_sum,
+                        company_name=company.name,
+                        personal_account=company.personal_account
                     )
                     if not limit_external_id:
                         await self.save_object(limit)
@@ -1057,7 +1070,8 @@ class GPNController(BaseRepository):
                 self.logger.info(f"В БД по организации {company.name} {company.personal_account} установлен "
                                  f"лимит {limit.limit_sum} р. на категорию {limit.inner_goods_category.name}")
 
-    async def create_company(self, company_id: str, personal_account: str, available_balance: float) -> str:
+    async def create_company(self, company_id: str, company_name: str, personal_account: str,
+                             available_balance: float) -> str:
         # Создаем карточную группу в ГПН
         group_id = self.api.create_card_group(personal_account)
 
@@ -1073,6 +1087,8 @@ class GPNController(BaseRepository):
         # Создаем групповые лимиты
         await self.create_group_limits(
             company_id=company_id,
+            company_name=company_name,
+            personal_account=personal_account,
             card_group_external_id=group_id,
             available_balance=available_balance
         )
@@ -1121,6 +1137,7 @@ class GPNController(BaseRepository):
                 )
                 group_id = await self.create_company(
                     company_id=new_company.id,
+                    company_name=new_company.name,
                     personal_account=new_company.personal_account,
                     available_balance=available_balance
                 )
@@ -1185,4 +1202,21 @@ class GPNController(BaseRepository):
         if not card_external_ids_to_activate and not card_external_ids_to_block:
             self.logger.info("Состояния карт в БД и ГПН идентичны.")
 
+    def set_group_limit(self, limit_id: str | None, group_id: str, product_category: GpnGoodsCategory,
+                        limit_sum: float | int, company_name: str, personal_account: str) -> str | None:
+        remote_limit_id = self.api.set_group_limit(
+            limit_id=limit_id,
+            group_id=group_id,
+            product_category=product_category,
+            limit_sum=max(int(math.floor(limit_sum)), 1)
+        )
+        helper_text = (
+            f"{limit_sum} р. на категорию {product_category.value['local_category'].value} "
+            f"для организации {company_name}, ЛС: {personal_account}"
+        )
+        if remote_limit_id:
+            self.logger.info(f"Установлен групповой лимит {helper_text}")
+        else:
+            self.logger.error(f"Ошибка при установке группового лимита {helper_text}")
 
+        return remote_limit_id
