@@ -51,7 +51,7 @@ class CompanyOrm(Base):
     contract_number: Mapped[int] = mapped_column(
         sa.String(150),
         unique=False,
-        nullable=True,
+        nullable=False,
         comment="Номер договора"
     )
 

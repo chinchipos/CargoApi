@@ -113,7 +113,7 @@ class CompanyCreateSchema(BaseSchema):
 class CompanyEditSchema(BaseSchema):
     name: name_ = None
     inn: inn_ = None
-    contract_number: contract_number_ = None
+    contract_number: contract_number_
     min_balance: min_balance_ = None
     contacts: contacts_ = None
     overdraft_on: overdraft_on_ = None
