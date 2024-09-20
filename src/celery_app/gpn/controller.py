@@ -54,16 +54,13 @@ class GPNController(BaseRepository):
         self.helper = TransactionHelper(session=self.session, logger=self.logger, system_id=self.system.id)
 
     async def init_system(self) -> None:
-        if not self.system:
-            system_repository = SystemRepository(self.session)
-            self.system = await system_repository.get_system_by_short_name(
-                short_name=System.GPN.value,
-                scheme=ContractScheme.OVERBOUGHT
-            )
+        system_repository = SystemRepository(self.session)
+        self.system = await system_repository.get_system_by_short_name(
+            short_name=System.GPN.value,
+            scheme=ContractScheme.OVERBOUGHT
+        )
 
     async def sync(self) -> IrrelevantBalances:
-        await self.init_system()
-
         # Прогружаем наш баланс
         await self.load_balance()
 
@@ -507,7 +504,6 @@ class GPNController(BaseRepository):
     async def set_card_states(self, balance_ids_to_change_card_states: Dict[str, List[str]]):
         # В функцию переданы ID балансов, по картам которых нужно сменить состояние (заблокировать или разблокировать).
         # Меняем статус в локальной БД, потом устанавливаем новый статус в системе поставщика.
-        await self.init_system()
 
         # Получаем карты из локальной БД
         card_repository = CardRepository(self.session, None)
@@ -551,8 +547,6 @@ class GPNController(BaseRepository):
             self.api.block_cards(ext_card_ids)
 
     async def load_transactions(self) -> None:
-        await self.init_system()
-
         # Получаем список транзакций от поставщика услуг
         remote_transactions = self.api.get_transactions(transaction_days=self.system.transaction_days)
         self.logger.info(f'Количество транзакций от системы ГПН: {len(remote_transactions)} шт')
@@ -718,9 +712,8 @@ class GPNController(BaseRepository):
         await self.session.execute(stmt)
         await self.session.commit()
 
+    """
     async def set_card_limits(self, company_id: str, card_external_id: str, limit_ids: List[str]) -> None:
-        await self.init_system()
-
         # Получаем лимиты из БД
         stmt = (
             sa_select(CardLimitOrm)
@@ -751,10 +744,9 @@ class GPNController(BaseRepository):
                 company_id=company_id,
                 card_limit_goods_category=limit.inner_goods_category
             )
+    """
 
     async def import_azs(self) -> None:
-        await self.init_system()
-
         # Получаем из ГПН справочник стран
         gpn_countries = self.api.get_countries()
 
