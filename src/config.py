@@ -18,7 +18,8 @@ SQLALCHEMY_ECHO = False
 ROOT_DIR = Path(__file__).parent.parent
 LOG_DIR = os.path.join(ROOT_DIR, "log")
 TZ = timezone(offset=timedelta(hours=3), name='МСК')
-
+print("ROOT_DIR: ", ROOT_DIR)
+print("SERVICE_TOKEN: ", SERVICE_TOKEN)
 
 # -----------------------------------------------------------
 # Параметры подключения к REDIS
