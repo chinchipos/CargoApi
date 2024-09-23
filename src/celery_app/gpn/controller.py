@@ -28,7 +28,7 @@ from src.repositories.system import SystemRepository
 from src.repositories.tariff import TariffRepository
 from src.repositories.transaction import TransactionRepository
 from src.repositories.user import UserRepository
-from src.utils.common import calc_available_balance
+from src.utils.common import calc_available_balance, banking_round
 from src.utils.enums import ContractScheme, System, Role
 from src.utils.loggers import get_logger
 
@@ -1275,10 +1275,10 @@ class GPNController(BaseRepository):
             group_limits = []
             for gpn_category in GpnGoodsCategory:
                 # Локальный групповой лимит
-                local_group_limit = "Не установлен"
+                local_group_limit_sum = "Не установлен"
                 for group_limit in company.group_limits:
                     if group_limit.inner_goods_category == gpn_category.value["local_category"]:
-                        local_group_limit = group_limit.limit_sum
+                        local_group_limit_sum = group_limit.limit_sum
                         break
 
                 # Флаг наличия карточного лимита этой категории хотя бы по одной карте
@@ -1288,19 +1288,21 @@ class GPNController(BaseRepository):
                 )
 
                 # Групповой лимит ГПН
-                remote_group_limit = "Не установлен"
-                remote_group_available = "-"
+                remote_group_limit_sum = "Не установлен"
+                remote_group_limit_available_sum = "-"
                 for remote_group_limit in remote_group_limits:
                     if remote_group_limit["productType"] == gpn_category.value["id"]:
-                        remote_group_limit = remote_group_limit["sum"]["value"]
-                        remote_group_available = remote_group_limit["sum"]["value"] - remote_group_limit["sum"]["used"]
+                        remote_group_limit_sum = banking_round(remote_group_limit["sum"]["value"])
+                        remote_group_limit_available_sum = banking_round(
+                            remote_group_limit_sum - remote_group_limit["sum"]["used"]
+                        )
                         break
 
                 category_data = {
                     "category": gpn_category.value["local_category"].value,
-                    "local_group_limit": local_group_limit,
-                    "remote_group_limit": remote_group_limit,
-                    "remote_group_available": remote_group_available,
+                    "local_group_limit_sum": local_group_limit_sum,
+                    "remote_group_limit_sum": remote_group_limit_sum,
+                    "remote_group_limit_available_sum": remote_group_limit_available_sum,
                     "card_limit_flag": card_limit_flag,
                 }
                 group_limits.append(category_data)
