@@ -1246,14 +1246,19 @@ class GPNController(BaseRepository):
         )
 
         companies = await self.select_all(stmt)
+        self.logger.info("Из БД получен список организаций, имеющих карты ГПН")
 
         transaction_repository = TransactionRepository(session=self.session)
 
         # Формируем данные отчета
         report_data = []
+        i = 1
+        companies_amount = len(companies)
         for company in companies:
-            if company.personal_account not in personal_accounts:
-                continue
+            spaces = " " * (5 - len(str(i)))
+            self.logger.info(f"{spaces}{i} из {companies_amount}. Формирую данные по организации {company.name}")
+            # if company.personal_account not in personal_accounts:
+            #    continue
 
             # Вычисляем доступный баланс
             overbought_balance = company.overbought_balance()
@@ -1269,7 +1274,7 @@ class GPNController(BaseRepository):
 
             # Из ГПН получаем сведения о групповых лимитах
             card_group = company.get_card_group(System.GPN.value)
-            remote_group_limits = self.api.get_card_group_limits(group_id=card_group.external_id)
+            remote_group_limits = self.api.get_card_group_limits(group_id=card_group.external_id) if card_group else []
 
             # Формируем структуру данных о лимитах организации
             group_limits = []
@@ -1307,11 +1312,13 @@ class GPNController(BaseRepository):
                 }
                 group_limits.append(category_data)
 
+            last_transaction_time = last_transaction.date_time_load.replace(microsecond=0).isoformat() \
+                if last_transaction else ""
             company_data = {
                 "company_name": company.name,
                 "personal_account": company.personal_account,
                 "balance": overbought_balance.balance,
-                "last_transaction_time": last_transaction.date_time_load.replace(microsecond=0).isoformat(),
+                "last_transaction_time": last_transaction_time,
                 "overdraft_on": company.overdraft_on,
                 "overdraft_sum": company.overdraft_sum,
                 "min_balance": company.min_balance,
