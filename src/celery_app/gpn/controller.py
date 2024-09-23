@@ -1291,7 +1291,7 @@ class GPNController(BaseRepository):
                 remote_group_limit = "Не установлен"
                 for remote_group_limit in remote_group_limits:
                     if remote_group_limit["productType"] == gpn_category.value["id"]:
-                        remote_group_limit = remote_group_limit["sum"]["value"]
+                        remote_group_limit = remote_group_limit["sum"]["value"] - remote_group_limit["sum"]["used"]
                         break
 
                 category_data = {
