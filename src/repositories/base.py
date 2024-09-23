@@ -27,14 +27,14 @@ class BaseRepository:
 
     @staticmethod
     def statement(stmt, description: str = "") -> None:
-        print('   ')
+        print(f'{os.linesep}   ')
         if description:
             description = '  ' + description + '  '
-        title = ('--------------' + description.upper() + '-' * 35)[:50]
-        print(title)
+        title = (f'{os.linesep}--------------' + description.upper() + '-' * 35)[:50]
+        compiled = stmt.compile(dialect=postgresql_dialect(), compile_kwargs={"literal_binds": True})
         print(
-            f"{os.linesep}{os.linesep}"
-            f"{sqlparse.format(str(stmt.compile(dialect=postgresql_dialect())), reindent=True)}"
+            f"{os.linesep}{title}"
+            f"{os.linesep}{sqlparse.format(str(compiled), reindent=True)}"
             f"{os.linesep}{os.linesep}"
         )
 

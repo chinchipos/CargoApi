@@ -1,23 +1,22 @@
-import copy
 import math
 from datetime import datetime
 from typing import Dict, Any, List
 
 from sqlalchemy import select as sa_select, delete as sa_delete, and_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import contains_eager, selectinload
+from sqlalchemy.orm import contains_eager, selectinload, aliased, load_only
 
 from src.celery_app.exceptions import CeleryError
 from src.celery_app.gpn.api import GPNApi, GpnGoodsCategory
-from src.celery_app.group_limit_order import GroupLimitOrder
 from src.celery_app.irrelevant_balances import IrrelevantBalances
 from src.celery_app.transaction_helper import TransactionHelper
 from src.config import TZ, PRODUCTION
-from src.database.models import CompanyOrm, CardLimitOrm, AzsOrm, RegionOrm, GroupLimitOrm, CardGroupOrm
+from src.database.models import CompanyOrm, CardLimitOrm, AzsOrm, RegionOrm, GroupLimitOrm, CardGroupOrm, CheckReportOrm
 from src.database.models.azs import AzsOwnType
 from src.database.models.balance_system import BalanceSystemOrm
 from src.database.models.card import CardOrm, BlockingCardReason
 from src.database.models.card_type import CardTypeOrm
+from src.database.models.check_report import CheckReport
 from src.database.models.goods import OuterGoodsOrm
 from src.database.models.goods_category import GoodsCategory
 from src.database.models.system import CardSystemOrm
@@ -28,9 +27,13 @@ from src.repositories.company import CompanyRepository
 from src.repositories.system import SystemRepository
 from src.repositories.tariff import TariffRepository
 from src.repositories.transaction import TransactionRepository
+from src.repositories.user import UserRepository
 from src.utils.common import calc_available_balance
-from src.utils.enums import ContractScheme, System
+from src.utils.enums import ContractScheme, System, Role
 from src.utils.loggers import get_logger
+
+personal_account_str = str
+limit_delta_sum_float = float
 
 
 class GPNController(BaseRepository):
@@ -169,7 +172,7 @@ class GPNController(BaseRepository):
                     found = True
 
                     # Проверяем существование записи о группе в локальной БД
-                    if not company.has_card_group(System.GPN):
+                    if not company.has_card_group(System.GPN.value):
                         card_group = CardGroupOrm(
                             system_id=self.system.id,
                             external_id=gpn_group["id"],
@@ -346,7 +349,7 @@ class GPNController(BaseRepository):
             limit_sum_ = max(int(math.floor(available_balance)), 1) if _gpn_category == GpnGoodsCategory.FUEL else 1
 
             # Создаем лимит в ГПН
-            remote_limit_id = self.set_group_limit(
+            remote_limit_id = self._set_group_limit(
                 limit_id=None,
                 group_id=group.external_id,
                 product_category=_gpn_category,
@@ -372,7 +375,7 @@ class GPNController(BaseRepository):
         # Сверяем наличие групповых лимитов локально и в ГПН. Суммы лимитов будут сверяться на следующем этапе.
         for company in companies:
             # Из ГПН получаем лимиты по группе карт
-            group: CardGroupOrm = company.get_card_group(System.GPN)
+            group: CardGroupOrm = company.get_card_group(System.GPN.value)
             remote_group_limits = self.api.get_card_group_limits(group.external_id)
 
             # Оцениваем соответствие лимитов по каждой категории продуктов.
@@ -458,7 +461,7 @@ class GPNController(BaseRepository):
 
         companies = await self.select_all(stmt)
         for company in companies:
-            group: CardGroupOrm = company.get_card_group(System.GPN)
+            group: CardGroupOrm = company.get_card_group(System.GPN.value)
             remote_group_limits = self.api.get_card_group_limits(group.external_id)
 
             # Получаем доступный баланс организации
@@ -854,25 +857,21 @@ class GPNController(BaseRepository):
 
         return self.card_groups
 
-    async def update_group_limits(self, orders: List[Dict[str, Any]]) -> None:
-        if not orders:
+    async def update_group_limits(self, gpn_group_limit_deltas: Dict[personal_account_str, limit_delta_sum_float]) \
+            -> None:
+
+        if not gpn_group_limit_deltas:
             return None
 
-        orders = [
-            GroupLimitOrder(
-                personal_account=order["personal_account"],
-                delta_sum=order["delta_sum"]
-            ) for order in orders
-        ]
         # Получаем из БД организации, у которых есть карты ГПН
-        personal_accounts = {order.personal_account for order in orders}
+        personal_accounts = (personal_account for personal_account in gpn_group_limit_deltas.keys())
         stmt = (
             sa_select(CompanyOrm)
             .options(
-                contains_eager(CompanyOrm.card_groups)
+                selectinload(CompanyOrm.group_limits)
             )
             .options(
-                selectinload(CompanyOrm.group_limits)
+                contains_eager(CompanyOrm.card_groups)
             )
             .outerjoin(CardGroupOrm, and_(
                 CompanyOrm.id == CardGroupOrm.company_id,
@@ -885,41 +884,18 @@ class GPNController(BaseRepository):
             .order_by(CompanyOrm.personal_account)
         )
         # self.statement(stmt)
-        companies: List[CompanyOrm] = copy.deepcopy(await self.select_all(stmt))
+        companies: List[CompanyOrm] = await self.select_all(stmt)
         if not companies:
-            self.logger.warning("Пустой список организаций, работающих с системой ГПН. "
+            self.logger.warning("Получен пустой список организаций, работающих с системой ГПН. "
                                 "Обновление карточных лимитов ГПН не требуется.")
             return None
 
-        # Раскидываем организации по ордерам
-        for order in orders:
-            for company in companies:
-                if order.personal_account == company.personal_account:
-                    if not company.card_groups:
-                        raise CeleryError("Не удалось определить карточную группу ГПН для организации "
-                                          f"{company.name} {company.personal_account}")
-                    order.company = company
-                    companies.remove(company)
-                    break
-
         # Обрабатываем полученные задания на установку / изменение групповых лимитов
-        for order in orders:
-            # Обрабатываем только те организации, у которых есть карты ГПН
-            if not order.company:
-                continue
-
-            if order.delta_sum:
-                """
-                Такая комбинация имеет место в следующих случаях:
-                - совершены приходные или расходные транзакции в других системах
-                - корректировка баланса: пополнение или списание
-                - подключен / отключен овердрафт
-                - изменен минимальный допустимый баланс организации
-                
-                Предполагается, что в БД уже существуют записи о групповых лимитах по всем категориям 
-                (на момент написания комментария их 6).
-                """
-                await self.update_group_limits_by_delta_sum(order)
+        for personal_account, limit_delta_sum in gpn_group_limit_deltas.items():
+            for company in companies:
+                if company.personal_account == personal_account:
+                    await self._update_group_limits_by_delta_sum(company=company, limit_delta_sum=limit_delta_sum)
+                    break
 
     async def create_group_limits(self, company_id: str, company_name: str, personal_account: str,
                                   card_group_external_id: str, available_balance: float) -> None:
@@ -931,7 +907,7 @@ class GPNController(BaseRepository):
             limit_sum = max(int(math.floor(available_balance)), 1) if gpn_category == GpnGoodsCategory.FUEL else 1
 
             # Создаем лимит в ГПН
-            remote_limit_id = self.set_group_limit(
+            remote_limit_id = self._set_group_limit(
                 limit_id=None,
                 group_id=card_group_external_id,
                 product_category=gpn_category,
@@ -955,54 +931,52 @@ class GPNController(BaseRepository):
         if local_limits_dataset:
             await self.bulk_insert_or_update(GroupLimitOrm, local_limits_dataset)
 
-    async def update_group_limits_by_delta_sum(self, order: GroupLimitOrder) -> None:
+    async def _update_group_limits_by_delta_sum(self, company: CompanyOrm, limit_delta_sum: float) -> None:
         # Получаем идентификатор карточной группы ГПН, сохраненный в БД
-        group_external_id = order.company.card_groups[0].external_id
+        group_external_id = company.card_groups[0].external_id
 
-        # Из локальной БД получаем все лимиты, которые больше единицы
-        limits_to_update = [limit for limit in order.company.group_limits
-                            if limit.limit_sum > 1 or limit.inner_goods_category == GoodsCategory.FUEL]
+        # Получаем информацию по каким категориям установлены лимиты на картах клиента
+        card_repository = CardRepository(session=self.session)
+        card_limit_categories = await card_repository.get_card_limit_categories(
+            company_id=company.id,
+            system_id=self.system.id
+        )
 
-        # Получаем лимит на Топливо
-        fuel_limit = None
-        for limit in limits_to_update:
-            if limit.inner_goods_category == GoodsCategory.FUEL:
-                fuel_limit = limit
-                break
+        group_limit_categories_to_update = set(card_limit_categories)
+        group_limit_categories_to_update.add(GoodsCategory.FUEL)
 
-        # Вычисляем новое значение лимита
-        fuel_limit_sum = fuel_limit.limit_sum if fuel_limit.limit_sum > 1 else 0
-        limit_sum = max(int(math.floor(fuel_limit_sum + order.delta_sum)), 1)
+        for group_limit in company.group_limits:
+            if group_limit.inner_goods_category in group_limit_categories_to_update:
+                # Вычисляем новое значение лимита
+                group_limit_sum = group_limit.limit_sum if group_limit.limit_sum > 1 else 0
+                group_limit.limit_sum = max(int(math.floor(group_limit_sum + limit_delta_sum)), 1)
 
-        for limit in limits_to_update:
-            limit.limit_sum = limit_sum
-
-            # Обновляем лимит в ГПН
-            limit_external_id = self.set_group_limit(
-                limit_id=limit.external_id,
-                group_id=group_external_id,
-                product_category=GpnGoodsCategory.get_equal_by_local(limit.inner_goods_category),
-                limit_sum=limit_sum,
-                company_name=order.company.name,
-                personal_account=order.company.personal_account
-            )
-            if not limit_external_id:
-                # Пробуем пересоздать лимит
-                limit_external_id = self.set_group_limit(
-                    limit_id=None,
+                # Обновляем лимит в ГПН
+                limit_external_id = self._set_group_limit(
+                    limit_id=group_limit.external_id,
                     group_id=group_external_id,
-                    product_category=GpnGoodsCategory.get_equal_by_local(limit.inner_goods_category),
-                    limit_sum=limit_sum,
-                    company_name=order.company.name,
-                    personal_account=order.company.personal_account
+                    product_category=GpnGoodsCategory.get_equal_by_local(group_limit.inner_goods_category),
+                    limit_sum=group_limit.limit_sum,
+                    company_name=company.name,
+                    personal_account=company.personal_account
                 )
                 if not limit_external_id:
-                    await self.save_object(limit)
-                    raise CeleryError("Не удалось установить лимит ГПН")
+                    # В ГПН не обнаружен лимит с таким идентификатором. Пробуем пересоздать лимит.
+                    limit_external_id = self._set_group_limit(
+                        limit_id=None,
+                        group_id=group_external_id,
+                        product_category=GpnGoodsCategory.get_equal_by_local(group_limit.inner_goods_category),
+                        limit_sum=group_limit.limit_sum,
+                        company_name=company.name,
+                        personal_account=company.personal_account
+                    )
+                    if not limit_external_id:
+                        await self.save_object(group_limit)
+                        raise CeleryError("Не удалось установить лимит ГПН")
 
-                limit.external_id = limit_external_id
+                    group_limit.external_id = limit_external_id
 
-            await self.save_object(limit)
+                await self.save_object(group_limit)
 
     async def update_group_limit_by_card_limit(self, company_id: str, card_limit_goods_category: GoodsCategory) \
             -> None:
@@ -1011,7 +985,7 @@ class GPNController(BaseRepository):
         company = await company_repository.get_company(company_id)
 
         # Получаем идентификатор карточной группы ГПН
-        group = company.get_card_group(System.GPN)
+        group = company.get_card_group(System.GPN.value)
 
         # Получаем размер установленного группового лимита на категорию "Топливо"
         group_fuel_limit: List[GroupLimitOrm] = list(filter(
@@ -1034,7 +1008,7 @@ class GPNController(BaseRepository):
                 limit.limit_sum = group_fuel_limit.limit_sum
 
                 # Обновляем лимит в ГПН
-                limit_external_id = self.set_group_limit(
+                limit_external_id = self._set_group_limit(
                     limit_id=limit.external_id,
                     group_id=group.external_id,
                     product_category=GpnGoodsCategory.get_equal_by_local(limit.inner_goods_category),
@@ -1044,7 +1018,7 @@ class GPNController(BaseRepository):
                 )
                 if not limit_external_id:
                     # Пробуем пересоздать лимит
-                    limit_external_id = self.set_group_limit(
+                    limit_external_id = self._set_group_limit(
                         limit_id=None,
                         group_id=group.external_id,
                         product_category=GpnGoodsCategory.get_equal_by_local(limit.inner_goods_category),
@@ -1102,7 +1076,7 @@ class GPNController(BaseRepository):
         # Отвязываем карты ГПН от старой группы
         if previous_company_id and cards:
             # Получаем идентификатор группы карт ГПН
-            previous_card_group = await previous_company.get_card_group(System.GPN)
+            previous_card_group = await previous_company.get_card_group(System.GPN.value)
             if previous_card_group:
                 self.api.unbind_cards_from_group(
                     card_numbers=[card.card_number for card in cards],
@@ -1113,7 +1087,7 @@ class GPNController(BaseRepository):
         # Привязываем карты к новой группе
         if new_company_id:
             # Получаем идентификатор группы карт ГПН
-            new_card_group = await new_company.get_card_group(System.GPN)
+            new_card_group = await new_company.get_card_group(System.GPN.value)
 
             if new_card_group:
                 group_id = new_card_group.external_id
@@ -1194,8 +1168,8 @@ class GPNController(BaseRepository):
         if not card_external_ids_to_activate and not card_external_ids_to_block:
             self.logger.info("Состояния карт в БД и ГПН идентичны.")
 
-    def set_group_limit(self, limit_id: str | None, group_id: str, product_category: GpnGoodsCategory,
-                        limit_sum: float | int, company_name: str, personal_account: str) -> str | None:
+    def _set_group_limit(self, limit_id: str | None, group_id: str, product_category: GpnGoodsCategory,
+                         limit_sum: float | int, company_name: str, personal_account: str) -> str | None:
         remote_limit_id = self.api.set_group_limit(
             limit_id=limit_id,
             group_id=group_id,
@@ -1212,3 +1186,142 @@ class GPNController(BaseRepository):
             self.logger.error(f"Ошибка при установке группового лимита {helper_text}")
 
         return remote_limit_id
+
+    async def make_group_limits_check_report(self) -> None:
+        personal_accounts = (
+            "0975566",  # ДУРОВ ВЛАДИМИР ОЛЕГОВИЧ
+            "6866659",  # ОСТАНИН ПАВЕЛ НИКОЛАЕВИЧ
+            "0747704",  # ООО ТСК "ПРОМЭС"
+            "4042053",  # ООО "САРТРАНСАВТО"
+            "6268950",  # ООО «ТК ВЕРОНАЛАЙН»
+            "4815812",  # ООО "СПЕЦРЕГИОННЕФТЬ"
+            "5397025",  # ООО "ТЕХНОПОЛИС"
+            "2183818",  # ООО "НОВЫЕ ЛОГИСТИЧЕСКИЕ ТЕХНОЛОГИИ"
+            "2235772",  # ООО "ТРАЛСПЕЦТЕХ"
+            "0764675",  # ООО "ТЕСТ"
+        )
+        # Получаем из БД организации, имеющие карты ГПН.
+        # Присоединяем сведения о балансах, группе карт, групповых и карточных лимитах
+        company_tbl = aliased(CompanyOrm, name="company_tbl")
+        card_tbl = aliased(CardOrm, name="card_tbl")
+        card_system_tbl = aliased(CardSystemOrm, name="card_system_tbl")
+        company_has_gpn_card_subq = (
+            sa_select(1)
+            .where(company_tbl.id == card_tbl.company_id)
+            .where(card_tbl.id == card_system_tbl.card_id)
+            .where(card_system_tbl.system_id == self.system.id)
+            .limit(1)
+            .exists()
+        )
+
+        stmt = (
+            sa_select(company_tbl)
+            .where(company_has_gpn_card_subq)
+            .options(
+                load_only(
+                    company_tbl.id,
+                    company_tbl.name,
+                    company_tbl.personal_account,
+                    company_tbl.min_balance,
+                    company_tbl.overdraft_on,
+                    company_tbl.overdraft_sum
+                )
+            )
+            .options(
+                selectinload(company_tbl.balances)
+            )
+            .options(
+                selectinload(company_tbl.card_groups.and_(CardGroupOrm.system_id == self.system.id))
+                .joinedload(CardGroupOrm.system)
+            )
+            .options(
+                selectinload(company_tbl.group_limits.and_(GroupLimitOrm.system_id == self.system.id))
+                .joinedload(GroupLimitOrm.system)
+            )
+            .options(
+                selectinload(company_tbl.cards)
+                .selectinload(CardOrm.limits)
+            )
+            .order_by(company_tbl.name)
+        )
+
+        companies = await self.select_all(stmt)
+
+        transaction_repository = TransactionRepository(session=self.session)
+
+        # Формируем данные отчета
+        report_data = []
+        for company in companies:
+            if company.personal_account not in personal_accounts:
+                continue
+
+            # Вычисляем доступный баланс
+            overbought_balance = company.overbought_balance()
+            available_balance = calc_available_balance(
+                current_balance=company.overbought_balance().balance,
+                min_balance=company.min_balance,
+                overdraft_on=company.overdraft_on,
+                overdraft_sum=company.overdraft_sum
+            )
+
+            # Получаем последнюю транзакцию
+            last_transaction = await transaction_repository.get_last_transaction(balance_id=overbought_balance.id)
+
+            # Из ГПН получаем сведения о групповых лимитах
+            card_group = company.get_card_group(System.GPN.value)
+            remote_group_limits = self.api.get_card_group_limits(group_id=card_group.external_id)
+
+            # Формируем структуру данных о лимитах организации
+            group_limits = []
+            for gpn_category in GpnGoodsCategory:
+                # Локальный групповой лимит
+                local_group_limit = "Не установлен"
+                for group_limit in company.group_limits:
+                    if group_limit.inner_goods_category == gpn_category.value["local_category"]:
+                        local_group_limit = group_limit.limit_sum
+                        break
+
+                # Флаг наличия карточного лимита этой категории хотя бы по одной карте
+                card_limit_flag = company.has_card_limit_with_certain_category(
+                    system_id=self.system.id,
+                    inner_goods_category=gpn_category.value["local_category"]
+                )
+
+                # Групповой лимит ГПН
+                remote_group_limit = "Не установлен"
+                for remote_group_limit in remote_group_limits:
+                    if remote_group_limit["productType"] == gpn_category.value["id"]:
+                        remote_group_limit = remote_group_limit["sum"]["value"]
+                        break
+
+                category_data = {
+                    "category": gpn_category.value["local_category"].value,
+                    "local_group_limit": local_group_limit,
+                    "remote_group_limit": remote_group_limit,
+                    "card_limit_flag": card_limit_flag,
+                }
+                group_limits.append(category_data)
+
+            company_data = {
+                "company_name": company.name,
+                "personal_account": company.personal_account,
+                "balance": overbought_balance.balance,
+                "last_transaction_time": last_transaction.date_time_load.replace(microsecond=0).isoformat(),
+                "overdraft_on": company.overdraft_on,
+                "overdraft_sum": company.overdraft_sum,
+                "min_balance": company.min_balance,
+                "available_balance": available_balance,
+                "group_limits": group_limits
+            }
+            report_data.append(company_data)
+            # break
+
+        # Записываем отчет в БД
+        user_repository = UserRepository(session=self.session)
+        cargo_superadmin_role = await user_repository.get_role_by_name(Role.CARGO_SUPER_ADMIN.name)
+        check_report = CheckReportOrm(
+            report_type=CheckReport.GPN_GROUP_LIMITS,
+            data=report_data,
+            role_id=cargo_superadmin_role.id
+        )
+        await self.save_object(check_report)

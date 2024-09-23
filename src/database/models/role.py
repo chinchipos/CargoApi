@@ -78,6 +78,14 @@ class RoleOrm(Base):
         init=False
     )
 
+    # Список готовых отчетов, доступных этой роли
+    reports: Mapped[List["CheckReportOrm"]] = relationship(
+        back_populates="role",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
     repr_cols = ("title",)
 
     def has_permition(self, permition: PermitionOrm) -> bool:

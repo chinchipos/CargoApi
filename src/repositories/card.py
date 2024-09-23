@@ -11,6 +11,7 @@ from src.config import TZ
 from src.database.models import CardLimitOrm, InnerGoodsGroupOrm
 from src.database.models.card import CardOrm, CardHistoryOrm
 from src.database.models.card_type import CardTypeOrm
+from src.database.models.goods_category import GoodsCategory
 from src.database.models.user import UserOrm
 from src.database.models.transaction import TransactionOrm
 from src.database.models.system import SystemOrm, CardSystemOrm
@@ -304,3 +305,15 @@ class CardRepository(BaseRepository):
         company = await self.select_first(stmt)
         if company:
             return company
+
+    async def get_card_limit_categories(self, company_id: str, system_id: str) -> List[GoodsCategory]:
+        stmt = (
+            sa_select(CardLimitOrm.inner_goods_category)
+            .select_from(CardLimitOrm, CardOrm)
+            .where(CardOrm.company_id == company_id)
+            .where(CardLimitOrm.card_id == CardOrm.id)
+            .where(CardLimitOrm.system_id == system_id)
+            .distinct()
+        )
+        card_limit_categories = await self.select_all(stmt, scalars=False)
+        return card_limit_categories

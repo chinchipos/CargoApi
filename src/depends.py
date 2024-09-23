@@ -13,6 +13,7 @@ from src.repositories.company import CompanyRepository
 from src.repositories.db.db import DBRepository
 from src.repositories.filter import FilterRepository
 from src.repositories.goods import GoodsRepository
+from src.repositories.monitoring import MonitoringRepository
 from src.repositories.role import RoleRepository
 from src.repositories.system import SystemRepository
 from src.repositories.tariff import TariffRepository
@@ -26,6 +27,7 @@ from src.services.company import CompanyService
 from src.services.db import DBService
 from src.services.filter import FilterService
 from src.services.goods import GoodsService
+from src.services.monitoring import MonitoringService
 from src.services.role import RoleService
 from src.services.system import SystemService
 from src.services.tariff import TariffService
@@ -150,4 +152,13 @@ def get_service_filter(
 ) -> FilterService:
     repository = FilterRepository(session, user)
     service = FilterService(repository)
+    return service
+
+
+def get_service_monitoring(
+    session: AsyncSession = Depends(get_session),
+    user: UserOrm = Depends(get_current_active_user)
+) -> MonitoringService:
+    repository = MonitoringRepository(session, user)
+    service = MonitoringService(repository)
     return service

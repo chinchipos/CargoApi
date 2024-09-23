@@ -7,9 +7,8 @@ from celery import chain
 
 from src.celery_app.async_helper import perform_controller_actions
 from src.celery_app.balance.calc_balance import CalcBalances
-from src.celery_app.group_limit_order import GroupLimitOrder
-from src.celery_app.irrelevant_balances import IrrelevantBalances
 from src.celery_app.gpn.tasks import gpn_update_group_limits
+from src.celery_app.irrelevant_balances import IrrelevantBalances
 from src.celery_app.main import celery
 from src.config import PROD_URI
 from src.database.db import DatabaseSessionManager
@@ -95,22 +94,35 @@ def recalculate_transactions(from_date_time: datetime, personal_accounts: List[s
                     gpn_sum_deltas[personal_account] = delta_sum
 
     # Создаем ордера на изменение лимитов ГПН
-    gpn_limit_orders = []
-    for personal_account, delta_sum in gpn_sum_deltas.items():
-        gpn_limit_orders.append(
-            GroupLimitOrder(
-                personal_account=personal_account,
-                delta_sum=delta_sum
-            )
-        )
+    # gpn_limit_orders = []
+    # for personal_account, delta_sum in gpn_sum_deltas.items():
+    #     gpn_limit_orders.append(
+    #         GroupLimitOrder(
+    #             personal_account=personal_account,
+    #             delta_sum=delta_sum
+    #         )
+    #     )
 
-    ib = None
+    irrelevant_balances = None
     for system_id, data in systems_dict.items():
-        ib = data["irrelevant_balances"]
+        irrelevant_balances = data["irrelevant_balances"]
         break
 
+    calc_balances_chain(
+        irrelevant_balances=irrelevant_balances,
+        gpn_group_limit_deltas=gpn_sum_deltas
+    )
+
+
+personal_account_str = str
+limit_delta_sum_float = float
+
+
+@celery.task(name="CALC_BALANCES_CHAIN")
+def calc_balances_chain(irrelevant_balances: IrrelevantBalances,
+                        gpn_group_limit_deltas: Dict[personal_account_str, limit_delta_sum_float]) -> None:
     tasks = [
-        gpn_update_group_limits.si(gpn_limit_orders),
-        calc_balances.si(ib)
+        calc_balances.si(irrelevant_balances),
+        gpn_update_group_limits.si(gpn_group_limit_deltas)
     ]
     chain(*tasks)()

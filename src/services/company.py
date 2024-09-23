@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import List, Any, Dict
 
 from src.celery_app.gpn.tasks import gpn_update_group_limits
-from src.celery_app.group_limit_order import GroupLimitOrder
 from src.config import TZ
 from src.database.models import BalanceOrm, BalanceSystemOrm
 from src.database.models.company import CompanyOrm
@@ -119,11 +118,12 @@ class CompanyService:
 
         # Если доступный баланс изменился, то обновляем лимит в системе ГПН.
         # Проверка на предмет наличия карт этой системы будет выполнена на следующем этапе.
-        order = GroupLimitOrder(
-            personal_account=company.personal_account,
-            delta_sum=available_balance_after - available_balance_before
-        )
-        gpn_update_group_limits.delay([order])
+        # order = GroupLimitOrder(
+        #     personal_account=company.personal_account,
+        #     delta_sum=available_balance_after - available_balance_before
+        # )
+        limit_delta_sum = available_balance_after - available_balance_before
+        gpn_update_group_limits.delay({company.personal_account: limit_delta_sum})
 
         return company
 
@@ -211,13 +211,13 @@ class CompanyService:
 
         # Обновляем лимит в системе ГПН.
         # Проверка на предмет наличия карт этой системы будет выполнена на следующем этапе.
-        delta_sum = edit_balance_schema.delta_sum if transaction_type == TransactionType.REFILL \
+        limit_delta_sum = edit_balance_schema.delta_sum if transaction_type == TransactionType.REFILL \
             else -edit_balance_schema.delta_sum
-        order = GroupLimitOrder(
-            personal_account=company.personal_account,
-            delta_sum=delta_sum
-        )
-        gpn_update_group_limits.delay([order])
+        # order = GroupLimitOrder(
+        #     personal_account=company.personal_account,
+        #     delta_sum=delta_sum
+        # )
+        gpn_update_group_limits.delay({company.personal_account: limit_delta_sum})
 
     async def get_notifications(self) -> List[NotificationMailingOrm]:
         mailings = await self.repository.get_notification_mailings(self.repository.user.company_id)

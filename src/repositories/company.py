@@ -280,12 +280,3 @@ class CompanyRepository(BaseRepository):
 
         mailings = await self.select_all(stmt)
         return mailings
-
-    # async def get_card_group(self, company_id: str, system_id: str) -> CardGroupOrm | None:
-    #     stmt = (
-    #         sa_select(CardGroupOrm)
-    #         .where(CardGroupOrm.company_id == company_id)
-    #         .where(CardGroupOrm.system_id == system_id)
-    #     )
-    #     card_group = await self.select_first(stmt)
-    #     return card_group

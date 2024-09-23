@@ -1,4 +1,4 @@
-from typing import Dict, List, Any
+from typing import Dict, List
 
 from src.celery_app.async_helper import perform_controller_actions
 from src.celery_app.gpn.api import GPNApi
@@ -281,34 +281,20 @@ def gpn_import_azs() -> None:
 # def gpn_update_group_limits(orders: List[Dict[str, Any]]) -> None:
 #     asyncio.run(update_group_limits_fn(orders))
 
+personal_account_str = str
+limit_delta_sum_float = float
+
 
 @celery.task(name="GPN_UPDATE_GROUP_LIMITS")
-def gpn_update_group_limits(orders: List[Dict[str, Any]]) -> None:
-    _logger.info('Запускаю задачу обновления групповых лимитов')
+def gpn_update_group_limits(gpn_group_limit_deltas: Dict[personal_account_str, limit_delta_sum_float]) -> None:
+    _logger.info('Запускаю задачу обновления групповых лимитов ГПН')
     perform_controller_actions(
         controller_name="GPNController",
         func_name="update_group_limits",
-        orders=orders
+        gpn_group_limit_deltas=gpn_group_limit_deltas
     )
-    _logger.info('Завершена задача обновления групповых лимитов')
+    _logger.info('Завершена задача обновления групповых лимитов ГПН')
 
-
-# async def binding_cards_fn(card_numbers: List[str], previous_company_id: str, new_company_id: str) -> None:
-#     sessionmanager = DatabaseSessionManager()
-#     sessionmanager.init(PROD_URI)
-#
-#     async with sessionmanager.session() as session:
-#         gpn_controller = GPNController(session)
-#         await gpn_controller.init_system()
-#         await gpn_controller.binding_cards(card_numbers, previous_company_id, new_company_id)
-#
-#     # Закрываем соединение с БД
-#     await sessionmanager.close()
-#
-#
-# @celery.task(name="GPN_BINDING_CARDS")
-# def gpn_binding_cards(card_numbers: List[str], previous_company_id: str, new_company_id: str) -> None:
-#     asyncio.run(binding_cards_fn(card_numbers, previous_company_id, new_company_id))
 
 @celery.task(name="GPN_BINDING_CARDS")
 def gpn_binding_cards(card_numbers: List[str], previous_company_id: str, new_company_id: str) -> None:
@@ -331,6 +317,16 @@ def gpn_sync_card_states() -> None:
         func_name="sync_card_states"
     )
     _logger.info('Завершена синхронизация состояний карт с ГПН')
+
+
+@celery.task(name="GPN_MAKE_GROUP_LIMITS_CHECK_REPORT")
+def gpn_make_group_limits_check_report() -> None:
+    _logger.info('Начинаю задачу формирования сверочного отчета по групповым лимитам ГПН')
+    perform_controller_actions(
+        controller_name="GPNController",
+        func_name="make_group_limits_check_report"
+    )
+    _logger.info('Завершена задача формирования сверочного отчета по групповым лимитам ГПН')
 
 
 @celery.task(name="GPN_TEST")

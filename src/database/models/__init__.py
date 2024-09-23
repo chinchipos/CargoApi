@@ -23,3 +23,4 @@ from src.database.models.tariff import TariffPolicyOrm, TariffNewOrm
 from src.database.models.notification import NotificationOrm, NotificationMailingOrm
 from src.database.models.region import RegionOrm
 from src.database.models.limit import CardLimitOrm, GroupLimitOrm
+from src.database.models.check_report import CheckReportOrm

@@ -17,13 +17,15 @@ from src.utils.loggers import get_logger
 
 
 class GpnGoodsCategory(Enum):
-    FOOD = {"id": "1-C8J1M", "code": "40100000000", "unit": "IT", "local_category": GoodsCategory.FOOD}
-    CAFE = {"id": "1-C8J1I", "code": "40200000000", "unit": "IT", "local_category": GoodsCategory.CAFE}
-    NON_FOOD = {"id": "1-C8J1Z", "code": "40300000000", "unit": "IT", "local_category": GoodsCategory.NON_FOOD}
+    __order__ = 'FUEL OTHER_SERVICES CAFE FOOD NON_FOOD CS_SERVICES'
+    FUEL = {"id": "1-CK231", "code": "FUEL", "unit": "LIT", "local_category": GoodsCategory.FUEL}
     OTHER_SERVICES = {"id": "1-C8J2B", "code": "40400000000", "unit": "IT",
                       "local_category": GoodsCategory.OTHER_SERVICES}
+    CAFE = {"id": "1-C8J1I", "code": "40200000000", "unit": "IT", "local_category": GoodsCategory.CAFE}
+    FOOD = {"id": "1-C8J1M", "code": "40100000000", "unit": "IT", "local_category": GoodsCategory.FOOD}
+    NON_FOOD = {"id": "1-C8J1Z", "code": "40300000000", "unit": "IT", "local_category": GoodsCategory.NON_FOOD}
     CS_SERVICES = {"id": "1-4SE0LKU", "code": "CS_SERVICES", "unit": "IT", "local_category": GoodsCategory.ROAD_PAYING}
-    FUEL = {"id": "1-CK231", "code": "FUEL", "unit": "LIT", "local_category": GoodsCategory.FUEL}
+
 
     @staticmethod
     def not_fuel_categories():

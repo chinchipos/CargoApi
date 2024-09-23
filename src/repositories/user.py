@@ -125,3 +125,8 @@ class UserRepository(BaseRepository):
         except Exception:
             self.logger.error(traceback.format_exc())
             raise DBException()
+
+    async def get_role_by_name(self, name: str) -> RoleOrm:
+        stmt = sa_select(RoleOrm).where(RoleOrm.name == name)
+        role = await self.select_first(stmt)
+        return role

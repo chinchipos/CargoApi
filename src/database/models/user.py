@@ -133,6 +133,14 @@ class UserOrm(SQLAlchemyBaseUserTableUUID, Base):
         init=False
     )
 
+    # Список отчетов, сгенерированных этим пользователем
+    reports: Mapped[List["CheckReportOrm"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        init=False
+    )
+
     repr_cols = ("username",)
 
     def is_admin_for_company(self, company_id: str) -> bool:
