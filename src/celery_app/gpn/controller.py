@@ -1257,6 +1257,7 @@ class GPNController(BaseRepository):
         for company in companies:
             spaces = " " * (5 - len(str(i)))
             self.logger.info(f"{spaces}{i} из {companies_amount}. Формирую данные по организации {company.name}")
+            i += 1
             # if company.personal_account not in personal_accounts:
             #    continue
 
