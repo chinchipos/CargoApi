@@ -1289,15 +1289,18 @@ class GPNController(BaseRepository):
 
                 # Групповой лимит ГПН
                 remote_group_limit = "Не установлен"
+                remote_group_available = "-"
                 for remote_group_limit in remote_group_limits:
                     if remote_group_limit["productType"] == gpn_category.value["id"]:
-                        remote_group_limit = remote_group_limit["sum"]["value"] - remote_group_limit["sum"]["used"]
+                        remote_group_limit = remote_group_limit["sum"]["value"]
+                        remote_group_available = remote_group_limit["sum"]["value"] - remote_group_limit["sum"]["used"]
                         break
 
                 category_data = {
                     "category": gpn_category.value["local_category"].value,
                     "local_group_limit": local_group_limit,
                     "remote_group_limit": remote_group_limit,
+                    "remote_group_available": remote_group_available,
                     "card_limit_flag": card_limit_flag,
                 }
                 group_limits.append(category_data)
