@@ -10,7 +10,7 @@ from fake_useragent import UserAgent
 
 from src.celery_app.exceptions import CeleryError
 from src.config import GPN_USERNAME, GPN_URL, GPN_TOKEN, GPN_PASSWORD
-from src.config import PRODUCTION, TZ
+from src.config import TZ
 from src.database.models.goods_category import GoodsCategory
 from src.database.models.limit import Unit, LimitPeriod
 from src.utils.loggers import get_logger
@@ -127,30 +127,25 @@ class GPNApi:
         return groups
 
     def create_card_group(self, group_name: str) -> str:
-        if PRODUCTION:
-            data = {
-                "contract_id": self.contract_id,
-                "name": group_name
-            }
-            response = requests.post(
-                url=self.endpoint(self.api_v1, "setCardGroup"),
-                headers=self.headers | {"session_id": self.api_session_id},
-                data=data
-            )
-            res = response.json()
-            if res["status"]["code"] != 200:
-                raise CeleryError(message=f"Ошибка при создании группы карт ГПН. Ответ API: {res['status']['errors']}. "
-                                          f"Наш запрос: {data}")
+        data = {
+            "contract_id": self.contract_id,
+            "name": group_name
+        }
+        response = requests.post(
+            url=self.endpoint(self.api_v1, "setCardGroup"),
+            headers=self.headers | {"session_id": self.api_session_id},
+            data=data
+        )
+        res = response.json()
+        if res["status"]["code"] != 200:
+            raise CeleryError(message=f"Ошибка при создании группы карт ГПН. Ответ API: {res['status']['errors']}. "
+                                      f"Наш запрос: {data}")
 
-            gpn_group_id = res['data']['id']
-            self.logger.info(f"В ГПН создана группа карт {group_name}")
-            self.logger.info("Пауза 40 сек")
-            time.sleep(40)
-            return gpn_group_id
-
-        else:
-            self.logger.info(f"В ГПН псевдо создана группа карт {group_name}")
-            return ""
+        gpn_group_id = res['data']['id']
+        self.logger.info(f"В ГПН создана группа карт {group_name}")
+        self.logger.info("Пауза 40 сек")
+        time.sleep(40)
+        return gpn_group_id
 
     def delete_gpn_group(self, group_id: str, group_name: str) -> None:
         # Удаляем группу в API
@@ -194,52 +189,45 @@ class GPNApi:
         ]
 
         card_list = [{"id": card_ext_id, "type": "Attach"} for card_ext_id in card_external_ids_to_bind_group]
-        if PRODUCTION:
-            data = {
-                "contract_id": self.contract_id,
-                "group_id": group_id,
-                "cards_list": json.dumps(card_list)
-            }
-            response = requests.post(
-                url=self.endpoint(self.api_v1, "setCardsToGroup"),
-                headers=self.headers | {"session_id": self.api_session_id},
-                data=data
-            )
-            res = response.json()
-            if res['status']['code'] == 200:
-                self.logger.info(f"Прикреплены карты {card_external_ids_to_bind_group} к группе {group_id}")
-            else:
-                raise CeleryError(message="Не удалось привязать карты к группе. Ответ API ГПН: "
-                                          f"{res['status']['errors']}. Наш запрос: {data}")
+        data = {
+            "contract_id": self.contract_id,
+            "group_id": group_id,
+            "cards_list": json.dumps(card_list)
+        }
+        response = requests.post(
+            url=self.endpoint(self.api_v1, "setCardsToGroup"),
+            headers=self.headers | {"session_id": self.api_session_id},
+            data=data
+        )
+        res = response.json()
+        if res['status']['code'] == 200:
+            self.logger.info(f"Прикреплены карты {card_external_ids_to_bind_group} к группе {group_id}")
         else:
-            self.logger.info(f"К группе {group_id} псевдо привязаны карты {', '.join(card_numbers)}")
+            raise CeleryError(message="Не удалось привязать карты к группе. Ответ API ГПН: "
+                                      f"{res['status']['errors']}. Наш запрос: {data}")
 
     def unbind_cards_from_group(self, card_numbers: List[str], card_external_ids: List[str],
                                 group_id: str) -> None:
         # Открепляем карты от группы
-        if PRODUCTION:
-            card_list = [{"id": card_id, "type": "Detach"} for card_id in card_external_ids]
-            data = {
-                "contract_id": self.contract_id,
-                "group_id": group_id,
-                "cards_list": json.dumps(card_list)
-            }
-            response = requests.post(
-                url=self.endpoint(self.api_v1, "setCardsToGroup"),
-                headers=self.headers | {"session_id": self.api_session_id},
-                data=data
-            )
-            res = response.json()
-            if res['status']['code'] != 200:
-                raise CeleryError(message="Не удалось открепить карту от группы. Ответ API ГПН: "
-                                          f"{res['status']['errors']}. Наш запрос: {data}")
+        card_list = [{"id": card_id, "type": "Detach"} for card_id in card_external_ids]
+        data = {
+            "contract_id": self.contract_id,
+            "group_id": group_id,
+            "cards_list": json.dumps(card_list)
+        }
+        response = requests.post(
+            url=self.endpoint(self.api_v1, "setCardsToGroup"),
+            headers=self.headers | {"session_id": self.api_session_id},
+            data=data
+        )
+        res = response.json()
+        if res['status']['code'] != 200:
+            raise CeleryError(message="Не удалось открепить карту от группы. Ответ API ГПН: "
+                                      f"{res['status']['errors']}. Наш запрос: {data}")
 
-            self.logger.info(f"От группы {group_id} откреплены карты {', '.join(card_numbers)}")
-            self.logger.info("Пауза 40 сек")
-            time.sleep(40)
-
-        else:
-            self.logger.info(f"От группы {group_id} псевдо откреплены карты {', '.join(card_numbers)}")
+        self.logger.info(f"От группы {group_id} откреплены карты {', '.join(card_numbers)}")
+        self.logger.info("Пауза 40 сек")
+        time.sleep(40)
 
     def get_gpn_cards(self) -> List[Dict[str, Any]]:
         response = requests.get(
