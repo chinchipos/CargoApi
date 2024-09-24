@@ -282,16 +282,19 @@ def gpn_import_azs() -> None:
 #     asyncio.run(update_group_limits_fn(orders))
 
 personal_account_str = str
-limit_delta_sum_float = float
+delta_sum_float = float
 
 
 @celery.task(name="GPN_UPDATE_GROUP_LIMITS")
-def gpn_update_group_limits(gpn_group_limit_deltas: Dict[personal_account_str, limit_delta_sum_float]) -> None:
+def gpn_update_group_limits(gpn_group_limit_increase_deltas: Dict[personal_account_str, List[delta_sum_float]],
+                            gpn_group_limit_decrease_deltas: Dict[personal_account_str, List[delta_sum_float]]) \
+        -> None:
     _logger.info('Запускаю задачу обновления групповых лимитов ГПН')
     perform_controller_actions(
         controller_name="GPNController",
         func_name="update_group_limits",
-        gpn_group_limit_deltas=gpn_group_limit_deltas
+        gpn_group_limit_increase_deltas=gpn_group_limit_increase_deltas,
+        gpn_group_limit_decrease_deltas=gpn_group_limit_decrease_deltas,
     )
     _logger.info('Завершена задача обновления групповых лимитов ГПН')
 
@@ -317,6 +320,16 @@ def gpn_sync_card_states() -> None:
         func_name="sync_card_states"
     )
     _logger.info('Завершена синхронизация состояний карт с ГПН')
+
+
+@celery.task(name="GPN_SYNC_GROUP_LIMITS")
+def gpn_sync_group_limits() -> None:
+    _logger.info('Начинаю задачу синхронизации групповых лимитов ГПН')
+    perform_controller_actions(
+        controller_name="GPNController",
+        func_name="sync_group_limits"
+    )
+    _logger.info('Завершена задача синхронизации групповых лимитов ГПН')
 
 
 @celery.task(name="GPN_MAKE_GROUP_LIMITS_CHECK_REPORT")

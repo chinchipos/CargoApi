@@ -200,12 +200,14 @@ class TransactionHelper(BaseRepository):
 
         # Вычисляем дельту изменения суммы баланса - понадобится позже для правильного
         # выставления лимита на группу карт
-        if company.personal_account in irrelevant_balances.total_sum_deltas:
-            irrelevant_balances.total_sum_deltas[company.personal_account] += transaction_data["total_sum"]
-            irrelevant_balances.discount_fee_sum_deltas[company.personal_account] += discount_fee_sum
+        if company.personal_account in irrelevant_balances.increasing_total_sum_deltas:
+            irrelevant_balances.increasing_total_sum_deltas[company.personal_account].append(
+                transaction_data["total_sum"]
+            )
+            irrelevant_balances.increasing_discount_fee_sum_deltas[company.personal_account].append(discount_fee_sum)
         else:
-            irrelevant_balances.total_sum_deltas[company.personal_account] = transaction_data["total_sum"]
-            irrelevant_balances.discount_fee_sum_deltas[company.personal_account] = discount_fee_sum
+            irrelevant_balances.increasing_total_sum_deltas[company.personal_account] = [transaction_data["total_sum"]]
+            irrelevant_balances.increasing_discount_fee_sum_deltas[company.personal_account] = [discount_fee_sum]
 
         # Это нужно, чтобы в БД у транзакций отличалось время и можно было корректно выбрать транзакцию,
         # которая предшествовала измененной

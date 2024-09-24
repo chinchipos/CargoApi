@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict
+from typing import Dict, List
 
 
 class IrrelevantBalances(dict):
@@ -7,14 +7,18 @@ class IrrelevantBalances(dict):
     def __init__(self, system_id: str | None = None):
         self.irrelevant_balances = {}
         self.system_id = system_id
-        self.total_sum_deltas: Dict[str, float] = {}
-        self.discount_fee_sum_deltas: Dict[str, float] = {}
+        self.increasing_total_sum_deltas: Dict[str, List[float]] = {}
+        self.decreasing_total_sum_deltas: Dict[str, List[float]] = {}
+        self.increasing_discount_fee_sum_deltas: Dict[str, List[float]] = {}
+        self.decreasing_discount_fee_sum_deltas: Dict[str, List[float]] = {}
         dict.__init__(
             self,
             irrelevant_balances=self.irrelevant_balances,
             system_id=self.system_id,
-            total_sum_deltas=self.total_sum_deltas,
-            discount_fee_sum_deltas=self.discount_fee_sum_deltas
+            increasing_total_sum_deltas=self.increasing_total_sum_deltas,
+            decreasing_total_sum_deltas=self.decreasing_total_sum_deltas,
+            increasing_discount_fee_sum_deltas=self.increasing_discount_fee_sum_deltas,
+            decreasing_discount_fee_sum_deltas=self.decreasing_discount_fee_sum_deltas
         )
 
     def add(self, balance_id: str, irrelevancy_date_time: datetime) -> None:

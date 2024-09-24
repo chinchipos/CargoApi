@@ -24,7 +24,8 @@ def after_sync(irrelevant_balances_list: List[IrrelevantBalances]):
     _logger.info("Агрегирую синхронизационные данные")
     irrelevant_balances = IrrelevantBalances()
     messages = []
-    gpn_sum_deltas = {}
+    gpn_increase_sum_deltas = {}
+    gpn_decrease_sum_deltas = {}
     systems = [
         # System.KHNP,
         System.GPN,
@@ -36,37 +37,44 @@ def after_sync(irrelevant_balances_list: List[IrrelevantBalances]):
 
             # Собираем воедино информацию о балансовых дельтах по транзакциям для выставления групповых лимитов ГПН
             if system == System.GPN:
-                for personal_account, delta_sum in irrelevant_balances_list[i]["discount_fee_sum_deltas"].items():
-                    if personal_account in gpn_sum_deltas:
-                        gpn_sum_deltas[personal_account] += delta_sum
+                increase_list = irrelevant_balances_list[i]["increasing_discount_fee_sum_deltas"].items()
+                for personal_account, delta_sum in increase_list:
+                    if personal_account in gpn_increase_sum_deltas:
+                        gpn_increase_sum_deltas[personal_account].append(delta_sum)
                     else:
-                        gpn_sum_deltas[personal_account] = delta_sum
+                        gpn_increase_sum_deltas[personal_account] = [delta_sum]
+
+                decrease_list = irrelevant_balances_list[i]["decreasing_discount_fee_sum_deltas"].items()
+                for personal_account, delta_sum in decrease_list:
+                    if personal_account in gpn_decrease_sum_deltas:
+                        gpn_decrease_sum_deltas[personal_account].append(delta_sum)
+                    else:
+                        gpn_decrease_sum_deltas[personal_account] = [delta_sum]
 
             else:
-                for personal_account, delta_sum in irrelevant_balances_list[i]["total_sum_deltas"].items():
-                    if personal_account in gpn_sum_deltas:
-                        gpn_sum_deltas[personal_account] += delta_sum
+                increase_list = irrelevant_balances_list[i]["increasing_total_sum_deltas"].items()
+                for personal_account, delta_sum in increase_list:
+                    if personal_account in gpn_increase_sum_deltas:
+                        gpn_increase_sum_deltas[personal_account].append(delta_sum)
                     else:
-                        gpn_sum_deltas[personal_account] = delta_sum
+                        gpn_increase_sum_deltas[personal_account] = [delta_sum]
+
+                decrease_list = irrelevant_balances_list[i]["decreasing_total_sum_deltas"].items()
+                for personal_account, delta_sum in decrease_list:
+                    if personal_account in gpn_decrease_sum_deltas:
+                        gpn_decrease_sum_deltas[personal_account].append(delta_sum)
+                    else:
+                        gpn_decrease_sum_deltas[personal_account] = [delta_sum]
 
         else:
             messages.append(f"Ошибка синхронизации с {system.value}")
-
-    # Создаем ордера на изменение лимитов ГПН
-    # gpn_limit_orders = []
-    # for personal_account, delta_sum in gpn_sum_deltas.items():
-    #     gpn_limit_orders.append(
-    #         GroupLimitOrder(
-    #             personal_account=personal_account,
-    #             delta_sum=delta_sum
-    #         )
-    #     )
 
     if messages:
         tasks = [
             calc_balances_chain(
                 irrelevant_balances=irrelevant_balances,
-                gpn_group_limit_deltas=gpn_sum_deltas
+                gpn_group_limit_increase_deltas=gpn_increase_sum_deltas,
+                gpn_group_limit_decrease_deltas=gpn_decrease_sum_deltas
             ),
             fail.si(messages)
         ]
@@ -74,21 +82,9 @@ def after_sync(irrelevant_balances_list: List[IrrelevantBalances]):
     else:
         calc_balances_chain(
             irrelevant_balances=irrelevant_balances,
-            gpn_group_limit_deltas=gpn_sum_deltas
+            gpn_group_limit_increase_deltas=gpn_increase_sum_deltas,
+            gpn_group_limit_decrease_deltas=gpn_decrease_sum_deltas
         )
-
-    # tasks = [gpn_update_group_limits.si(gpn_limit_orders)] if PRODUCTION else []
-    # tasks.extend([
-    #     calc_balances.si(irrelevant_balances),
-    #     # khnp_set_card_states.s(),
-    # ])
-    # :
-    # tasks = [
-    #
-    #     fail.si(messages)
-    # ] if messages else
-
-    # chain(*tasks)()
 
 
 @celery.task(name="SYNC_WITH_SYSTEMS")

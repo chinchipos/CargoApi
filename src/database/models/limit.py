@@ -107,8 +107,13 @@ class CardLimitOrm(Base):
 class GroupLimitOrm(Base):
     __tablename__ = "group_limit"
     __table_args__ = (
-        {'comment': ('Таблица для ведения лимитов на группы карт. '
-                     'Используется для минимизации количества запросов к API системы поставщика')}
+        UniqueConstraint("system_id", "company_id", "inner_goods_category"),
+        {
+            'comment': (
+                'Таблица для ведения лимитов на группы карт. '
+                'Используется для минимизации количества запросов к API системы поставщика'
+            )
+        }
     )
 
     # Система
@@ -159,8 +164,8 @@ class GroupLimitOrm(Base):
     # Категория продуктов
     inner_goods_category: Mapped[GoodsCategory] = mapped_column(
         ENUM(GoodsCategory, name="goodscategory"),
-        nullable=True,
-        init=False,
+        nullable=False,
+        init=True,
         comment="Категория продуктов в нашей системе"
     )
 

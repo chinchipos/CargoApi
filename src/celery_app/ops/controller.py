@@ -303,12 +303,20 @@ class OpsController(BaseRepository):
                 personal_account = local_transaction.balance.company.personal_account
                 discount_fee_sum = local_transaction.discount_sum if local_transaction.discount_sum else \
                     local_transaction.fee_sum
-                if personal_account in self._irrelevant_balances.total_sum_deltas:
-                    self._irrelevant_balances.total_sum_deltas[personal_account] -= local_transaction.total_sum
-                    self._irrelevant_balances.discount_fee_sum_deltas[personal_account] -= discount_fee_sum
+                if personal_account in self._irrelevant_balances.decreasing_total_sum_deltas:
+                    self._irrelevant_balances.decreasing_total_sum_deltas[personal_account].append(
+                        local_transaction.total_sum
+                    )
+                    self._irrelevant_balances.decreasing_discount_fee_sum_deltas[personal_account].append(
+                        discount_fee_sum
+                    )
                 else:
-                    self._irrelevant_balances.total_sum_deltas[personal_account] = local_transaction.total_sum
-                    self._irrelevant_balances.discount_fee_sum_deltas[personal_account] = discount_fee_sum
+                    self._irrelevant_balances.decreasing_total_sum_deltas[personal_account] = [
+                        local_transaction.total_sum
+                    ]
+                    self._irrelevant_balances.decreasing_discount_fee_sum_deltas[personal_account] = [
+                        discount_fee_sum
+                    ]
 
         # Удаляем помеченные транзакции из БД
         # self.logger.info(f'Удалить транзакции ОПС из локальной БД: {len(to_delete_local)} шт')

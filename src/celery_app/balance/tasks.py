@@ -115,14 +115,16 @@ def recalculate_transactions(from_date_time: datetime, personal_accounts: List[s
 
 
 personal_account_str = str
-limit_delta_sum_float = float
+delta_sum_float = float
 
 
 @celery.task(name="CALC_BALANCES_CHAIN")
 def calc_balances_chain(irrelevant_balances: IrrelevantBalances,
-                        gpn_group_limit_deltas: Dict[personal_account_str, limit_delta_sum_float]) -> None:
+                        gpn_group_limit_increase_deltas: Dict[personal_account_str, List[delta_sum_float]],
+                        gpn_group_limit_decrease_deltas: Dict[personal_account_str, List[delta_sum_float]]) \
+        -> None:
     tasks = [
         calc_balances.si(irrelevant_balances),
-        gpn_update_group_limits.si(gpn_group_limit_deltas)
+        gpn_update_group_limits.si(gpn_group_limit_increase_deltas, gpn_group_limit_decrease_deltas)
     ]
     chain(*tasks)()

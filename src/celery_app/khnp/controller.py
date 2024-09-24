@@ -236,7 +236,7 @@ class KHNPController(BaseRepository):
 
         # Вычисляем дельту изменения суммы баланса - понадобится позже для правильного
         # выставления лимита на группу карт
-        if company.personal_account in self._irrelevant_balances.total_sum_deltas:
+        if company.personal_account in self._irrelevant_balances.decreasing_total_sum_deltas:
             self._irrelevant_balances.total_sum_deltas[company.personal_account] += transaction_data["total_sum"]
             self._irrelevant_balances.discount_fee_sum_deltas[company.personal_account] += discount_fee_sum
         else:

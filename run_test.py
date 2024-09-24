@@ -1,3 +1,3 @@
-from src.celery_app.gpn.tasks import gpn_make_group_limits_check_report
+from src.celery_app.gpn.tasks import gpn_sync_group_limits
 
-gpn_make_group_limits_check_report.delay()
+gpn_sync_group_limits.delay()
