@@ -1458,7 +1458,7 @@ class GPNController(BaseRepository):
         if previous_company_id and cards:
             previous_company = await company_repository.get_company(previous_company_id)
             # Получаем идентификатор группы карт ГПН
-            previous_card_group = await previous_company.get_card_group(System.GPN.value)
+            previous_card_group = previous_company.get_card_group(System.GPN.value)
             if previous_card_group:
                 self.api.unbind_cards_from_group(
                     card_numbers=[card.card_number for card in cards],
@@ -1471,7 +1471,7 @@ class GPNController(BaseRepository):
             new_company = await company_repository.get_company(new_company_id)
 
             # Получаем идентификатор группы карт ГПН
-            new_card_group = await new_company.get_card_group(System.GPN.value)
+            new_card_group = new_company.get_card_group(System.GPN.value)
 
             if new_card_group:
                 group_id = new_card_group.external_id
