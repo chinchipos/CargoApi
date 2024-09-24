@@ -123,7 +123,9 @@ class CompanyService:
         #     delta_sum=available_balance_after - available_balance_before
         # )
         limit_delta_sum = available_balance_after - available_balance_before
-        gpn_update_group_limits.delay({company.personal_account: limit_delta_sum})
+        gpn_update_group_limits.delay(
+            gpn_group_limit_increase_deltas={company.personal_account: [limit_delta_sum]}
+        )
 
         return company
 
@@ -217,7 +219,9 @@ class CompanyService:
         #     personal_account=company.personal_account,
         #     delta_sum=delta_sum
         # )
-        gpn_update_group_limits.delay({company.personal_account: limit_delta_sum})
+        gpn_update_group_limits.delay(
+            gpn_group_limit_increase_deltas={company.personal_account: [limit_delta_sum]}
+        )
 
     async def get_notifications(self) -> List[NotificationMailingOrm]:
         mailings = await self.repository.get_notification_mailings(self.repository.user.company_id)

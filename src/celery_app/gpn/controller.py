@@ -1209,14 +1209,21 @@ class GPNController(BaseRepository):
 
         return self.card_groups
 
-    async def update_group_limits(self,
-                                  gpn_group_limit_increase_deltas: Dict[personal_account_str, List[delta_sum_float]],
-                                  gpn_group_limit_decrease_deltas: Dict[personal_account_str, List[delta_sum_float]]) \
-            -> None:
+    async def update_group_limits(
+            self,
+            gpn_group_limit_increase_deltas: Dict[personal_account_str, List[delta_sum_float]] = None,
+            gpn_group_limit_decrease_deltas: Dict[personal_account_str, List[delta_sum_float]] = None
+    ) -> None:
 
         if not gpn_group_limit_increase_deltas and not gpn_group_limit_decrease_deltas:
             self.logger.warning("Получен пустой список организаций для обновления групповых лимитов.")
             return None
+
+        if gpn_group_limit_increase_deltas is None:
+            gpn_group_limit_increase_deltas = {}
+
+        if gpn_group_limit_decrease_deltas is None:
+            gpn_group_limit_decrease_deltas = {}
 
         # Получаем из БД организации, у которых есть карты ГПН
         personal_accounts_set = {personal_account for personal_account in gpn_group_limit_increase_deltas.keys()}
@@ -1446,11 +1453,10 @@ class GPNController(BaseRepository):
         cards = await card_repository.get_cards_by_filters(system_id=self.system.id, card_numbers=card_numbers)
 
         company_repository = CompanyRepository(session=self.session)
-        previous_company = await company_repository.get_company(previous_company_id)
-        new_company = await company_repository.get_company(new_company_id)
 
         # Отвязываем карты ГПН от старой группы
         if previous_company_id and cards:
+            previous_company = await company_repository.get_company(previous_company_id)
             # Получаем идентификатор группы карт ГПН
             previous_card_group = await previous_company.get_card_group(System.GPN.value)
             if previous_card_group:
@@ -1462,6 +1468,8 @@ class GPNController(BaseRepository):
 
         # Привязываем карты к новой группе
         if new_company_id:
+            new_company = await company_repository.get_company(new_company_id)
+
             # Получаем идентификатор группы карт ГПН
             new_card_group = await new_company.get_card_group(System.GPN.value)
 

@@ -286,8 +286,8 @@ delta_sum_float = float
 
 
 @celery.task(name="GPN_UPDATE_GROUP_LIMITS")
-def gpn_update_group_limits(gpn_group_limit_increase_deltas: Dict[personal_account_str, List[delta_sum_float]],
-                            gpn_group_limit_decrease_deltas: Dict[personal_account_str, List[delta_sum_float]]) \
+def gpn_update_group_limits(gpn_group_limit_increase_deltas: Dict[personal_account_str, List[delta_sum_float]] = None,
+                            gpn_group_limit_decrease_deltas: Dict[personal_account_str, List[delta_sum_float]] = None) \
         -> None:
     _logger.info('Запускаю задачу обновления групповых лимитов ГПН')
     perform_controller_actions(
