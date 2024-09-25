@@ -158,7 +158,7 @@ def service_sync() -> None:
                  'исправления ошибок по картам, группам, лимитам')
     perform_controller_actions(
         controller_name="GPNController",
-        func_name="sync_group_limits"
+        func_name="service_sync"
     )
     _logger.info('Завершена сервисная синхронизация с ГПН')
 
