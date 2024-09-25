@@ -26,7 +26,6 @@ class GpnGoodsCategory(Enum):
     NON_FOOD = {"id": "1-C8J1Z", "code": "40300000000", "unit": "IT", "local_category": GoodsCategory.NON_FOOD}
     CS_SERVICES = {"id": "1-4SE0LKU", "code": "CS_SERVICES", "unit": "IT", "local_category": GoodsCategory.ROAD_PAYING}
 
-
     @staticmethod
     def not_fuel_categories():
         return [
@@ -222,8 +221,8 @@ class GPNApi:
         )
         res = response.json()
         if res['status']['code'] != 200:
-            raise CeleryError(message="Не удалось открепить карту от группы. Ответ API ГПН: "
-                                      f"{res['status']['errors']}. Наш запрос: {data}")
+            self.logger.error("Не удалось открепить карту от группы. Ответ API ГПН: "
+                              f"{res['status']['errors']}. Наш запрос: {data}")
 
         self.logger.info(f"От группы {group_id} откреплены карты {', '.join(card_numbers)}")
         self.logger.info("Пауза 40 сек")
