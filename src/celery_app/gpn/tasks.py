@@ -152,8 +152,8 @@ def gpn_sync_card_states() -> None:
     _logger.info('Завершена синхронизация состояний карт с ГПН')
 
 
-@celery.task(name="GPN_SYNC_GROUP_LIMITS")
-def service_sync() -> None:
+@celery.task(name="GPN_SERVICE_SYNC")
+def gpn_service_sync() -> None:
     _logger.info('Начинаю сервисную синхронизацию с ГПН для поиска и '
                  'исправления ошибок по картам, группам, лимитам')
     perform_controller_actions(
