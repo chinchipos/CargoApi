@@ -471,9 +471,11 @@ class GPNController(BaseRepository):
 
                 if _current_remote_available_limit_sum != right_limit_sum:
                     self.logger.error(
-                        f"В ГПН установлен некорректный групповой лимит {_current_remote_available_limit_sum} р. "
-                        f"по категории {_local_group_limit.inner_goods_category.name} для огранизации {_company.name} "
-                        f"{_company.personal_account}. Устанавливаю новое значение лимита: {right_limit_sum} р."
+                        "В ГПН установлен некорректный групповой лимит по категории "
+                        f"{_local_group_limit.inner_goods_category.name} для огранизации {_company.name} "
+                        f"{_company.personal_account}. Текущий лимит - {_remote_group_limit['sum']['value']}, "
+                        f"доступно - {_current_remote_available_limit_sum}. Устанавливаю новое значение лимита: "
+                        f"{right_limit_sum}"
                     )
                     try:
                         _gpn_new_limit_sum = int(math.ceil(_remote_group_limit["sum"]["used"])) + right_limit_sum
@@ -732,10 +734,12 @@ class GPNController(BaseRepository):
 
                             if current_remote_available_limit_sum != right_limit_sum:
                                 self.logger.error(
-                                    f"В ГПН установлен некорректный групповой лимит "
-                                    f"{current_remote_available_limit_sum} р. по категории {inner_goods_category.name} "
-                                    f"для огранизации {company.name} {company.personal_account}. "
-                                    f"Устанавливаю новое значение лимита: {right_limit_sum} р."
+                                    "В ГПН установлен некорректный групповой лимит по категории "
+                                    f"{inner_goods_category.name} для огранизации {company.name} "
+                                    f"{company.personal_account}. Текущий лимит - "
+                                    f"{remote_group_limit['sum']['value']}, доступно - "
+                                    f"{current_remote_available_limit_sum}. Устанавливаю новое значение "
+                                    f"лимита: {right_limit_sum} р."
                                 )
                                 try:
                                     gpn_new_limit_sum = (
