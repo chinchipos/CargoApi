@@ -1615,8 +1615,8 @@ class GPNController(BaseRepository):
             fn_result = "Ошибка при обновлении группового лимита" if limit_id \
                 else "Ошибка при создании группового лимита"
         message = (
-            f"{fn_result} {limit_sum} р. на категорию {gpn_goods_category.value['local_category'].value} для "
-            f"организации {company_name}, ЛС: {personal_account}."
+            f"{fn_result} на категорию {gpn_goods_category.value['local_category'].value} для "
+            f"организации {company_name}, ЛС: {personal_account}. Новый лимит - {limit_sum} р."
         )
         if limit_id:
             message += (f" Предыдущие значения: лимит - {previous_remote_limit_sum}, "
