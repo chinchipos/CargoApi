@@ -323,13 +323,14 @@ def gpn_sync_card_states() -> None:
 
 
 @celery.task(name="GPN_SYNC_GROUP_LIMITS")
-def gpn_sync_group_limits() -> None:
-    _logger.info('Начинаю задачу синхронизации групповых лимитов ГПН')
+def service_sync() -> None:
+    _logger.info('Начинаю сервисную синхронизацию с ГПН для поиска и '
+                 'исправления ошибок по картам, группам, лимитам')
     perform_controller_actions(
         controller_name="GPNController",
         func_name="sync_group_limits"
     )
-    _logger.info('Завершена задача синхронизации групповых лимитов ГПН')
+    _logger.info('Завершена сервисная синхронизация с ГПН')
 
 
 @celery.task(name="GPN_MAKE_GROUP_LIMITS_CHECK_REPORT")

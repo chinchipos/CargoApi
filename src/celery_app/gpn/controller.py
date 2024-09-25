@@ -2,7 +2,7 @@ import math
 from datetime import datetime
 from typing import Dict, Any, List
 
-from sqlalchemy import select as sa_select, delete as sa_delete, and_
+from sqlalchemy import select as sa_select, delete as sa_delete, and_, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import contains_eager, selectinload, aliased, load_only
 
@@ -1584,6 +1584,7 @@ class GPNController(BaseRepository):
             "2235772",  # ООО "ТРАЛСПЕЦТЕХ"
             "0764675",  # ООО "ТЕСТ"
         )
+
         # Получаем из БД организации, имеющие карты ГПН.
         # Присоединяем сведения о балансах, группе карт, групповых и карточных лимитах
         company_tbl = aliased(CompanyOrm, name="company_tbl")
@@ -1634,6 +1635,22 @@ class GPNController(BaseRepository):
 
         transaction_repository = TransactionRepository(session=self.session)
 
+        # Получаем из БД предыдущий отчет. Из него будем брать записи, если с момента генерации предыдущего отчета
+        # не было транзакций по организации
+
+        stmt = (
+            sa_select(CheckReportOrm)
+            .where(CheckReportOrm.report_type == CheckReport.GPN_GROUP_LIMITS)
+            .order_by(desc(CheckReportOrm.creation_time))
+            .limit(1)
+        )
+        previous_report: CheckReportOrm = await self.select_first(stmt)
+
+        def get_company_data_from_previous_report(personal_account) -> Dict[str, Any]:
+            for _company_data in previous_report.data:
+                if _company_data["personal_account"] == personal_account:
+                    return _company_data
+
         # Формируем данные отчета
         report_data = []
         i = 1
@@ -1642,8 +1659,8 @@ class GPNController(BaseRepository):
             spaces = " " * (5 - len(str(i)))
             self.logger.info(f"{spaces}{i} из {companies_amount}. Формирую данные по организации {company.name}")
             i += 1
-            # if company.personal_account not in personal_accounts:
-            #    continue
+            if personal_accounts and company.personal_account not in personal_accounts:
+                continue
 
             # Вычисляем доступный баланс
             overbought_balance = company.overbought_balance()
@@ -1656,6 +1673,12 @@ class GPNController(BaseRepository):
 
             # Получаем последнюю транзакцию
             last_transaction = await transaction_repository.get_last_transaction(balance_id=overbought_balance.id)
+
+            # Если со времени последнего отчета не было транзакций, то берем данные из последнего отчета
+            if previous_report.creation_time > last_transaction.date_time_load:
+                company_data = get_company_data_from_previous_report(company.personal_account)
+                report_data.append(company_data)
+                continue
 
             # Из ГПН получаем сведения о групповых лимитах
             card_group = company.get_card_group(System.GPN.value)
