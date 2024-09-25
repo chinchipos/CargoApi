@@ -29,7 +29,7 @@ def after_sync(irrelevant_balances_list: List[IrrelevantBalances]):
     systems = [
         # System.KHNP,
         System.GPN,
-        System.OPS
+        # System.OPS
     ]
     for i, system in enumerate(systems):
         if irrelevant_balances_list[i]:
@@ -37,34 +37,34 @@ def after_sync(irrelevant_balances_list: List[IrrelevantBalances]):
 
             # Собираем воедино информацию о балансовых дельтах по транзакциям для выставления групповых лимитов ГПН
             if system == System.GPN:
-                increase_list = irrelevant_balances_list[i]["increasing_discount_fee_sum_deltas"].items()
-                for personal_account, delta_sum in increase_list:
+                increase_dict = irrelevant_balances_list[i]["increasing_discount_fee_sum_deltas"]
+                for personal_account, delta_sum_list in increase_dict.items():
                     if personal_account in gpn_increase_sum_deltas:
-                        gpn_increase_sum_deltas[personal_account].append(delta_sum)
+                        gpn_increase_sum_deltas[personal_account].extend(delta_sum_list)
                     else:
-                        gpn_increase_sum_deltas[personal_account] = [delta_sum]
+                        gpn_increase_sum_deltas[personal_account] = delta_sum_list
 
-                decrease_list = irrelevant_balances_list[i]["decreasing_discount_fee_sum_deltas"].items()
-                for personal_account, delta_sum in decrease_list:
+                decrease_dict = irrelevant_balances_list[i]["decreasing_discount_fee_sum_deltas"]
+                for personal_account, delta_sum_list in decrease_dict.items():
                     if personal_account in gpn_decrease_sum_deltas:
-                        gpn_decrease_sum_deltas[personal_account].append(delta_sum)
+                        gpn_decrease_sum_deltas[personal_account].extend(delta_sum_list)
                     else:
-                        gpn_decrease_sum_deltas[personal_account] = [delta_sum]
+                        gpn_decrease_sum_deltas[personal_account] = delta_sum_list
 
             else:
-                increase_list = irrelevant_balances_list[i]["increasing_total_sum_deltas"].items()
-                for personal_account, delta_sum in increase_list:
+                increase_dict = irrelevant_balances_list[i]["increasing_total_sum_deltas"]
+                for personal_account, delta_sum_list in increase_dict.items():
                     if personal_account in gpn_increase_sum_deltas:
-                        gpn_increase_sum_deltas[personal_account].append(delta_sum)
+                        gpn_increase_sum_deltas[personal_account].extend(delta_sum_list)
                     else:
-                        gpn_increase_sum_deltas[personal_account] = [delta_sum]
+                        gpn_increase_sum_deltas[personal_account] = [delta_sum_list]
 
-                decrease_list = irrelevant_balances_list[i]["decreasing_total_sum_deltas"].items()
-                for personal_account, delta_sum in decrease_list:
+                decrease_dict = irrelevant_balances_list[i]["decreasing_total_sum_deltas"]
+                for personal_account, delta_sum_list in decrease_dict.items():
                     if personal_account in gpn_decrease_sum_deltas:
-                        gpn_decrease_sum_deltas[personal_account].append(delta_sum)
+                        gpn_decrease_sum_deltas[personal_account].extend(delta_sum_list)
                     else:
-                        gpn_decrease_sum_deltas[personal_account] = [delta_sum]
+                        gpn_decrease_sum_deltas[personal_account] = [delta_sum_list]
 
         else:
             messages.append(f"Ошибка синхронизации с {system.value}")
@@ -93,7 +93,7 @@ def sync_with_systems() -> None:
         header=[
             # khnp_sync.si(),
             gpn_sync.si(),
-            ops_sync.si(),
+            # ops_sync.si(),
         ],
         body=after_sync.s()
     )()

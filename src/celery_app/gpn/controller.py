@@ -463,7 +463,7 @@ class GPNController(BaseRepository):
                 # локально и в ГПН
                 _current_local_available_limit_sum = int(math.floor(_local_group_limit.limit_sum))
                 _current_remote_available_limit_sum = int(math.floor(
-                        _remote_group_limit["sum"]["value"] - _remote_group_limit["sum"]["used"]
+                    _remote_group_limit["sum"]["value"] - _remote_group_limit["sum"]["used"]
                 ))
 
                 if _current_remote_available_limit_sum != right_limit_sum:
@@ -712,7 +712,7 @@ class GPNController(BaseRepository):
                             # Если установленный в ГПН лимит не превышает 1,4 млн,
                             # то проверяем соответствие лимита в ГПН
                             current_remote_available_limit_sum = int(math.floor(
-                                    remote_group_limit["sum"]["value"] - remote_group_limit["sum"]["used"]
+                                remote_group_limit["sum"]["value"] - remote_group_limit["sum"]["used"]
                             ))
 
                             if current_remote_available_limit_sum != right_limit_sum:
@@ -1263,8 +1263,8 @@ class GPNController(BaseRepository):
                     limit_decrease_delta_sums=gpn_group_limit_decrease_deltas.get(company.personal_account, [])
                 )
             except Exception:
-                self.logger.error(f"Ошибка установки группового лимита ГПН организации {company.name}, "
-                                  f"ЛС: {company.personal_account}")
+                self.logger.exception(f"Ошибка установки группового лимита ГПН организации {company.name}, "
+                                      f"ЛС: {company.personal_account}")
 
     async def create_group_limits(self, company_id: str, company_name: str, personal_account: str,
                                   card_group_external_id: str, available_balance: float) -> None:
@@ -1678,7 +1678,9 @@ class GPNController(BaseRepository):
             last_transaction = await transaction_repository.get_last_transaction(balance_id=overbought_balance.id)
 
             # Если со времени последнего отчета не было транзакций, то берем данные из последнего отчета
-            if previous_report.creation_time > last_transaction.date_time_load:
+            if (previous_report and
+                    (not last_transaction
+                     or last_transaction and previous_report.creation_time > last_transaction.date_time_load)):
                 company_data = get_company_data_from_previous_report(company.personal_account)
                 report_data.append(company_data)
                 if company_data:

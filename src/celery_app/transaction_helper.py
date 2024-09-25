@@ -16,6 +16,7 @@ from src.repositories.base import BaseRepository
 from src.repositories.card import CardRepository
 from src.repositories.goods import GoodsRepository
 from src.repositories.tariff import TariffRepository
+from src.utils.common import banking_round
 from src.utils.enums import TransactionType
 
 
@@ -172,7 +173,7 @@ class TransactionHelper(BaseRepository):
 
         # Сумма скидки/наценки
         discount_fee_percent = tariff.discount_fee / 100 if tariff else 0
-        discount_fee_sum = transaction_sum * discount_fee_percent
+        discount_fee_sum = banking_round(transaction_sum * discount_fee_percent)
 
         # Получаем итоговую сумму
         total_sum = transaction_sum + discount_fee_sum

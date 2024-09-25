@@ -18,33 +18,6 @@ from src.utils.loggers import get_logger
 _logger = get_logger(name="BALANCE_TASKS", filename="celery.log")
 
 
-# async def calc_balances_fn(irrelevant_balances: IrrelevantBalances) -> Dict[str, List[str]]:
-#
-#     sessionmanager = DatabaseSessionManager()
-#     sessionmanager.init(PROD_URI)
-#
-#     async with sessionmanager.session() as session:
-#         cb = CalcBalances(session)
-#         balance_ids_to_change_card_states = await cb.calculate(irrelevant_balances)
-#
-#     # Закрываем соединение с БД
-#     await sessionmanager.close()
-#     return balance_ids_to_change_card_states
-
-
-# @celery.task(name="CALC_BALANCES")
-# def calc_balances(irrelevant_balances: IrrelevantBalances) -> Dict[str, List[str]]:
-#     if not irrelevant_balances['irrelevant_balances']:
-#         _logger.info("Пересчет балансов не требуется")
-#         return {"to_block": [], "to_activate": []}
-#
-#     else:
-#         _logger.info("Пересчитываю балансы")
-#         balance_ids_to_change_card_states = asyncio.run(calc_balances_fn(irrelevant_balances))
-#         _logger.info("Пересчет балансов выполнен")
-#         return balance_ids_to_change_card_states
-
-
 @celery.task(name="CALC_BALANCES")
 def calc_balances(irrelevant_balances: IrrelevantBalances) -> Dict[str, List[str]]:
     if not irrelevant_balances['irrelevant_balances']:
@@ -84,24 +57,15 @@ def recalculate_transactions(from_date_time: datetime, personal_accounts: List[s
 
     systems_dict = asyncio.run(recalculate_transactions_fn(from_date_time, personal_accounts))
 
-    gpn_sum_deltas = {}
+    gpn_increase_sum_deltas = {}
+    gpn_decrease_sum_deltas = {}
     for system_id, data in systems_dict.items():
         if data["system_name"] != System.GPN:
-            for personal_account, delta_sum in data["irrelevant_balances"]["total_sum_deltas"].items():
-                if personal_account in gpn_sum_deltas:
-                    gpn_sum_deltas[personal_account] += delta_sum
+            for personal_account, delta_sum in data["irrelevant_balances"]["increasing_total_sum_deltas"].items():
+                if personal_account in gpn_increase_sum_deltas:
+                    gpn_increase_sum_deltas[personal_account].append(delta_sum)
                 else:
-                    gpn_sum_deltas[personal_account] = delta_sum
-
-    # Создаем ордера на изменение лимитов ГПН
-    # gpn_limit_orders = []
-    # for personal_account, delta_sum in gpn_sum_deltas.items():
-    #     gpn_limit_orders.append(
-    #         GroupLimitOrder(
-    #             personal_account=personal_account,
-    #             delta_sum=delta_sum
-    #         )
-    #     )
+                    gpn_increase_sum_deltas[personal_account] = [delta_sum]
 
     irrelevant_balances = None
     for system_id, data in systems_dict.items():
@@ -110,7 +74,8 @@ def recalculate_transactions(from_date_time: datetime, personal_accounts: List[s
 
     calc_balances_chain(
         irrelevant_balances=irrelevant_balances,
-        gpn_group_limit_deltas=gpn_sum_deltas
+        gpn_group_limit_increase_deltas=gpn_increase_sum_deltas,
+        gpn_group_limit_decrease_deltas=gpn_decrease_sum_deltas
     )
 
 
