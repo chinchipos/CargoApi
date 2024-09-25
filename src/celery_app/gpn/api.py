@@ -208,6 +208,9 @@ class GPNApi:
     def unbind_cards_from_group(self, card_numbers: List[str], card_external_ids: List[str], group_id: str) -> None:
         # Открепляем карты от группы
         card_list = [{"id": card_id, "type": "Detach"} for card_id in card_external_ids]
+        if not card_list:
+            return None
+
         data = {
             "contract_id": self.contract_id,
             "group_id": group_id,
