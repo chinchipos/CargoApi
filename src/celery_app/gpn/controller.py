@@ -1572,6 +1572,9 @@ class GPNController(BaseRepository):
         return remote_limit_id
 
     async def make_group_limits_check_report(self) -> None:
+        personal_accounts = None
+
+        """
         personal_accounts = (
             "0975566",  # ДУРОВ ВЛАДИМИР ОЛЕГОВИЧ
             "6866659",  # ОСТАНИН ПАВЕЛ НИКОЛАЕВИЧ
@@ -1584,6 +1587,7 @@ class GPNController(BaseRepository):
             "2235772",  # ООО "ТРАЛСПЕЦТЕХ"
             "0764675",  # ООО "ТЕСТ"
         )
+        """
 
         # Получаем из БД организации, имеющие карты ГПН.
         # Присоединяем сведения о балансах, группе карт, групповых и карточных лимитах
@@ -1637,7 +1641,6 @@ class GPNController(BaseRepository):
 
         # Получаем из БД предыдущий отчет. Из него будем брать записи, если с момента генерации предыдущего отчета
         # не было транзакций по организации
-
         stmt = (
             sa_select(CheckReportOrm)
             .where(CheckReportOrm.report_type == CheckReport.GPN_GROUP_LIMITS)
@@ -1678,9 +1681,12 @@ class GPNController(BaseRepository):
             if previous_report.creation_time > last_transaction.date_time_load:
                 company_data = get_company_data_from_previous_report(company.personal_account)
                 report_data.append(company_data)
-                continue
+                if company_data:
+                    self.logger.info("Использованы данные из предыдущего отчета")
+                    continue
 
             # Из ГПН получаем сведения о групповых лимитах
+            self.logger.info("Запрос данных из ГПН")
             card_group = company.get_card_group(System.GPN.value)
             remote_group_limits = self.api.get_card_group_limits(group_id=card_group.external_id) if card_group else []
 
