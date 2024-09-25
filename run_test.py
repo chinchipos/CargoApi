@@ -1,4 +1,4 @@
 from src.celery_app.gpn.tasks import gpn_make_group_limits_check_report, gpn_service_sync
 
-# gpn_make_group_limits_check_report.delay()
-gpn_service_sync.delay()
+gpn_make_group_limits_check_report.delay()
+# gpn_service_sync.delay()
