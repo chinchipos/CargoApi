@@ -43,16 +43,6 @@ def gpn_set_card_states(balance_ids_to_change_card_states: Dict[str, List[str]])
     return "COMPLETE"
 
 
-@celery.task(name="GPN_SERVICE_SYNC")
-def gpn_service_sync() -> None:
-    _logger.info('Запускаю задачу сервисной синхронизации с ГПН (модуль не доработан)')
-    perform_controller_actions(
-        controller_name="GPNController",
-        func_name="service_sync"
-    )
-    _logger.info('Завершена задача сервисной синхронизации с ГПН (модуль не доработан)')
-
-
 @celery.task(name="GPN_ISSUE_VIRTUAL_CARDS")
 def gpn_issue_virtual_cards(amount: int) -> None:
     _logger.info('Запускаю задачу выпуска виртуальных карт ГПН')
