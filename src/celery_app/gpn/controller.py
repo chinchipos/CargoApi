@@ -1593,8 +1593,8 @@ class GPNController(BaseRepository):
             if remote_limits:
                 for remote_limit in remote_limits:
                     if remote_limit["productType"] == gpn_goods_category.value["id"]:
-                        previous_remote_limit_sum = remote_limit["sum"]["valus"]
-                        previous_remote_available_sum = remote_limit["sum"]["valus"] - remote_limit["sum"]["used"]
+                        previous_remote_limit_sum = remote_limit["sum"]["value"]
+                        previous_remote_available_sum = remote_limit["sum"]["value"] - remote_limit["sum"]["used"]
             else:
                 self.logger.error("Ошибка при получении групповых лимитов ГПН "
                                   f"организации {company_name} {personal_account}")
