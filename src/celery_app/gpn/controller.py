@@ -392,21 +392,21 @@ class GPNController(BaseRepository):
                 if _remote_limit["productType"] == _gpn_category.value["id"]:
                     return _remote_limit
 
-        def get_right_limit_sum(_company: CompanyOrm, _inner_goods_category: GoodsCategory,
-                                _card_limit_categories: List[GoodsCategory]) -> int:
+        def get_right_available_limit_sum(_company: CompanyOrm, _inner_goods_category: GoodsCategory,
+                                          _card_limit_categories: List[GoodsCategory]) -> int:
 
             _available_balance = additional_companies_data[_company.personal_account]["available_balance"]
             if _inner_goods_category == GoodsCategory.FUEL or _inner_goods_category in _card_limit_categories:
                 # Если категория - "Топливо", или задан карточный лимит на эту категорию,
                 # то правильный групповой лимит должен быть равен доступному остатку ДС организации.
-                _right_limit_sum = max(int(math.floor(_available_balance)), 1)
+                _right_available_limit_sum = max(int(math.floor(_available_balance)), 1)
 
             else:
                 # Если категория не "Топливо" и не задан карточный лимит на эту категорию,
                 # то правильный групповой лимит должен быть равен 1 руб.
-                _right_limit_sum = 1
+                _right_available_limit_sum = 1
 
-            return _right_limit_sum
+            return _right_available_limit_sum
 
         """
         async def check_group_limit_sum(_company: CompanyOrm, _remote_group_limit: Dict[str, Any], 
@@ -578,7 +578,7 @@ class GPNController(BaseRepository):
             # Оцениваем соответствие лимитов по каждой категории продуктов.
             for gpn_category in GpnGoodsCategory:
                 inner_goods_category = gpn_category.value["local_category"]
-                right_limit_sum = get_right_limit_sum(
+                right_available_limit_sum = get_right_available_limit_sum(
                     _company=company,
                     _inner_goods_category=inner_goods_category,
                     _card_limit_categories=additional_companies_data[company.personal_account]["card_limit_categories"]
@@ -603,7 +603,7 @@ class GPNController(BaseRepository):
                             limit_id=None,
                             group_id=group.external_id,
                             gpn_goods_category=gpn_category,
-                            limit_sum=right_limit_sum,
+                            limit_sum=right_available_limit_sum,
                             company_name=company.name,
                             personal_account=company.personal_account,
                             previous_remote_limit_sum=None,
@@ -612,13 +612,13 @@ class GPNController(BaseRepository):
 
                     except Exception:
                         self.logger.error(
-                            f"Не удалось установить новый групповой лимит ГПН {right_limit_sum} р. на категорию "
+                            f"Не удалось установить новый групповой лимит ГПН {right_available_limit_sum} р. на категорию "
                             f"{inner_goods_category.name} для оргнизации {company.name} {company.personal_account}"
                         )
 
                     else:
                         self.logger.info(
-                            f"Успешно создан групповой лимит ГПН {right_limit_sum} р. на категорию "
+                            f"Успешно создан групповой лимит ГПН {right_available_limit_sum} р. на категорию "
                             f"{inner_goods_category.name} для оргнизации {company.name} "
                             f"{company.personal_account}. Создаю лимит в БД."
                         )
@@ -652,7 +652,7 @@ class GPNController(BaseRepository):
                                 limit_id=None,
                                 group_id=group.external_id,
                                 gpn_goods_category=gpn_category,
-                                limit_sum=right_limit_sum,
+                                limit_sum=right_available_limit_sum,
                                 company_name=company.name,
                                 personal_account=company.personal_account,
                                 previous_remote_limit_sum=None,
@@ -669,7 +669,7 @@ class GPNController(BaseRepository):
                             self.logger.info(
                                 f"Успешно пересоздан групповой лимит ГПН на категорию {inner_goods_category.name} "
                                 f"для оргнизации {company.name} {company.personal_account}. Установлено значение - "
-                                f"{right_limit_sum}"
+                                f"{right_available_limit_sum}"
                             )
 
                     else:
@@ -679,9 +679,9 @@ class GPNController(BaseRepository):
                             remote_group_limit["sum"]["value"] - remote_group_limit["sum"]["used"]
                         ))
 
-                        if current_remote_available_limit_sum != right_limit_sum:
+                        if current_remote_available_limit_sum != right_available_limit_sum:
                             gpn_new_limit_sum = (
-                                    int(math.ceil(remote_group_limit["sum"]["used"])) + right_limit_sum
+                                int(math.ceil(remote_group_limit["sum"]["used"])) + right_available_limit_sum
                             )
                             self.logger.error(
                                 "В ГПН установлен некорректный групповой лимит по категории "
