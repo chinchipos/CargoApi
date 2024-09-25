@@ -11,7 +11,7 @@ class CheckReportSchema(BaseSchema):
     report_type: Annotated[str, Field(description="Тип отчета")]
     description: Annotated[str, Field(description="Описание")]
     creation_time: Annotated[datetime, Field(description="Время формирования")]
-    data: Annotated[List[Dict[str, Any]], Field(description="Данные")]
+    records: Annotated[List[Dict[str, Any]], Field(description="Данные")]
 
 
 class CheckReportMinSchema(BaseSchema):

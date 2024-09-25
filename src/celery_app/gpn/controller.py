@@ -1732,8 +1732,8 @@ class GPNController(BaseRepository):
                     (not last_transaction
                      or last_transaction and previous_report.creation_time > last_transaction.date_time_load)):
                 company_data = get_company_data_from_previous_report(company.personal_account)
-                report_data.append(company_data)
                 if company_data:
+                    report_data.append(company_data)
                     self.logger.info("Использованы данные из предыдущего отчета")
                     continue
 

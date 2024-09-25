@@ -54,7 +54,7 @@ class MonitoringService:
             "report_type": check_report.report_type.name,
             "description": check_report.report_type.value["description"],
             "creation_time": check_report.creation_time.replace(microsecond=0),
-            "data": check_report.data,
+            "records": [record for record in check_report.data if record],
         }
         report_schema = CheckReportSchema.model_validate(output)
         return report_schema
