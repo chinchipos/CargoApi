@@ -499,9 +499,10 @@ class GPNController(BaseRepository):
 
                     if _current_local_available_limit_sum != right_limit_sum:
                         self.logger.error(
-                            f"В БД установлен некорректный групповой лимит {_current_local_available_limit_sum} р. "
-                            f"по категории {_local_group_limit.inner_goods_category.name} для огранизации "
-                            f"{_company.name} {_company.personal_account}. Устанавливаю новое значение лимита: "
+                            f"В БД установлен некорректный групповой лимит. по категории "
+                            f"{_local_group_limit.inner_goods_category.name} для огранизации {_company.name} "
+                            f"{_company.personal_account}. Текущий лимит - {_remote_group_limit['sum']['value']} р., "
+                            f"доступно - {_current_local_available_limit_sum} р. Устанавливаю новое значение лимита: "
                             f"{right_limit_sum} р."
                         )
                         _local_group_limit.limit_sum = right_limit_sum
