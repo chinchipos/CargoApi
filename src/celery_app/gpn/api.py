@@ -395,7 +395,7 @@ class GPNApi:
         self.logger.info(f"Удален лимит карты {data}")
         time.sleep(0.4)
 
-    def get_card_group_limits(self, group_id: str) -> List[Dict[str, Any]]:
+    def get_card_group_limits(self, group_id: str) -> List[Dict[str, Any]] | None:
         """
         Лимиты можно получить либо привязанные к договору, либо привязанные к группе карт, либо по конкретной карте.
         Нет возможности получить все лимиты одним запросом.
@@ -410,12 +410,13 @@ class GPNApi:
         )
         res = response.json()
 
-        if res["status"]["code"] != 200:
-            raise CeleryError(message=f"Ошибка при получении установленных на группу лимитов. Ответ сервера API: "
-                                      f"{res['status']['errors']}. Наш запрос: {params}")
+        if res["status"]["code"] == 200:
+            limits = res["data"]["result"]
+            return limits
 
-        limits = res["data"]["result"]
-        return limits
+        else:
+            self.logger.error(f"Ошибка при получении групповых лимитов ГПН. Ответ сервера API: "
+                              f"{res['status']['errors']}. Наш запрос: {params}")
 
     def get_product_types(self) -> List[Dict[str, Any]]:
         if not self.product_types:
