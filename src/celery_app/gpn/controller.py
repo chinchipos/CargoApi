@@ -148,6 +148,7 @@ class GPNController(BaseRepository):
             sa_select(CompanyOrm)
             .options(
                 selectinload(CompanyOrm.card_groups)
+                .joinedload(CardGroupOrm.system)
             )
             .select_from(CompanyOrm, CardOrm, CardSystemOrm)
             .where(CompanyOrm.id == CardOrm.company_id)
