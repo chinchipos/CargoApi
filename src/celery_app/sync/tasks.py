@@ -29,7 +29,7 @@ def after_sync(irrelevant_balances_list: List[IrrelevantBalances]):
     systems = [
         # System.KHNP,
         System.GPN,
-        # System.OPS
+        System.OPS
     ]
     for i, system in enumerate(systems):
         if irrelevant_balances_list[i]:
@@ -93,7 +93,7 @@ def sync_with_systems() -> None:
         header=[
             # khnp_sync.si(),
             gpn_sync.si(),
-            # ops_sync.si(),
+            ops_sync.si(),
         ],
         body=after_sync.s()
     )()
