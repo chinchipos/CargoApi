@@ -205,8 +205,7 @@ class GPNApi:
             raise CeleryError(message="Не удалось привязать карты к группе. Ответ API ГПН: "
                                       f"{res['status']['errors']}. Наш запрос: {data}")
 
-    def unbind_cards_from_group(self, card_numbers: List[str], card_external_ids: List[str],
-                                group_id: str) -> None:
+    def unbind_cards_from_group(self, card_numbers: List[str], card_external_ids: List[str], group_id: str) -> None:
         # Открепляем карты от группы
         card_list = [{"id": card_id, "type": "Detach"} for card_id in card_external_ids]
         data = {
