@@ -503,7 +503,12 @@ class GPNController(BaseRepository):
                         await self.save_object(_local_group_limit)
 
         """Основной программный код"""
+        i = 1
+        companies_amount = len(companies)
         for company in companies:
+            self.logger.info(f"Организация {i} из {companies_amount}: {company.name} {company.personal_account}")
+            i += 1
+
             group: CardGroupOrm = company.get_card_group(System.GPN.value)
 
             if group:
