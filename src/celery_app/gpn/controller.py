@@ -1188,7 +1188,7 @@ class GPNController(BaseRepository):
                 gpn_goods_category = GpnGoodsCategory.get_equal_by_local(inner_goods_category)
                 found = False
                 for remote_limit in remote_limits:
-                    if remote_limit["productType"] == gpn_goods_category:
+                    if remote_limit["productType"] == gpn_goods_category.value["id"]:
                         found = True
                         previous_remote_limit_sum = remote_limit["sum"]["value"]
                         previous_remote_available_sum = remote_limit["sum"]["value"] - remote_limit["sum"]["used"]
