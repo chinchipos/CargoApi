@@ -1102,6 +1102,9 @@ class GPNController(BaseRepository):
                 selectinload(CompanyOrm.group_limits)
             )
             .options(
+                selectinload(CompanyOrm.balances)
+            )
+            .options(
                 contains_eager(CompanyOrm.card_groups)
             )
             .outerjoin(CardGroupOrm, and_(
