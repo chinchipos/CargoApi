@@ -288,7 +288,7 @@ class GPNController(BaseRepository):
     async def sync_group_limits(self):
         """Функция выполняет проверку соответствия групповых лимитов ГПН доступному остатку ДС клиентов."""
 
-        personal_accounts_for_test = []
+        personal_accounts_for_test = ["5161054"]
 
         """Получаем данные из локальной БД"""
         # Из локальной БД получаем список организаций, которым присвоены карты ГПН.

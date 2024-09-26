@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import Dict, Any
 
 import src.database.models as orm_models
@@ -150,6 +151,16 @@ class DBService:
         orm_class = getattr(orm_models, orm_name)
         records = await self.repository.get_all_table_records(orm_class)
         column_names = orm_class.__table__.columns.keys()
-        table_content = ((getattr(record, column_name) for column_name in column_names) for record in records)
+
+        def check_if_enum(value):
+            return value.name if issubclass(type(value), Enum) else value
+
+        table_content = (
+            (
+                check_if_enum(
+                    getattr(record, column_name)
+                ) for column_name in column_names
+            ) for record in records
+        )
         output = {"column_names": column_names, "table_content": table_content}
         return output
