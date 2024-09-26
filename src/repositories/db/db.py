@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Any
 
 from src.database.models.role import RoleOrm
 from src.database.models.transaction import TransactionOrm
@@ -100,3 +100,8 @@ class DBRepository(BaseRepository):
         )
         dataset = await self.select_all(stmt)
         return dataset
+
+    async def get_all_table_records(self, orm_class) -> List[List[Any]]:
+        stmt = sa_select(orm_class)
+        records = await self.select_all(stmt)
+        return records

@@ -16,10 +16,10 @@ from src.database.models.role import RoleOrm, RolePermitionOrm, PermitionOrm
 from src.database.models.system import SystemOrm, CardSystemOrm
 from src.database.models.tariff import TariffOrm
 from src.database.models.transaction import TransactionOrm
-from src.database.models.user import UserOrm
+from src.database.models.user import UserOrm, AdminCompanyOrm
 from src.database.models.azs import AzsOrm, TerminalOrm
 from src.database.models.azs_owner import AzsOwnerOrm
-from src.database.models.tariff import TariffPolicyOrm, TariffNewOrm
+from src.database.models.tariff import TariffPolicyOrm, TariffNewOrm, TariffPolicyHistoryOrm
 from src.database.models.notification import NotificationOrm, NotificationMailingOrm
 from src.database.models.region import RegionOrm
 from src.database.models.limit import CardLimitOrm, GroupLimitOrm

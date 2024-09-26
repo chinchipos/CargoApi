@@ -39,3 +39,8 @@ class DBInitialSyncSchema(BaseSchema):
 class DBRegularSyncSchema(BaseSchema):
     service_token: str
     companies: any_
+
+
+class EntitySchema(BaseSchema):
+    column_names: List[str]
+    table_content: List[List[Any]]

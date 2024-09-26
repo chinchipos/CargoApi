@@ -6,19 +6,20 @@ from fastapi.responses import JSONResponse
 from src.auth.auth import auth_backend, fastapi_users
 from src.config import PROD_URI
 from src.database.db import sessionmanager
-from src.routing.azs import router as azs_routing, azs_tag_metadata
-from src.routing.car import router as car_routing, car_tag_metadata
-from src.routing.card import router as card_routing, card_tag_metadata
-from src.routing.card_type import router as card_type_routing, card_type_tag_metadata
-from src.routing.company import router as company_routing, company_tag_metadata
-from src.routing.goods import router as goods_routing, goods_tag_metadata
-from src.routing.filter import router as filter_routing, filter_tag_metadata
-from src.routing.monitoring import router as monitoring_routing, monitoring_tag_metadata
-from src.routing.role import router as role_routing, role_tag_metadata
-from src.routing.system import router as system_routing, system_tag_metadata
-from src.routing.tariff import router as tariff_routing, tariff_tag_metadata
-from src.routing.transaction import router as transaction_routing, transaction_tag_metadata
-from src.routing.user import router as user_routing, user_tag_metadata
+from src.routing.azs import router as azs_router, azs_tag_metadata
+from src.routing.car import router as car_router, car_tag_metadata
+from src.routing.card import router as card_router, card_tag_metadata
+from src.routing.card_type import router as card_type_router, card_type_tag_metadata
+from src.routing.company import router as company_router, company_tag_metadata
+from src.routing.db import router as db_router, db_tag_metadata
+from src.routing.goods import router as goods_router, goods_tag_metadata
+from src.routing.filter import router as filter_router, filter_tag_metadata
+from src.routing.monitoring import router as monitoring_router, monitoring_tag_metadata
+from src.routing.role import router as role_router, role_tag_metadata
+from src.routing.system import router as system_router, system_tag_metadata
+from src.routing.tariff import router as tariff_router, tariff_tag_metadata
+from src.routing.transaction import router as transaction_router, transaction_tag_metadata
+from src.routing.user import router as user_router, user_tag_metadata
 from src.utils.exceptions import BadRequestException, ForbiddenException, DBException, DBDuplicateException, ApiError
 from src.utils.loggers import logger
 
@@ -29,18 +30,16 @@ def init_app(dsn: str, tests: bool = False):
     @asynccontextmanager
     async def lifespan(_: FastAPI):
         logger.info('APP START')
-        # redis = aioredis.from_url("redis://localhost")
-        # FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
         yield
         print('APP SHUTDOWN')
-        await sessionmanager.close()  # dispose()
+        await sessionmanager.close()
 
     tags_metadata = [
         {
             "name": "auth",
             "description": 'Аутентификация, авторизация, смена пароля.',
         },
-        # db_tag_metadata,
+        db_tag_metadata,
         user_tag_metadata,
         system_tag_metadata,
         company_tag_metadata,
@@ -74,20 +73,20 @@ def init_app(dsn: str, tests: bool = False):
     async def read_root():
         return {"message": "Cargonomica API"}
 
-    # app.include_router(db_routing)
-    app.include_router(user_routing)
-    app.include_router(system_routing)
-    app.include_router(company_routing)
-    app.include_router(tariff_routing)
-    app.include_router(card_type_routing)
-    app.include_router(card_routing)
-    app.include_router(transaction_routing)
-    app.include_router(car_routing)
-    app.include_router(role_routing)
-    app.include_router(goods_routing)
-    app.include_router(azs_routing)
-    app.include_router(filter_routing)
-    app.include_router(monitoring_routing)
+    app.include_router(db_router)
+    app.include_router(user_router)
+    app.include_router(system_router)
+    app.include_router(company_router)
+    app.include_router(tariff_router)
+    app.include_router(card_type_router)
+    app.include_router(card_router)
+    app.include_router(transaction_router)
+    app.include_router(car_router)
+    app.include_router(role_router)
+    app.include_router(goods_router)
+    app.include_router(azs_router)
+    app.include_router(filter_router)
+    app.include_router(monitoring_router)
     app.include_router(
         fastapi_users.get_auth_router(auth_backend),
         prefix="/auth/jwt",

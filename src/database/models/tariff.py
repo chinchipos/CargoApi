@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import List
 
 import sqlalchemy as sa
-from sqlalchemy import Index, and_
 from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 

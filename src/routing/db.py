@@ -1,12 +1,8 @@
-"""
-from typing import Any
-
 from fastapi import APIRouter, Depends
 
 from src.depends import get_service_db
-from src.descriptions.db import db_tag_description, db_initial_sync_description, db_init_description
-from src.schemas.common import SuccessSchema
-from src.schemas.db import DBInitSchema, DBInitialSyncSchema
+from src.descriptions.db import db_tag_description
+from src.schemas.db import EntitySchema
 from src.services.db import DBService
 from src.utils.schemas import MessageSchema
 
@@ -16,7 +12,7 @@ db_tag_metadata = {
     "description": db_tag_description,
 }
 
-
+"""
 @router.post(
     path="/db/init",
     tags=["db"],
@@ -64,3 +60,19 @@ async def regular_sync(
     message = await db_service.regular_sync(data)
     return {'message': message}
 """
+
+
+@router.get(
+    path="/db/get-table-content/{orm_name}",
+    tags=["db"],
+    responses = {400: {"model": MessageSchema, "description": "Bad request"}},
+    response_model = EntitySchema,
+    summary = 'Получение всех записей таблицы',
+    description = 'Получение всех записей таблицы'
+)
+async def init(
+    orm_name: str,
+    db_service: DBService = Depends(get_service_db)
+):
+    table_content = await db_service.get_table_content(orm_name)
+    return table_content

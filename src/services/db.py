@@ -1,18 +1,7 @@
-from src.database.models.balance import BalanceOrm
-from src.auth.manager import create_user
-from src.config import SERVICE_TOKEN, BUILTIN_ADMIN_NAME, BUILTIN_ADMIN_FIRSTNAME, BUILTIN_ADMIN_LASTNAME, \
-    BUILTIN_ADMIN_EMAIL
+from typing import Dict, Any
 
-from src.database.models.base import Base
-from src.database.models.transaction import TransactionOrm
+import src.database.models as orm_models
 from src.repositories.db.db import DBRepository
-from src.schemas.db import DBInitSchema, DBInitialSyncSchema
-from src.schemas.user import UserCreateSchema
-from src.utils import enums
-from src.utils.exceptions import BadRequestException, ApiError
-from src.utils.password_policy import test_password_strength
-
-from sqlalchemy import delete as sa_delete
 
 
 class DBService:
@@ -21,6 +10,7 @@ class DBService:
         self.repository = repository
         self.logger = repository.logger
 
+    """
     @staticmethod
     def check_token(token: str) -> None:
         if token != SERVICE_TOKEN:
@@ -102,7 +92,7 @@ class DBService:
         # Создание суперадмина
         await self.create_superadmin(data.superuser_password)
 
-    async def calculate_balance(self, balance: BalanceOrm, transactions) -> None:
+    async def calculate_balance(self, balance: orm_models.BalanceOrm, transactions) -> None:
         if transactions:
             # Формируем историю баланса
             previous_transaction = transactions[0]
@@ -153,3 +143,13 @@ class DBService:
 
         except Exception:
             raise ApiError(message='Ошибка выполнения процедуры первичной синхронизации. См. лог.')
+    """
+
+    async def get_table_content(self, orm_name: str) -> Dict[str, Any]:
+        # Получаем заголовки таблицы
+        orm_class = getattr(orm_models, orm_name)
+        records = await self.repository.get_all_table_records(orm_class)
+        column_names = orm_class.__table__.columns.keys()
+        table_content = ((getattr(record, column_name) for column_name in column_names) for record in records)
+        output = {"column_names": column_names, "table_content": table_content}
+        return output

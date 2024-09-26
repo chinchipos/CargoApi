@@ -1193,7 +1193,7 @@ class GPNController(BaseRepository):
                         previous_remote_limit_sum = remote_limit["sum"]["value"]
                         previous_remote_available_sum = remote_limit["sum"]["value"] - remote_limit["sum"]["used"]
                         new_gpn_limit_sum = int(
-                            math.ceil(remote_limit["sum"]["used"])
+                            math.ceil(remote_limit["sum"]["value"])
                             + sum(limit_increase_delta_sums)
                             - sum(limit_decrease_delta_sums)
                         )
