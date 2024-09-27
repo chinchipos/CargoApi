@@ -1,5 +1,6 @@
 import math
-from datetime import datetime, UTC, timedelta
+from datetime import datetime
+from src.config import TZ
 from typing import Dict, Any, List
 
 from sqlalchemy import select as sa_select, delete as sa_delete, and_, desc
@@ -82,7 +83,7 @@ class GPNController(BaseRepository):
         # Обновляем запись в локальной БД
         await self.update_object(self.system, update_data={
             "balance": balance,
-            "balance_sync_dt": datetime.now(UTC) + timedelta(hours=3)
+            "balance_sync_dt": datetime.now(tz=TZ)
         })
 
     async def service_sync(self) -> None:
@@ -280,7 +281,7 @@ class GPNController(BaseRepository):
             )
 
         # Записываем в БД время последней успешной синхронизации
-        await self.update_object(self.system, update_data={"cards_sync_dt": datetime.now(UTC) + timedelta(hours=3)})
+        await self.update_object(self.system, update_data={"cards_sync_dt": datetime.now(tz=TZ)})
         self.logger.info('Синхронизация карт выполнена')
 
     async def sync_group_limits(self):
@@ -629,7 +630,7 @@ class GPNController(BaseRepository):
         # Записываем в БД время последней успешной синхронизации
         await self.update_object(
             self.system,
-            update_data={"transactions_sync_dt": datetime.now(UTC) + timedelta(hours=3)}
+            update_data={"transactions_sync_dt": datetime.now(tz=TZ)}
         )
 
         # Обновляем время последней транзакции для карт

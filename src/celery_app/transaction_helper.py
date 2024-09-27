@@ -1,6 +1,7 @@
 import os
 import time
-from datetime import datetime, UTC, timedelta
+from datetime import datetime
+from src.config import TZ
 from logging import Logger
 from typing import List, Dict, Any
 
@@ -177,7 +178,7 @@ class TransactionHelper(BaseRepository):
         # Получаем итоговую сумму
         total_sum = transaction_sum + discount_fee_sum
 
-        date_time_load = datetime.now(UTC) + timedelta(hours=3)
+        date_time_load = datetime.now(tz=TZ)
         transaction_data = dict(
             external_id=transaction_external_id,
             date_time=transaction_time,

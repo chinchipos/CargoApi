@@ -1,5 +1,6 @@
 import os
-from datetime import datetime, UTC, timedelta
+from datetime import datetime
+from src.config import TZ
 from typing import List, Dict, Any
 
 import numpy as np
@@ -311,7 +312,7 @@ class OpsController(BaseRepository):
         # Записываем в БД время последней успешной синхронизации
         await self.update_object(
             self.system,
-            update_data={"transactions_sync_dt": datetime.now(UTC) + timedelta(hours=3)}
+            update_data={"transactions_sync_dt": datetime.now(tz=TZ)}
         )
 
         # Обновляем время последней транзакции для карт
