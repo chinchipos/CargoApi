@@ -57,4 +57,3 @@ def sync_with_systems() -> None:
         ],
         body=after_sync.s()
     )()
-    _logger.info("Завершена синхронизация с системами")
