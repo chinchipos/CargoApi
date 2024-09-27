@@ -12,7 +12,6 @@ from src.celery_app.irrelevant_balances import IrrelevantBalances
 from src.celery_app.main import celery
 from src.config import PROD_URI
 from src.database.db import DatabaseSessionManager
-from src.utils.enums import System
 from src.utils.loggers import get_logger
 
 _logger = get_logger(name="BALANCE_TASKS", filename="celery.log")
@@ -57,16 +56,6 @@ def recalculate_transactions(from_date_time: datetime, personal_accounts: List[s
 
     systems_dict = asyncio.run(recalculate_transactions_fn(from_date_time, personal_accounts))
 
-    gpn_increase_sum_deltas = {}
-    gpn_decrease_sum_deltas = {}
-    for system_id, data in systems_dict.items():
-        if data["system_name"] != System.GPN:
-            for personal_account, delta_sum in data["irrelevant_balances"]["increasing_total_sum_deltas"].items():
-                if personal_account in gpn_increase_sum_deltas:
-                    gpn_increase_sum_deltas[personal_account].append(delta_sum)
-                else:
-                    gpn_increase_sum_deltas[personal_account] = [delta_sum]
-
     irrelevant_balances = None
     for system_id, data in systems_dict.items():
         irrelevant_balances = data["irrelevant_balances"]
@@ -74,8 +63,7 @@ def recalculate_transactions(from_date_time: datetime, personal_accounts: List[s
 
     calc_balances_chain(
         irrelevant_balances=irrelevant_balances,
-        gpn_group_limit_increase_deltas=gpn_increase_sum_deltas,
-        gpn_group_limit_decrease_deltas=gpn_decrease_sum_deltas
+        personal_accounts=personal_accounts
     )
 
 
@@ -84,12 +72,11 @@ delta_sum_float = float
 
 
 @celery.task(name="CALC_BALANCES_CHAIN")
-def calc_balances_chain(irrelevant_balances: IrrelevantBalances,
-                        gpn_group_limit_increase_deltas: Dict[personal_account_str, List[delta_sum_float]],
-                        gpn_group_limit_decrease_deltas: Dict[personal_account_str, List[delta_sum_float]]) \
+def calc_balances_chain(irrelevant_balances: IrrelevantBalances, personal_accounts: List[str] | None = None) \
         -> None:
+    _personal_accounts = personal_accounts if personal_accounts else irrelevant_balances["personal_accounts"]
     tasks = [
         calc_balances.si(irrelevant_balances),
-        gpn_update_group_limits.si(gpn_group_limit_increase_deltas, gpn_group_limit_decrease_deltas)
+        gpn_update_group_limits.si(_personal_accounts)
     ]
     chain(*tasks)()

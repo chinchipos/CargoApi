@@ -1,6 +1,6 @@
 import os
 import time
-from datetime import datetime
+from datetime import datetime, UTC, timedelta
 from logging import Logger
 from typing import List, Dict, Any
 
@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.celery_app.exceptions import CeleryError
 from src.celery_app.irrelevant_balances import IrrelevantBalances
-from src.config import TZ
 from src.database.models import CardOrm, CompanyOrm, InnerGoodsGroupOrm, AzsOrm, TariffNewOrm, CardHistoryOrm, \
     OuterGoodsOrm
 from src.repositories.azs import AzsRepository
@@ -178,10 +177,11 @@ class TransactionHelper(BaseRepository):
         # Получаем итоговую сумму
         total_sum = transaction_sum + discount_fee_sum
 
+        date_time_load = datetime.now(UTC) + timedelta(hours=3)
         transaction_data = dict(
             external_id=transaction_external_id,
             date_time=transaction_time,
-            date_time_load=datetime.now(tz=TZ),
+            date_time_load=date_time_load,
             transaction_type=transaction_type,
             system_id=system_id,
             card_id=card.id,
@@ -199,16 +199,11 @@ class TransactionHelper(BaseRepository):
             comments=comments,
         )
 
-        # Вычисляем дельту изменения суммы баланса - понадобится позже для правильного
-        # выставления лимита на группу карт
-        if company.personal_account in irrelevant_balances.increasing_total_sum_deltas:
-            irrelevant_balances.increasing_total_sum_deltas[company.personal_account].append(
-                transaction_data["total_sum"]
-            )
-            irrelevant_balances.increasing_discount_fee_sum_deltas[company.personal_account].append(discount_fee_sum)
-        else:
-            irrelevant_balances.increasing_total_sum_deltas[company.personal_account] = [transaction_data["total_sum"]]
-            irrelevant_balances.increasing_discount_fee_sum_deltas[company.personal_account] = [discount_fee_sum]
+        irrelevant_balances.add_balance_irrelevancy_date_time(
+            balance_id=balance.id,
+            irrelevancy_date_time=date_time_load
+        )
+        irrelevant_balances.add_personal_account(company.personal_account)
 
         # Это нужно, чтобы в БД у транзакций отличалось время и можно было корректно выбрать транзакцию,
         # которая предшествовала измененной

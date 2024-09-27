@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, UTC, timedelta
 from typing import List, Dict, Any
 
 import numpy as np
@@ -12,7 +12,6 @@ from src.celery_app.exceptions import CeleryError
 from src.celery_app.irrelevant_balances import IrrelevantBalances
 from src.celery_app.ops.api import OpsApi
 from src.celery_app.transaction_helper import TransactionHelper
-from src.config import TZ
 from src.database.models import CardOrm, CardSystemOrm, AzsOrm, TerminalOrm, OuterGoodsOrm, TransactionOrm, \
     TariffNewOrm, RegionOrm, AzsOwnerOrm
 from src.database.models.card import BlockingCardReason
@@ -292,31 +291,6 @@ class OpsController(BaseRepository):
                 # Транзакция присутствует локально, но в системе поставщика её нет.
                 # Помечаем на удаление локальную транзакцию.
                 to_delete_local.append(local_transaction)
-                # if local_transaction.balance_id:
-                self._irrelevant_balances.add(
-                    balance_id=str(local_transaction.balance_id),
-                    irrelevancy_date_time=local_transaction.date_time_load
-                )
-
-                # Вычисляем дельту изменения суммы баланса - понадобится позже для правильного
-                # выставления лимита на группу карт
-                personal_account = local_transaction.balance.company.personal_account
-                discount_fee_sum = local_transaction.discount_sum if local_transaction.discount_sum else \
-                    local_transaction.fee_sum
-                if personal_account in self._irrelevant_balances.decreasing_total_sum_deltas:
-                    self._irrelevant_balances.decreasing_total_sum_deltas[personal_account].append(
-                        local_transaction.total_sum
-                    )
-                    self._irrelevant_balances.decreasing_discount_fee_sum_deltas[personal_account].append(
-                        discount_fee_sum
-                    )
-                else:
-                    self._irrelevant_balances.decreasing_total_sum_deltas[personal_account] = [
-                        local_transaction.total_sum
-                    ]
-                    self._irrelevant_balances.decreasing_discount_fee_sum_deltas[personal_account] = [
-                        discount_fee_sum
-                    ]
 
         # Удаляем помеченные транзакции из БД
         # self.logger.info(f'Удалить транзакции ОПС из локальной БД: {len(to_delete_local)} шт')
@@ -335,7 +309,10 @@ class OpsController(BaseRepository):
             await self.process_new_remote_transactions(remote_transactions)
 
         # Записываем в БД время последней успешной синхронизации
-        await self.update_object(self.system, update_data={"transactions_sync_dt": datetime.now(tz=TZ)})
+        await self.update_object(
+            self.system,
+            update_data={"transactions_sync_dt": datetime.now(UTC) + timedelta(hours=3)}
+        )
 
         # Обновляем время последней транзакции для карт
         await transaction_repository.renew_cards_date_last_use()
@@ -351,18 +328,13 @@ class OpsController(BaseRepository):
         # Подготавливаем список транзакций для сохранения в БД
         transactions_to_save = []
         for remote_transaction in remote_transactions:
-            transaction_data = await self.process_new_remote_transaction(
-                remote_transaction=remote_transaction
-            )
+            transaction_data = await self.process_new_remote_transaction(remote_transaction=remote_transaction)
             if transaction_data:
                 transactions_to_save.append(transaction_data)
-                self._irrelevant_balances.add(
-                    balance_id=str(transaction_data['balance_id']),
-                    irrelevancy_date_time=transaction_data['date_time_load']
-                )
 
         # Сохраняем транзакции в БД
-        await self.bulk_insert_or_update(TransactionOrm, transactions_to_save)
+        if transactions_to_save:
+            await self.bulk_insert_or_update(TransactionOrm, transactions_to_save)
 
     async def process_new_remote_transaction(self, remote_transaction: Dict[str, Any]) \
             -> Dict[str, Any] | None:
@@ -399,81 +371,13 @@ class OpsController(BaseRepository):
             'costVGItems': None
         }
         """
-        """
-        purchase = True if remote_transaction['transactionType'] == 0 else False
-        comments = ''
 
-        # Получаем карту
-        card = self.helper.get_local_card(remote_transaction["cardNumber"], self._local_cards)
-
-        # Получаем баланс
-        company = await self.helper.get_card_company(card=card)
-        balance = company.overbought_balance()
-        """
         # Получаем продукт
         outer_goods = await self.get_outer_goods(goods_external_id=remote_transaction["goodsID"])
 
         # Получаем АЗС
         azs = await self.get_azs(terminal_external_id=remote_transaction["terminalID"])
 
-        """
-        # Получаем тариф
-        tariff = await self.helper.get_company_tariff_on_transaction_time(
-            company=company,
-            transaction_time=remote_transaction["transactionDateTime"],
-            inner_group=outer_goods.outer_group.inner_group if outer_goods.outer_group else None,
-            azs=azs,
-            system_id=self.system.id
-        )
-        if not tariff:
-            self.logger.error(f"Не удалось определить тариф для транзакции {remote_transaction}")
-
-        # Сумма транзакции
-        transaction_type = TransactionType.PURCHASE if purchase else TransactionType.REFUND
-        transaction_sum = -abs(remote_transaction["amountWithoutDiscountRounded"]) if purchase \
-            else abs(remote_transaction["amountWithoutDiscountRounded"])
-
-        # Сумма скидки/наценки
-        discount_fee_percent = tariff.discount_fee / 100 if tariff else 0
-        discount_fee_sum = transaction_sum * discount_fee_percent
-
-        # Получаем итоговую сумму
-        total_sum = transaction_sum + discount_fee_sum
-        
-        transaction_data = dict(
-            external_id=str(remote_transaction["transactionID"]),
-            date_time=remote_transaction["transactionDateTime"],
-            date_time_load=datetime.now(tz=TZ),
-            transaction_type=transaction_type,
-            system_id=self.system.id,
-            card_id=card.id,
-            balance_id=balance.id,
-            azs_code=azs.external_id,
-            outer_goods_id=outer_goods.id if outer_goods else None,
-            fuel_volume=-remote_transaction["quantity"],
-            price=remote_transaction["priceWithoutDiscount"],
-            transaction_sum=transaction_sum,
-            tariff_new_id=tariff.id if tariff else None,
-            discount_sum=discount_fee_sum if discount_fee_percent < 0 else 0,
-            fee_sum=discount_fee_sum if discount_fee_percent > 0 else 0,
-            total_sum=total_sum,
-            company_balance_after=0,
-            comments=comments,
-        )
-
-        # Вычисляем дельту изменения суммы баланса - понадобится позже для правильного
-        # выставления лимита на группу карт
-        if company.personal_account in self._irrelevant_balances.total_sum_deltas:
-            self._irrelevant_balances.total_sum_deltas[company.personal_account] += transaction_data["total_sum"]
-            self._irrelevant_balances.discount_fee_sum_deltas[company.personal_account] += discount_fee_sum
-        else:
-            self._irrelevant_balances.total_sum_deltas[company.personal_account] = transaction_data["total_sum"]
-            self._irrelevant_balances.discount_fee_sum_deltas[company.personal_account] = discount_fee_sum
-
-        # Это нужно, чтобы в БД у транзакций отличалось время и можно было корректно выбрать транзакцию,
-        # которая предшествовала измененной
-        time.sleep(0.001)
-        """
         transaction_data = await self.helper.process_new_remote_transaction(
             card_number=remote_transaction["cardNumber"],
             outer_goods=outer_goods,

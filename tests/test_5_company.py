@@ -34,7 +34,7 @@ class TestSystem:
                 {
                     "name": names[i],
                     "date_add": date.today(),
-                    "tariff_id": tariffs[i].id,
+                    "tariff_id": "tariffs[i].id",
                     "personal_account": ('000000' + str(random.randint(1, 9999999)))[-7:],
                     "inn": inns[i],
                     "balance": balances[i],

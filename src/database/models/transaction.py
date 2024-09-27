@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import List
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import ENUM

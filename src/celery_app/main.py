@@ -62,7 +62,6 @@ celery.autodiscover_tasks(
         "src.celery_app.khnp",
         "src.celery_app.gpn",
         "src.celery_app.ops",
-        "src.celery_app.limits",
         "src.celery_app.test",
     ]
 )

@@ -15,7 +15,7 @@ from src.repositories.user import UserRepository
 from src.schemas.company import CompanyEditSchema, CompanyReadSchema, CompanyReadMinimumSchema, \
     CompanyBalanceEditSchema, CompanyCreateSchema
 from src.utils import enums
-from src.utils.common import make_personal_account, calc_available_balance
+from src.utils.common import make_personal_account
 from src.utils.enums import TransactionType
 from src.utils.exceptions import BadRequestException, ForbiddenException
 
@@ -91,14 +91,6 @@ class CompanyService:
         if not company:
             raise BadRequestException('Запись не найдена')
 
-        # Вычисляем доступный баланс до применения изменений
-        available_balance_before = calc_available_balance(
-            current_balance=company.overbought_balance().balance,
-            min_balance=company.min_balance,
-            overdraft_on=company.overdraft_on,
-            overdraft_sum=company.overdraft_sum
-        )
-
         # Обновляем данные, сохраняем в БД
         update_data = company_edit_schema.model_dump(exclude_unset=True)
         if not update_data:
@@ -108,24 +100,7 @@ class CompanyService:
 
         company = await self.repository.get_company(company_id)
 
-        # Вычисляем доступный баланс после применения изменений
-        available_balance_after = calc_available_balance(
-            current_balance=company.overbought_balance().balance,
-            min_balance=company.min_balance,
-            overdraft_on=company.overdraft_on,
-            overdraft_sum=company.overdraft_sum
-        )
-
-        # Если доступный баланс изменился, то обновляем лимит в системе ГПН.
-        # Проверка на предмет наличия карт этой системы будет выполнена на следующем этапе.
-        # order = GroupLimitOrder(
-        #     personal_account=company.personal_account,
-        #     delta_sum=available_balance_after - available_balance_before
-        # )
-        limit_delta_sum = available_balance_after - available_balance_before
-        gpn_update_group_limits.delay(
-            gpn_group_limit_increase_deltas={company.personal_account: [limit_delta_sum]}
-        )
+        gpn_update_group_limits.delay(personal_accounts=[company.personal_account])
 
         return company
 
@@ -212,16 +187,7 @@ class CompanyService:
         )
 
         # Обновляем лимит в системе ГПН.
-        # Проверка на предмет наличия карт этой системы будет выполнена на следующем этапе.
-        limit_delta_sum = edit_balance_schema.delta_sum if transaction_type == TransactionType.REFILL \
-            else -edit_balance_schema.delta_sum
-        # order = GroupLimitOrder(
-        #     personal_account=company.personal_account,
-        #     delta_sum=delta_sum
-        # )
-        gpn_update_group_limits.delay(
-            gpn_group_limit_increase_deltas={company.personal_account: [limit_delta_sum]}
-        )
+        gpn_update_group_limits.delay(personal_accounts=[company.personal_account])
 
     async def get_notifications(self) -> List[NotificationMailingOrm]:
         mailings = await self.repository.get_notification_mailings(self.repository.user.company_id)
