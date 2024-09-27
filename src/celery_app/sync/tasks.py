@@ -48,6 +48,7 @@ def after_sync(irrelevant_balances_list: List[IrrelevantBalances]):
 
 @celery.task(name="SYNC_WITH_SYSTEMS")
 def sync_with_systems() -> None:
+    _logger.info("Начинаю синхронизацию с системами")
     chord(
         header=[
             # khnp_sync.si(),
@@ -56,3 +57,4 @@ def sync_with_systems() -> None:
         ],
         body=after_sync.s()
     )()
+    _logger.info("Завершена синхронизация с системами")
