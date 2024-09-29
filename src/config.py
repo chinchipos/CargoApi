@@ -81,7 +81,6 @@ MAIL_PORT = int(os.environ.get("MAIL_PORT"))
 MAIL_USER = os.environ.get("MAIL_USER")
 MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD")
 MAIL_FROM = os.environ.get("MAIL_FROM")
-OVERDRAFTS_MAIL_TO = json.loads(os.environ.get('OVERDRAFTS_MAIL_TO'))
 OVERDRAFTS_MAIL_TO_DEV = json.loads(os.environ.get('OVERDRAFTS_MAIL_TO_DEV'))
 OVERDRAFTS_MAIL_TO_PROD = json.loads(os.environ.get('OVERDRAFTS_MAIL_TO_PROD'))
 
