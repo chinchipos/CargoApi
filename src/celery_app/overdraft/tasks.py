@@ -65,7 +65,7 @@ def overdrafts_report() -> str:
 @shared_task(name="SET_CARD_STATES")
 def set_card_states(result):
     grouped_tasks = group(
-        khnp_set_card_states.s(result),
+        # khnp_set_card_states.s(result),
         gpn_set_card_states.s(result)
     )
     return grouped_tasks()
