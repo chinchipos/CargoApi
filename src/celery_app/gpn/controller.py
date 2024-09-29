@@ -923,10 +923,6 @@ class GPNController(BaseRepository):
             # Обновляем или создаем лимиты на остальные категории
             for card_limit_category in company_card_limit_categories:
                 if card_limit_category != GoodsCategory.FUEL:
-                    print('IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII')
-                    print(card_limit_category)
-                    print(card_limit_category != GoodsCategory.FUEL)
-                    print(GpnGoodsCategory.get_equal_by_local(card_limit_category))
                     self._set_group_limit(
                         limit_id=remote_group_limit["id"] if remote_group_limit else None,
                         company_name=company.name,
