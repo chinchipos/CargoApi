@@ -93,13 +93,13 @@ class NNKMigration(BaseRepository):
         await self._set_system_ids()
 
     async def import_tariffs(self, tariffs: list[Dict[str, Any]]) -> None:
-        dataset = [
-            dict(
-                master_db_id=tariff['id'],
-                name=tariff['title'],
-                fee_percent=tariff['service_online'] if tariff['title'] != 'РН-ННК1.5' else 1.5,
-            ) for tariff in tariffs
-        ]
+        # dataset = [
+        #     dict(
+        #         master_db_id=tariff['id'],
+        #         name=tariff['title'],
+        #         fee_percent=tariff['service_online'] if tariff['title'] != 'РН-ННК1.5' else 1.5,
+        #     ) for tariff in tariffs
+        # ]
         # await self.bulk_insert_or_update(TariffOrm, dataset, 'name')
         await self._set_tariff_ids()
 

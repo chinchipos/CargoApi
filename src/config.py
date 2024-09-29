@@ -1,4 +1,5 @@
 import json
+from enum import Enum
 
 from dotenv import load_dotenv
 import os
@@ -8,16 +9,31 @@ from pathlib import Path
 load_dotenv()
 
 
+class Mode(Enum):
+    DEVELOPING = 'DEVELOPING'
+    CICD = 'CI/CD'
+    PRODUCTION = 'PRODUCTION'
+
+
 # -----------------------------------------------------------
 # Общие параметры
 # -----------------------------------------------------------
-PRODUCTION = True if os.environ.get('PRODUCTION').lower() == 'true' else False
+_mode = os.environ.get('MODE').upper()
+if _mode == Mode.DEVELOPING.value:
+    MODE = Mode.DEVELOPING
+elif _mode == Mode.CICD.value:
+    MODE = Mode.CICD
+elif _mode == Mode.PRODUCTION.value:
+    MODE = Mode.PRODUCTION
+else:
+    MODE = Mode.CICD
+
 JWT_SECRET = os.environ.get('JWT_SECRET')
 SERVICE_TOKEN = os.environ.get('SERVICE_TOKEN')
 SQLALCHEMY_ECHO = False
 ROOT_DIR = Path(__file__).parent.parent
 LOG_DIR = os.path.join(ROOT_DIR, "log")
-TZ = timezone(offset=timedelta(hours=3), name='МСК')
+TZ = timezone(offset=timedelta(hours=0), name='МСК')
 
 # -----------------------------------------------------------
 # Параметры подключения к REDIS
@@ -66,6 +82,8 @@ MAIL_USER = os.environ.get("MAIL_USER")
 MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD")
 MAIL_FROM = os.environ.get("MAIL_FROM")
 OVERDRAFTS_MAIL_TO = json.loads(os.environ.get('OVERDRAFTS_MAIL_TO'))
+OVERDRAFTS_MAIL_TO_DEV = json.loads(os.environ.get('OVERDRAFTS_MAIL_TO_DEV'))
+OVERDRAFTS_MAIL_TO_PROD = json.loads(os.environ.get('OVERDRAFTS_MAIL_TO_PROD'))
 
 
 # -----------------------------------------------------------

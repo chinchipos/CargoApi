@@ -48,7 +48,7 @@ class SberConnector(BaseRepository):
 
         # В объекте statement сейчас остались только транзакции, которых нет в БД.
         # Записываем их в БД.
-        temp = await self._save_transactions(statement=statement)
+        await self._save_transactions(statement=statement)
 
         # Пересчитываем балансы
         # calc_balances
@@ -91,7 +91,7 @@ class SberConnector(BaseRepository):
                 .load_only(MoneyReceiptOrm.id)
             )
             .where(TransactionOrm.date_time >= from_date)
-            .where(TransactionOrm.is_debit.is_(False))
+            # .where(TransactionOrm.is_debit.is_(False))
             .where(TransactionOrm.balance_id.in_(balance_ids))
         )
         print('-----------------------------------------')

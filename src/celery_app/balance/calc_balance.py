@@ -151,17 +151,11 @@ class CalcBalances(BaseRepository):
         for system in systems:
             irrelevant_balances = IrrelevantBalances(system_id=system.id)
             for balance_id in balance_ids:
-                irrelevant_balances.add(balance_id, from_date_time)
+                irrelevant_balances.add_balance_irrelevancy_date_time(balance_id, from_date_time)
             systems_dict[system.id] = {
                 "system_name": system.short_name,
                 "irrelevant_balances": irrelevant_balances
             }
-
-        def process_delta_sum(personal_account_: str, delta_sum_: float, system_id_: str):
-            if personal_account_ in systems_dict[system_id_]["irrelevant_balances"].total_sum_deltas:
-                systems_dict[system_id_]["irrelevant_balances"].total_sum_deltas[personal_account_] += delta_sum_
-            else:
-                systems_dict[system_id_]["irrelevant_balances"].total_sum_deltas[personal_account_] = delta_sum_
 
         transaction_dataset = []
         for transaction in transactions:
@@ -208,15 +202,6 @@ class CalcBalances(BaseRepository):
                     }
                 )
 
-                # Вычисляем дельту изменения суммы баланса - понадобится позже для правильного
-                # выставления лимита на группу карт
-                delta_sum = total_sum - transaction.total_sum
-                process_delta_sum(
-                    personal_account_=company.personal_account,
-                    delta_sum_=delta_sum,
-                    system_id_=str(transaction.system_id)
-                )
-                # if systems_dict[transaction.system_id]['system_name'] != System.OPS.value:
                 self.logger.info(
                     f"{os.linesep}--------------"
                     f"{os.linesep}Пересчитана транзакция {company.name} от {transaction.date_time} "

@@ -1,5 +1,4 @@
 import uuid
-from typing import List
 
 from fastapi import APIRouter, Depends
 
@@ -7,7 +6,7 @@ from src.depends import get_service_tariff
 from src.descriptions.tariff import delete_tariff_description, get_tariffs_description, create_tariff_description, \
     tariff_tag_description
 from src.schemas.common import SuccessSchema
-from src.schemas.tariff import TariffNewReadSchema, TariffPoliciesReadSchema, \
+from src.schemas.tariff import TariffPoliciesReadSchema, \
     TariffNewCreateSchema
 from src.services.tariff import TariffService
 from src.utils import enums

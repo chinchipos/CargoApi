@@ -2,11 +2,9 @@ from typing import List
 
 from fastapi import APIRouter, Depends
 
-from src.depends import get_service_tariff, get_service_filter
+from src.depends import get_service_filter
 from src.schemas.company import CompanyReadMinimumSchema
 from src.services.filter import FilterService
-from src.utils import enums
-from src.utils.exceptions import ForbiddenException
 from src.utils.schemas import MessageSchema
 
 router = APIRouter()

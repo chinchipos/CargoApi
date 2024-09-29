@@ -13,7 +13,8 @@ from sqlalchemy import select as sa_select, null
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, aliased
 
-from src.config import TZ, MAIL_SERVER, MAIL_PORT, MAIL_USER, MAIL_PASSWORD, OVERDRAFTS_MAIL_TO, MAIL_FROM, PRODUCTION
+from src.config import (TZ, MAIL_SERVER, MAIL_PORT, MAIL_USER, MAIL_PASSWORD, OVERDRAFTS_MAIL_TO_DEV,
+                        OVERDRAFTS_MAIL_TO_PROD, MAIL_FROM, MODE, Mode)
 from src.celery_app.irrelevant_balances import IrrelevantBalances
 from src.database.models.transaction import TransactionOrm
 from src.database.models.user import UserOrm
@@ -118,7 +119,7 @@ class Overdraft(BaseRepository):
             trigger = True if last_transaction.company_balance < overdraft.balance.company.min_balance else False
             if trigger:
                 fee_sum = self.calc_fee_sum(
-                    fee_base = last_transaction.company_balance - overdraft.balance.company.min_balance,
+                    fee_base=last_transaction.company_balance - overdraft.balance.company.min_balance,
                     fee_percent=overdraft.balance.company.overdraft_fee_percent
                 )
 
@@ -227,7 +228,7 @@ class Overdraft(BaseRepository):
             "balance_id": balance_id,
             "transaction_sum": fee_sum,
             "total_sum": fee_sum,
-            "company_balance": 0,   # баланс посчитает следующая по цепочке задача Celery
+            "company_balance": 0,  # баланс посчитает следующая по цепочке задача Celery
         }
         sleep(0.001)
         self.fee_transactions.append(fee_transaction)
@@ -252,8 +253,8 @@ class Overdraft(BaseRepository):
 
         irrelevant_balances = IrrelevantBalances()
         for transaction in fee_transactions_to_save:
-            irrelevant_balances.add(
-                balance_id=str(transaction['balance_id']),
+            irrelevant_balances.add_balance_irrelevancy_date_time(
+                balance_id=transaction['balance_id'],
                 irrelevancy_date_time=transaction['date_time_load']
             )
 
@@ -313,15 +314,17 @@ class Overdraft(BaseRepository):
             files = {file_name: file_for_security_dptmt}
         subject = "ННК отчет: овердрафты" if overdrafts else "ННК отчет: нет открытых овердрафтов"
         text = "ННК отчет: файл во вложении." if overdrafts else "Нет открытых овердрафтов. Задолженности погашены."
+
+        # Отправляем отчет струдникам ПроАВТО
         self.send_mail(
-            recipients=OVERDRAFTS_MAIL_TO,
+            recipients=OVERDRAFTS_MAIL_TO_PROD if MODE == Mode.PRODUCTION else OVERDRAFTS_MAIL_TO_DEV,
             subject=subject,
             text=text,
             files=files
         )
 
         # Отправляем отчет клиентам
-        if PRODUCTION:
+        if MODE == Mode.PRODUCTION:
             for overdraft in overdrafts:
                 balance = overdraft[0].balance
                 time.sleep(1)

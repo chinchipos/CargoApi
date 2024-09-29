@@ -1,8 +1,6 @@
 import pytest
 from httpx import AsyncClient
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from src.database.db import sessionmanager
 from tests.conftest import headers
 
 
@@ -29,16 +27,16 @@ class TestSystem:
 
     # Создаем еще пару тарифов
     async def test_create_more_tariffs(self):
-        dataset = [
-            {
-                "name": "Полтора процента",
-                "fee_percent": 1.5
-            },
-            {
-                "name": "Два процента",
-                "fee_percent": 2
-            },
-        ]
+        # dataset = [
+        #     {
+        #         "name": "Полтора процента",
+        #         "fee_percent": 1.5
+        #     },
+        #     {
+        #         "name": "Два процента",
+        #         "fee_percent": 2
+        #     },
+        # ]
         """
         async with sessionmanager.session() as session:
             stmt = pg_insert(TariffOrm)

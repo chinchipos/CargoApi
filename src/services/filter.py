@@ -1,9 +1,7 @@
 from typing import List
 
-from src.database.models import CompanyOrm
 from src.repositories.filter import FilterRepository
-from src.schemas.company import CompanyReadSchema, CompanyReadMinimumSchema
-from src.utils.enums import Role
+from src.schemas.company import CompanyReadMinimumSchema
 
 
 class FilterService:

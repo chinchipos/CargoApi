@@ -4,10 +4,10 @@ from typing import List
 import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.database.models.base import Base
 from src.database.models.balance import BalanceOrm
+from src.database.models.base import Base
 from src.database.models.goods_category import GoodsCategory
-from src.utils.enums import ContractScheme, System
+from src.utils.enums import ContractScheme
 
 
 class CompanyOrm(Base):

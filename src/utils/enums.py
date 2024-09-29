@@ -1,5 +1,5 @@
 from enum import Enum, StrEnum
-from typing import Any, Type
+from typing import Any
 
 
 class Role(Enum):

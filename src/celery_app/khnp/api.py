@@ -17,8 +17,8 @@ from selenium.webdriver.support.wait import WebDriverWait
 from xls2xlsx import XLS2XLSX
 
 from src.celery_app.exceptions import CeleryError
-from src.config import KHNP_URL, KHNP_USERNAME, KHNP_PASSWORD
-from src.config import ROOT_DIR, PRODUCTION
+from src.config import KHNP_URL, KHNP_USERNAME, KHNP_PASSWORD, MODE, Mode
+from src.config import ROOT_DIR
 from src.utils.loggers import get_logger
 
 from fake_useragent import UserAgent
@@ -507,7 +507,7 @@ class KHNPParser:
         for card_num in card_numbers:
             card_status = self.get_card_state(card_num)
             if card_status != CardStatus.UNKNOWN:
-                if PRODUCTION:
+                if MODE == Mode.PRODUCTION:
                     # С продуктового сервера блокируем карты, с разработческого - нет
                     card_lock_element = card_lock_elements[card_num[-6:]]
                     card_lock_element.click()
@@ -538,7 +538,7 @@ class KHNPParser:
                 # Получаем "замок" карты
                 card_lock_elements = self._get_card_lock_elements([card_num])
 
-                if PRODUCTION:
+                if MODE == Mode.PRODUCTION:
                     # С продуктового сервера блокируем карты, с разработческого - нет
                     card_lock_element = card_lock_elements[card_num[-6:]]
                     card_lock_element.click()
