@@ -886,7 +886,7 @@ class GPNController(BaseRepository):
                 .where(CompanyOrm.personal_account == company.personal_account)
                 .distinct()
             )
-            company_card_limit_categories = await self.select_all(stmt, scalars=False)
+            company_card_limit_categories = [data[0] for data in await self.select_all(stmt, scalars=False)]
 
             group_external_id = await self._get_company_card_group_id(company)
 
