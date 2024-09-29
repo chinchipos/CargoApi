@@ -40,10 +40,10 @@ class GpnGoodsCategory(Enum):
     def get_equal_by_local(local_category: GoodsCategory):
         for gpn_category in GpnGoodsCategory:
             print('PPPPPPPPPPPPPPPPPPPPPP')
-            print(gpn_category.value["local_category"])
-            print(local_category)
-            print(gpn_category.value["local_category"] == local_category)
-            if gpn_category.value["local_category"] == local_category:
+            print(gpn_category.value["local_category"].name)
+            print(local_category.name)
+            print(gpn_category.value["local_category"].name == local_category.name)
+            if gpn_category.value["local_category"].name == local_category.name:
                 return gpn_category
 
 
